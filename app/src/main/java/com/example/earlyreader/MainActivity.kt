@@ -18,10 +18,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.earlyreader.model.WordData
@@ -44,13 +48,13 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun WordScreen(word: WordData) {
-    var showReward by remember { mutableStateOf(false) }
+    var showReward by rememberSaveable { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -66,7 +70,14 @@ fun WordScreen(word: WordData) {
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp),
         ) {
-            Text(text = "⭐", fontSize = 64.sp)
+            Text(
+                text = "⭐",
+                fontSize = 64.sp,
+                modifier = Modifier.semantics {
+                    contentDescription = "Great job!"
+                    liveRegion = LiveRegionMode.Polite
+                },
+            )
         }
 
         LaunchedEffect(showReward) {

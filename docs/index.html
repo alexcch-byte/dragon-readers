@@ -9,10 +9,10 @@
   :root {
     --violet: #5031F5;
     --bg: #FAF7F2;
-    --accent: #FF8A3D;
+    --accent: #C2410C;   /* darkened for contrast: ~4.8:1 on --bg, ~5:1 on white */
     --segment-empty: #E3DEF7;
     --text-dark: #2B2640;
-    --dim: #B9B2CF;
+    --dim: #6F6892;      /* >= 4.5:1 on --bg and on white */
   }
   * { box-sizing: border-box; }
   body {
@@ -47,7 +47,7 @@
 
   .story-header { width: 100%; display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
   .story-title { font-weight: 700; color: var(--violet); }
-  .page-indicator { font-size: 0.85rem; opacity: 0.6; }
+  .page-indicator { font-size: 0.85rem; color: var(--dim); }
 
   .demo-card {
     width: 100%; background: white; border-radius: 28px;
@@ -73,33 +73,44 @@
 
   .active-area { display: flex; flex-direction: column; align-items: center; margin-top: 54px; }
 
-  .picture { font-size: 3rem; margin-bottom: 8px; cursor: pointer; opacity: 0; transition: opacity 0.2s; height: 3.2rem; }
+  .picture {
+    font-size: 3rem; margin-bottom: 8px; cursor: pointer; opacity: 0; transition: opacity 0.2s; height: 3.2rem;
+    background: none; border: none; padding: 0; line-height: 1; font-family: inherit;
+  }
   .picture.show { opacity: 1; }
+  .picture:disabled { cursor: default; }
 
-  .letters { display: flex; gap: 8px; margin-bottom: 20px; user-select: none; }
-  .letter { font-size: 3.6rem; font-weight: 700; color: var(--text-dark); transition: color 0.15s ease; }
+  /* Same width as .bar, so each letter (flex weight = letter count) sits centred above its own segment. */
+  .letters { display: flex; width: 260px; margin-bottom: 20px; user-select: none; }
+  .letter { flex: 1 1 0; min-width: 0; text-align: center; font-size: 3.6rem; font-weight: 700; color: var(--text-dark); transition: color 0.15s ease; }
   .letter.filled { color: var(--accent); }
-  .letter.hinting { color: var(--violet); transform: scale(1.15); display: inline-block; transition: transform 0.15s; }
+  .letter.hinting { color: var(--violet); transform: scale(1.15); transition: transform 0.15s; }
 
   .bar {
     width: 260px; height: 72px; border-radius: 36px; background: var(--segment-empty);
-    position: relative; overflow: hidden; touch-action: none; cursor: pointer;
+    position: relative; overflow: hidden; touch-action: none; cursor: pointer; user-select: none;
   }
+  .bar:focus-visible { outline: 3px solid var(--text-dark); outline-offset: 3px; }
   .bar-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0%; background: var(--violet); border-radius: 36px; transition: width 0.08s linear; }
   .bar-dividers { position: absolute; inset: 0; display: flex; }
-  .bar-dividers .seg { flex: 1; border-right: 2px solid rgba(255,255,255,0.5); }
+  .bar-dividers .seg { flex: 1 1 0; border-right: 2px solid rgba(255,255,255,0.5); }
   .bar-dividers .seg:last-child { border-right: none; }
+  .thumb {
+    position: absolute; top: 50%; width: 44px; height: 44px; margin-top: -22px; left: 0;
+    border-radius: 50%; background: white; border: 4px solid var(--text-dark);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25); pointer-events: none; transition: left 0.08s linear;
+  }
 
   .tricky-btn {
     width: 260px; height: 72px; border-radius: 36px; background: var(--segment-empty);
     border: none; font-size: 2rem; font-weight: 700; color: var(--text-dark);
     cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
-  .tricky-label { margin-top: 10px; font-size: 0.8rem; opacity: 0.6; letter-spacing: 0.04em; text-transform: uppercase; }
+  .tricky-label { margin-top: 10px; font-size: 0.8rem; color: var(--dim); letter-spacing: 0.04em; text-transform: uppercase; }
 
   .help-btn {
-    margin-top: 20px; width: 56px; height: 56px; border-radius: 50%;
-    background: var(--violet); color: white; border: none; font-size: 1.6rem;
+    margin-top: 20px; width: 72px; height: 72px; border-radius: 50%;
+    background: var(--violet); color: white; border: none; font-size: 2rem;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
 
@@ -108,10 +119,12 @@
   .end-screen { text-align: center; }
   .end-screen .big-star { font-size: 4rem; }
 
-  .hint { margin-top: 18px; font-size: 0.9rem; opacity: 0.6; text-align: center; }
+  .hint { margin-top: 18px; font-size: 0.9rem; color: var(--dim); text-align: center; }
 
-  footer { margin: 32px 0 24px; font-size: 0.85rem; opacity: 0.6; text-align: center; padding: 0 24px; max-width: 520px; }
+  footer { margin: 32px 0 24px; font-size: 0.85rem; color: var(--dim); text-align: center; padding: 0 24px; max-width: 520px; }
   footer a { color: var(--violet); }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 </style>
 </head>
 <body>
@@ -132,15 +145,18 @@
   </div>
 
   <div class="demo-card" id="demo-card">
-    <div class="reward" id="reward">⭐</div>
+    <div class="reward" id="reward" aria-hidden="true">⭐</div>
+    <div class="sr-only" id="live" role="status" aria-live="polite"></div>
     <div class="sentence" id="sentence"></div>
 
     <div class="active-area" id="active-area">
-      <div class="picture" id="picture">🐔</div>
+      <button type="button" class="picture" id="picture" disabled aria-hidden="true">🐔</button>
       <div class="letters" id="letters"></div>
-      <div class="bar" id="bar" style="display:none">
+      <div class="bar" id="bar" style="display:none" role="slider" tabindex="0"
+           aria-label="Sound out the word" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div class="bar-fill" id="bar-fill"></div>
         <div class="bar-dividers" id="bar-dividers"></div>
+        <div class="thumb" id="thumb" aria-hidden="true"></div>
       </div>
       <button class="tricky-btn" id="tricky-btn" style="display:none"></button>
       <div class="tricky-label" id="tricky-label" style="display:none">tricky word</div>
@@ -159,18 +175,28 @@
 </footer>
 
 <script>
+  // Optional `say` is what the voice speaks for a word on its own. A bare capital "A" is read as
+  // the letter name ("ay"), so the article is spoken as "uh".
   const STORY = {
     title: "The Red Hen",
     pages: [
-      [ {t:"A", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"sat", seg:["s","a","t"]} ],
+      [ {t:"A", sight:true, say:"uh"}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"sat", seg:["s","a","t"]} ],
       [ {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"is", sight:true}, {t:"red", seg:["r","e","d"]} ],
-      [ {t:"A", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"ran", img:"🏃", seg:["r","a","n"]} ],
+      [ {t:"A", sight:true, say:"uh"}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"ran", img:"🏃", seg:["r","a","n"]} ],
       [ {t:"The", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"is", sight:true}, {t:"big", seg:["b","i","g"]} ],
-      [ {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"got", seg:["g","o","t"]}, {t:"in", sight:true}, {t:"a", sight:true}, {t:"box", img:"📦", seg:["b","o","x"]} ],
+      [ {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"got", seg:["g","o","t"]}, {t:"in", sight:true}, {t:"a", sight:true, say:"uh"}, {t:"box", img:"📦", seg:["b","o","x"]} ],
       [ {t:"The", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"did", sight:true}, {t:"not", sight:true}, {t:"get", seg:["g","e","t"]}, {t:"the", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]} ],
-      [ {t:"Yes!", sight:true}, {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"won", seg:["w","o","n"]} ],
+      // "won" is not decodable (w-o-n does not sound out), so it is a tricky word.
+      [ {t:"Yes!", sight:true}, {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"won", sight:true} ],
     ],
   };
+
+  // Same completion threshold as the Android app (SegmentedScrubBar.kt).
+  const DONE = 0.92;
+  // A touch may only pick the bar up inside the first segment or this close (fraction of the bar) to
+  // where the last drag stopped, so a stray tap near the far end can't complete the word.
+  const RESUME_REACH = 0.15;
+  const HELP_DEBOUNCE_MS = 400;
 
   // ---- speech ----
   let voice = null;
@@ -180,22 +206,49 @@
     const enVoices = voices.filter(v => /^en/i.test(v.lang));
     voice = enVoices.find(v => FEMALE_VOICE_HINTS.test(v.name)) || enVoices[0] || voices[0] || null;
   }
-  pickVoice();
-  if ("onvoiceschanged" in speechSynthesis) speechSynthesis.onvoiceschanged = pickVoice;
+  try {
+    pickVoice();
+    if ("onvoiceschanged" in speechSynthesis) speechSynthesis.onvoiceschanged = pickVoice;
+  } catch (e) { /* speech unavailable: the flows below fall back to timers */ }
 
-  function speak(text, rate, onend) {
+  // Every utterance gets a monotonically increasing token. A cancelled utterance fires onerror
+  // ("interrupted"), not onend, in Chromium, and some engines never fire either, so `onDone` runs
+  // exactly once from whichever of onend / onerror / a length-based fallback timer happens first.
+  // Callbacks from superseded utterances are ignored unless `survive` is set; the story-flow
+  // callbacks set it, and guard themselves with the `flow` token instead, so progress never
+  // depends on one particular utterance happening to finish.
+  let speakToken = 0;
+  function speakCore(text, rate, onDone, survive) {
+    const token = ++speakToken;
+    let fired = false;
+    let timer = null;
+    const finish = () => {
+      if (fired) return;
+      fired = true;
+      clearTimeout(timer);
+      if (token !== speakToken && !survive) return;
+      if (onDone) onDone();
+    };
+    timer = setTimeout(finish, text.length * 120 + 1500);
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       if (voice) u.voice = voice;
       u.rate = rate || 0.9;
       u.pitch = 1.0;
-      if (onend) u.onend = onend;
-      else u.onend = () => {};
+      u.onend = finish;
+      u.onerror = finish;
       speechSynthesis.speak(u);
     } catch (e) {
-      if (onend) setTimeout(onend, 300); // speech API unavailable: don't block progress
+      clearTimeout(timer);
+      timer = setTimeout(finish, 300); // speech API unavailable: don't block progress
     }
+  }
+
+  // Any speech that isn't part of the help sequence also stops that sequence.
+  function speak(text, rate, onDone) {
+    cancelHelp();
+    speakCore(text, rate, onDone);
   }
 
   // Real browser/OS TTS has no way to say an isolated phoneme: a bare letter
@@ -214,10 +267,10 @@
     t: "top", v: "van", w: "web", x: "box", y: "yes", z: "zip",
     sh: "ship", ch: "chip", th: "thumb", ng: "ring",
   };
-  function speakSegment(letter) {
-    const sound = SEGMENT_SOUNDS[letter.toLowerCase()] || letter;
-    speak(sound, 0.7);
+  function segmentSound(letter) {
+    return SEGMENT_SOUNDS[letter.toLowerCase()] || letter;
   }
+  function spoken(word) { return word.say || word.t; }
 
   // ---- state ----
   let pageIndex = 0;
@@ -225,7 +278,18 @@
   let dragStartedThisWord = false;
   let wordDone = false;
   let maxSegmentPlayed = 0;
-  let dragging = false;
+  let progress = 0;          // 0..1, snapped to 1 once past DONE
+  let filledNow = 0;
+  let boundaries = [];       // cumulative end of each segment as a fraction of the bar (letter-count weighted)
+  let activePointerId = null;
+  // active -> completing (word spoken) -> [reading (page sentence)] -> ready (Next shown)
+  let phase = "active";
+  // Bumped whenever the word/page changes; story-flow callbacks from an older flow do nothing.
+  let flow = 0;
+  // Bumped by cancelHelp(); every step of the help sequence returns early if its run is stale.
+  let helpRun = 0;
+  let helpTimers = [];
+  let lastHelpAt = -Infinity;
 
   const sentenceEl = document.getElementById("sentence");
   const picEl = document.getElementById("picture");
@@ -233,11 +297,13 @@
   const barEl = document.getElementById("bar");
   const fillEl = document.getElementById("bar-fill");
   const dividersEl = document.getElementById("bar-dividers");
+  const thumbEl = document.getElementById("thumb");
   const trickyBtn = document.getElementById("tricky-btn");
   const trickyLabel = document.getElementById("tricky-label");
   const helpBtn = document.getElementById("help-btn");
   const nextBtn = document.getElementById("next-btn");
   const rewardEl = document.getElementById("reward");
+  const liveEl = document.getElementById("live");
   const hintEl = document.getElementById("hint");
   const storyTitleEl = document.getElementById("story-title");
   const pageIndicatorEl = document.getElementById("page-indicator");
@@ -245,30 +311,68 @@
 
   storyTitleEl.textContent = STORY.title;
 
+  function cancelHelp() {
+    helpRun++;
+    helpTimers.forEach(clearTimeout);
+    helpTimers = [];
+    [...lettersEl.children].forEach(el => el.classList.remove("hinting"));
+  }
+
   function currentPage() { return STORY.pages[pageIndex]; }
   function currentWord() { return currentPage()[activeWordIndex]; }
 
   function renderSentence() {
     sentenceEl.innerHTML = "";
+    const allRead = phase === "reading" || phase === "ready";
     currentPage().forEach((w, i) => {
       const span = document.createElement("span");
-      span.className = "w " + (i < activeWordIndex ? "done" : i === activeWordIndex ? "active" : "upcoming");
+      span.className = "w " + (allRead || i < activeWordIndex ? "done" : i === activeWordIndex ? "active" : "upcoming");
       span.textContent = w.t;
       sentenceEl.appendChild(span);
     });
   }
 
+  function releasePointer() {
+    if (activePointerId !== null) {
+      try { barEl.releasePointerCapture(activePointerId); } catch (e) {}
+      activePointerId = null;
+    }
+  }
+
+  function setPicture(shown) {
+    picEl.classList.toggle("show", shown);
+    picEl.disabled = !shown;
+    picEl.setAttribute("aria-hidden", shown ? "false" : "true");
+  }
+
+  function paintBar() {
+    fillEl.style.width = (progress * 100) + "%";
+    // centre the 44px thumb on the fill edge, kept fully inside the bar at both ends
+    thumbEl.style.left = "clamp(0px, calc(" + (progress * 100) + "% - 22px), calc(100% - 44px))";
+    const word = currentWord();
+    const n = word && word.seg ? word.seg.length : 0;
+    barEl.setAttribute("aria-valuenow", String(Math.round(progress * 100)));
+    barEl.setAttribute("aria-valuetext", filledNow + " of " + n + " sounds");
+    [...lettersEl.children].forEach((el, i) => el.classList.toggle("filled", i < filledNow));
+  }
+
   function renderActiveWord() {
     const word = currentWord();
+    flow++;
+    cancelHelp();
+    releasePointer(); // a drag held over from the previous word must not carry into this one
+    phase = "active";
     dragStartedThisWord = false;
     wordDone = false;
     maxSegmentPlayed = 0;
-    dragging = false; // a drag held over from the previous word must not carry into this one
+    progress = 0;
+    filledNow = 0;
     nextBtn.style.display = "none";
 
-    picEl.classList.remove("show");
+    setPicture(false);
     picEl.textContent = word.img || "";
     picEl.style.visibility = word.img ? "visible" : "hidden";
+    picEl.setAttribute("aria-label", word.img ? "Hear the word " + word.t : "");
 
     if (word.sight) {
       barEl.style.display = "none";
@@ -284,57 +388,86 @@
       trickyLabel.style.display = "none";
       hintEl.textContent = "Drag your finger (or mouse) across the bar to sound out the word.";
 
+      // Letters and bar segments share the same flex weights (letter count), so a letter
+      // always sits over its own segment and "filled" matches what the bar shows.
+      const weights = word.seg.map(s => Math.max(1, s.length));
+      const total = weights.reduce((a, b) => a + b, 0);
+      let running = 0;
+      boundaries = weights.map(w => (running += w) / total);
+
       lettersEl.innerHTML = "";
-      word.seg.forEach(letter => {
+      dividersEl.innerHTML = "";
+      word.seg.forEach((letter, i) => {
         const span = document.createElement("span");
         span.className = "letter";
         span.textContent = letter;
+        span.style.flex = weights[i] + " 1 0";
         lettersEl.appendChild(span);
-      });
-      dividersEl.innerHTML = "";
-      word.seg.forEach(() => {
         const seg = document.createElement("div");
         seg.className = "seg";
+        seg.style.flex = weights[i] + " 1 0";
         dividersEl.appendChild(seg);
       });
-      fillEl.style.width = "0%";
+      paintBar();
     }
   }
 
   function renderPage() {
     pageIndicatorEl.textContent = "Page " + (pageIndex + 1) + " of " + STORY.pages.length;
     activeWordIndex = 0;
+    phase = "active";
     renderSentence();
     renderActiveWord();
   }
 
+  // ---- word / page completion: driven by state, never by one particular utterance ending ----
   function wordCompleted() {
     if (wordDone) return;
     wordDone = true;
+    phase = "completing";
     const word = currentWord();
-    const myPage = pageIndex, myWordIndex = activeWordIndex;
-    speak(word.t, 0.9, () => {
-      // Ignore a stale callback if the page/word already moved on for any other reason.
-      if (pageIndex !== myPage || activeWordIndex !== myWordIndex) return;
+    const myFlow = flow;
+    speakCore(spoken(word), 0.9, () => {
+      if (flow !== myFlow) return; // already moved on
       if (activeWordIndex < currentPage().length - 1) {
         activeWordIndex++;
         renderSentence();
         renderActiveWord();
       } else {
-        // page finished: read the full sentence once, then show Next / Finish
-        renderSentence();
-        const fullSentence = currentPage().map(w => w.t).join(" ");
-        setTimeout(() => {
-          speak(fullSentence, 1.0, () => {
-            rewardEl.classList.add("show");
-            setTimeout(() => rewardEl.classList.remove("show"), 1400);
-            nextBtn.textContent = (pageIndex === STORY.pages.length - 1) ? "Finish story ▸" : "Next ▸";
-            nextBtn.style.display = "inline-flex";
-          });
-        }, 350);
+        finishPage(myFlow);
       }
-    });
+    }, true);
   }
+
+  function finishPage(myFlow) {
+    // read the full sentence once, then show Next / Finish
+    phase = "reading";
+    renderSentence();
+    const fullSentence = currentPage().map(w => w.t).join(" ");
+    setTimeout(() => {
+      if (flow !== myFlow) return;
+      speakCore(fullSentence, 1.0, () => {
+        if (flow !== myFlow) return;
+        showNext();
+      }, true);
+    }, 350);
+  }
+
+  function showNext() {
+    phase = "ready";
+    rewardEl.classList.add("show");
+    liveEl.textContent = "Well done! You read the page.";
+    setTimeout(() => {
+      rewardEl.classList.remove("show");
+      liveEl.textContent = "";
+    }, 1400);
+    nextBtn.textContent = (pageIndex === STORY.pages.length - 1) ? "Finish story ▸" : "Next ▸";
+    nextBtn.style.display = "inline-flex";
+  }
+
+  // While the word / sentence is being read aloud for completion, help and picture taps are ignored
+  // (it is already speaking), so they can never interrupt or stall the advance.
+  function speechLocked() { return phase === "completing" || phase === "reading"; }
 
   // ---- drag/scrub ----
   function fractionFromX(clientX) {
@@ -345,46 +478,64 @@
     const word = currentWord();
     if (!word || word.sight || wordDone) return;
     fraction = Math.max(0, Math.min(1, fraction));
-    fillEl.style.width = (fraction * 100) + "%";
+    const complete = fraction >= DONE;
+    if (complete) fraction = 1; // snap the fill to 100% once past the threshold
+
+    progress = fraction;
+    const segs = word.seg;
+    filledNow = complete ? segs.length : boundaries.filter(b => b <= fraction).length;
+    paintBar();
 
     if (fraction > 0 && !dragStartedThisWord) {
       dragStartedThisWord = true;
-      if (word.img) picEl.classList.add("show");
+      if (word.img) setPicture(true);
     }
 
-    const segs = word.seg;
-    const filledCount = fraction >= 0.999 ? segs.length : Math.min(segs.length, Math.floor(fraction * segs.length));
-    [...lettersEl.children].forEach((el, i) => el.classList.toggle("filled", i < filledCount));
-
-    if (filledCount > maxSegmentPlayed) {
-      speakSegment(segs[filledCount - 1]);
-      maxSegmentPlayed = filledCount;
+    if (filledNow > maxSegmentPlayed) {
+      speak(segmentSound(segs[filledNow - 1]), 0.7);
+      maxSegmentPlayed = filledNow;
     }
 
-    if (filledCount === segs.length && fraction >= 0.999) {
-      wordCompleted();
-    }
+    if (complete) wordCompleted();
   }
 
-  function onDown(e) {
-    dragging = true;
-    const x = e.touches ? e.touches[0].clientX : e.clientX;
-    setProgress(fractionFromX(x));
-  }
-  function onMove(e) {
-    if (!dragging) return;
-    const x = e.touches ? e.touches[0].clientX : e.clientX;
-    setProgress(fractionFromX(x));
+  barEl.addEventListener("pointerdown", e => {
+    if (activePointerId !== null) return; // only the first pointer drives the bar
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const word = currentWord();
+    if (!word || word.sight || wordDone) return;
+    const f = fractionFromX(e.clientX);
+    if (!(f <= boundaries[0] || Math.abs(f - progress) <= RESUME_REACH)) return;
+    activePointerId = e.pointerId;
+    try { barEl.setPointerCapture(e.pointerId); } catch (err) {}
+    setProgress(f);
+  });
+  barEl.addEventListener("pointermove", e => {
+    if (e.pointerId !== activePointerId) return;
+    setProgress(fractionFromX(e.clientX));
     e.preventDefault();
+  });
+  function endPointer(e) {
+    if (e.pointerId !== activePointerId) return;
+    releasePointer();
   }
-  function onUp() { dragging = false; }
+  barEl.addEventListener("pointerup", endPointer);
+  barEl.addEventListener("pointercancel", endPointer);
+  barEl.addEventListener("lostpointercapture", endPointer);
 
-  barEl.addEventListener("mousedown", onDown);
-  window.addEventListener("mousemove", onMove);
-  window.addEventListener("mouseup", onUp);
-  barEl.addEventListener("touchstart", onDown, { passive: true });
-  window.addEventListener("touchmove", onMove, { passive: false });
-  window.addEventListener("touchend", onUp);
+  // keyboard: arrows step one segment at a time
+  barEl.addEventListener("keydown", e => {
+    const word = currentWord();
+    if (!word || word.sight || wordDone) return;
+    let target = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") target = boundaries[Math.min(filledNow, boundaries.length - 1)];
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") target = filledNow >= 2 ? boundaries[filledNow - 2] : 0;
+    else if (e.key === "Home") target = 0;
+    else if (e.key === "End") target = 1;
+    if (target === null) return;
+    e.preventDefault();
+    setProgress(target);
+  });
 
   // ---- tricky (sight) word ----
   trickyBtn.addEventListener("click", () => {
@@ -397,28 +548,38 @@
 
   // ---- picture tap speaks the word (help, not completion) ----
   picEl.addEventListener("click", () => {
+    if (speechLocked()) return;
     const word = currentWord();
-    if (word && word.img) speak(word.t, 0.9);
+    if (word && word.img) speak(spoken(word), 0.9);
   });
 
   // ---- help button: slow whole-word speech, then segment-by-segment sounded-out replay ----
   helpBtn.addEventListener("click", () => {
+    const now = performance.now();
+    if (now - lastHelpAt < HELP_DEBOUNCE_MS) return; // mashing the button must not stack sequences
+    lastHelpAt = now;
+    if (speechLocked()) return;
     const word = currentWord();
     if (!word) return;
-    speak(word.t, 0.6, () => {
-      if (word.sight) return;
+
+    cancelHelp();
+    const run = helpRun;
+    const later = (fn, ms) => {
+      helpTimers.push(setTimeout(() => { if (run === helpRun) fn(); }, ms));
+    };
+    speakCore(spoken(word), 0.6, () => {
+      if (run !== helpRun || word.sight) return;
       const letterEls = [...lettersEl.children];
       let i = 0;
       const step = () => {
         letterEls.forEach(el => el.classList.remove("hinting"));
         if (i >= letterEls.length) return;
         letterEls[i].classList.add("hinting");
-        speakSegment(word.seg[i]);
+        speakCore(segmentSound(word.seg[i]), 0.7);
         i++;
-        setTimeout(step, 600);
+        later(step, 600);
       };
-      setTimeout(step, 200);
-      setTimeout(() => letterEls.forEach(el => el.classList.remove("hinting")), letterEls.length * 600 + 300);
+      later(step, 200);
     });
   });
 
@@ -433,6 +594,8 @@
   });
 
   function showEndScreen() {
+    flow++;
+    cancelHelp();
     demoCard.innerHTML = '<div class="end-screen"><div class="big-star">⭐⭐⭐</div>' +
       "<h2>Great reading!</h2><p>You finished “" + STORY.title + "”.</p>" +
       '<button class="btn btn-primary" id="restart-btn">Read it again</button></div>';
