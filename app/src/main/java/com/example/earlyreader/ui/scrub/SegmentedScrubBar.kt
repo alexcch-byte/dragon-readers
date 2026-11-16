@@ -50,7 +50,11 @@ fun SegmentedScrubBar(
     var widthPx by remember { mutableFloatStateOf(0f) }
     var completedFired by remember(segments) { mutableStateOf(false) }
 
-    val filledSegments = if (progress >= 0.999f) {
+    // A real finger lifts a little short of the physical edge; requiring ~100%
+    // made the word nearly impossible to complete, with no feedback as to why.
+    val isComplete = progress >= 0.92f
+    val displayProgress = if (isComplete) 1f else progress
+    val filledSegments = if (isComplete) {
         segments.size
     } else {
         floor(progress * segments.size).toInt().coerceIn(0, segments.size)
@@ -73,7 +77,7 @@ fun SegmentedScrubBar(
             }
         }
 
-        val fillFraction by animateFloatAsState(targetValue = progress, label = "scrubFill")
+        val fillFraction by animateFloatAsState(targetValue = displayProgress, label = "scrubFill")
 
         Box(
             modifier = Modifier
@@ -118,8 +122,8 @@ fun SegmentedScrubBar(
             }
         }
 
-        LaunchedEffect(filledSegments, progress) {
-            if (filledSegments == segments.size && progress >= 0.999f) {
+        LaunchedEffect(isComplete) {
+            if (isComplete) {
                 if (!completedFired) {
                     completedFired = true
                     onWordComplete()
