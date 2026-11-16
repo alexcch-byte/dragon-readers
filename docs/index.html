@@ -12,6 +12,7 @@
     --accent: #FF8A3D;
     --segment-empty: #E3DEF7;
     --text-dark: #2B2640;
+    --dim: #B9B2CF;
   }
   * { box-sizing: border-box; }
   body {
@@ -30,127 +31,86 @@
     padding: 32px 24px 8px;
     text-align: center;
   }
-  h1 {
-    color: var(--violet);
-    font-size: 2.2rem;
-    margin: 0 0 4px;
-  }
-  .tagline {
-    font-size: 1.05rem;
-    opacity: 0.8;
-    margin: 0 0 20px;
-  }
-  .cta-row {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-  }
+  h1 { color: var(--violet); font-size: 2.2rem; margin: 0 0 4px; }
+  .tagline { font-size: 1.05rem; opacity: 0.8; margin: 0 0 20px; }
+  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
   .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 22px;
-    border-radius: 999px;
-    font-weight: 600;
-    text-decoration: none;
-    font-size: 1rem;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px; border-radius: 999px; font-weight: 600;
+    text-decoration: none; font-size: 1rem; border: none; cursor: pointer;
+    font-family: inherit;
   }
-  .btn-primary {
-    background: var(--violet);
-    color: white;
-  }
-  .btn-secondary {
-    background: white;
-    color: var(--violet);
-    border: 2px solid var(--violet);
-  }
-  main {
-    width: 100%;
-    max-width: 480px;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
+  .btn-primary { background: var(--violet); color: white; }
+  .btn-secondary { background: white; color: var(--violet); border: 2px solid var(--violet); }
+
+  main { width: 100%; max-width: 520px; padding: 16px 24px 24px; display: flex; flex-direction: column; align-items: center; }
+
+  .story-header { width: 100%; display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .story-title { font-weight: 700; color: var(--violet); }
+  .page-indicator { font-size: 0.85rem; opacity: 0.6; }
+
   .demo-card {
-    width: 100%;
-    background: white;
-    border-radius: 28px;
-    padding: 40px 24px 32px;
-    box-shadow: 0 12px 30px rgba(80, 49, 245, 0.08);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: relative;
+    width: 100%; background: white; border-radius: 28px;
+    padding: 24px 24px 32px; box-shadow: 0 12px 30px rgba(80, 49, 245, 0.08);
+    display: flex; flex-direction: column; align-items: center; position: relative;
+    min-height: 420px; justify-content: center;
   }
+
   .reward {
-    position: absolute;
-    top: 8px;
-    font-size: 2.6rem;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-    pointer-events: none;
+    position: absolute; top: 8px; font-size: 2.6rem; opacity: 0;
+    transition: opacity 0.25s ease; pointer-events: none;
   }
   .reward.show { opacity: 1; }
-  .letters {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 28px;
-    user-select: none;
+
+  .sentence {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    margin-bottom: 28px; user-select: none; position: absolute; top: 20px; left: 24px; right: 24px;
   }
-  .letter {
-    font-size: 4.5rem;
-    font-weight: 700;
-    color: var(--text-dark);
-    transition: color 0.15s ease;
-  }
+  .sentence .w { font-size: 1.1rem; font-weight: 600; transition: color 0.2s, opacity 0.2s, font-size 0.2s; }
+  .sentence .w.upcoming { color: var(--dim); }
+  .sentence .w.done { color: var(--accent); }
+  .sentence .w.active { color: var(--violet); font-size: 1.4rem; }
+
+  .active-area { display: flex; flex-direction: column; align-items: center; margin-top: 54px; }
+
+  .picture { font-size: 3rem; margin-bottom: 8px; cursor: pointer; opacity: 0; transition: opacity 0.2s; height: 3.2rem; }
+  .picture.show { opacity: 1; }
+
+  .letters { display: flex; gap: 8px; margin-bottom: 20px; user-select: none; }
+  .letter { font-size: 3.6rem; font-weight: 700; color: var(--text-dark); transition: color 0.15s ease; }
   .letter.filled { color: var(--accent); }
+  .letter.hinting { color: var(--violet); transform: scale(1.15); display: inline-block; transition: transform 0.15s; }
 
   .bar {
-    width: 85%;
-    height: 72px;
-    border-radius: 36px;
-    background: var(--segment-empty);
-    position: relative;
-    overflow: hidden;
-    touch-action: none;
-    cursor: pointer;
+    width: 260px; height: 72px; border-radius: 36px; background: var(--segment-empty);
+    position: relative; overflow: hidden; touch-action: none; cursor: pointer;
   }
-  .bar-fill {
-    position: absolute;
-    top: 0; left: 0; bottom: 0;
-    width: 0%;
-    background: var(--violet);
-    border-radius: 36px;
-    transition: width 0.08s linear;
-  }
-  .bar-dividers {
-    position: absolute;
-    inset: 0;
-    display: flex;
-  }
-  .bar-dividers .seg {
-    flex: 1;
-    border-right: 2px solid rgba(255,255,255,0.5);
-  }
+  .bar-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0%; background: var(--violet); border-radius: 36px; transition: width 0.08s linear; }
+  .bar-dividers { position: absolute; inset: 0; display: flex; }
+  .bar-dividers .seg { flex: 1; border-right: 2px solid rgba(255,255,255,0.5); }
   .bar-dividers .seg:last-child { border-right: none; }
 
-  .hint {
-    margin-top: 18px;
-    font-size: 0.95rem;
-    opacity: 0.65;
-    text-align: center;
+  .tricky-btn {
+    width: 260px; height: 72px; border-radius: 36px; background: var(--segment-empty);
+    border: none; font-size: 2rem; font-weight: 700; color: var(--text-dark);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .tricky-label { margin-top: 10px; font-size: 0.8rem; opacity: 0.6; letter-spacing: 0.04em; text-transform: uppercase; }
+
+  .help-btn {
+    margin-top: 20px; width: 56px; height: 56px; border-radius: 50%;
+    background: var(--violet); color: white; border: none; font-size: 1.6rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
 
-  footer {
-    margin: 32px 0 24px;
-    font-size: 0.85rem;
-    opacity: 0.6;
-    text-align: center;
-    padding: 0 24px;
-  }
+  .next-btn { margin-top: 18px; }
+
+  .end-screen { text-align: center; }
+  .end-screen .big-star { font-size: 4rem; }
+
+  .hint { margin-top: 18px; font-size: 0.9rem; opacity: 0.6; text-align: center; }
+
+  footer { margin: 32px 0 24px; font-size: 0.85rem; opacity: 0.6; text-align: center; padding: 0 24px; max-width: 520px; }
   footer a { color: var(--violet); }
 </style>
 </head>
@@ -166,72 +126,242 @@
 </header>
 
 <main>
-  <div class="demo-card">
-    <div class="reward" id="reward">⭐</div>
-    <div class="letters" id="letters"></div>
-    <div class="bar" id="bar">
-      <div class="bar-fill" id="bar-fill"></div>
-      <div class="bar-dividers" id="bar-dividers"></div>
-    </div>
-    <p class="hint">Try it: drag your finger (or mouse) across the bar to sound out the word.</p>
+  <div class="story-header">
+    <span class="story-title" id="story-title"></span>
+    <span class="page-indicator" id="page-indicator"></span>
   </div>
+
+  <div class="demo-card" id="demo-card">
+    <div class="reward" id="reward">⭐</div>
+    <div class="sentence" id="sentence"></div>
+
+    <div class="active-area" id="active-area">
+      <div class="picture" id="picture">🐔</div>
+      <div class="letters" id="letters"></div>
+      <div class="bar" id="bar" style="display:none">
+        <div class="bar-fill" id="bar-fill"></div>
+        <div class="bar-dividers" id="bar-dividers"></div>
+      </div>
+      <button class="tricky-btn" id="tricky-btn" style="display:none"></button>
+      <div class="tricky-label" id="tricky-label" style="display:none">tricky word</div>
+      <button class="help-btn" id="help-btn" title="Hear this word" aria-label="Hear this word">🔊</button>
+      <button class="btn btn-primary next-btn" id="next-btn" style="display:none">Next ▸</button>
+    </div>
+  </div>
+
+  <p class="hint" id="hint">Drag your finger (or mouse) across the bar to sound out the word.</p>
 </main>
 
 <footer>
-  This is a browser recreation of the drag-to-scrub interaction from the Early Reader Android app.
-  The real app adds spoken audio, full stories and offline voice. No ads, no accounts, no data collection.
+  This browser demo plays the full reading interaction from the plan: sentence-in-context, drag-to-scrub
+  phonics, revealed pictures, tricky (sight) words, a spoken help button, and a read-aloud page finish —
+  using your browser's built-in speech voice. No ads, no accounts, no data collection.
 </footer>
 
 <script>
-  const segments = ["c", "a", "t"];
+  const STORY = {
+    title: "The Red Hen",
+    pages: [
+      [ {t:"A", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"sat", seg:["s","a","t"]} ],
+      [ {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"is", sight:true}, {t:"red", seg:["r","e","d"]} ],
+      [ {t:"A", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"ran", img:"🏃", seg:["r","a","n"]} ],
+      [ {t:"The", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"is", sight:true}, {t:"big", seg:["b","i","g"]} ],
+      [ {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"got", seg:["g","o","t"]}, {t:"in", sight:true}, {t:"a", sight:true}, {t:"box", img:"📦", seg:["b","o","x"]} ],
+      [ {t:"The", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"did", sight:true}, {t:"not", sight:true}, {t:"get", seg:["g","e","t"]}, {t:"the", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]} ],
+      [ {t:"Yes!", sight:true}, {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"won", seg:["w","o","n"]} ],
+    ],
+  };
+
+  // ---- speech ----
+  let voice = null;
+  const FEMALE_VOICE_HINTS = /female|zira|hazel|susan|samantha|karen|victoria|moira|tessa|fiona|salli|joanna|kendra|kimberly|ivy|aria|jenny|libby|sonia|google us english|google uk english female/i;
+  function pickVoice() {
+    const voices = speechSynthesis.getVoices();
+    const enVoices = voices.filter(v => /^en/i.test(v.lang));
+    voice = enVoices.find(v => FEMALE_VOICE_HINTS.test(v.name)) || enVoices[0] || voices[0] || null;
+  }
+  pickVoice();
+  if ("onvoiceschanged" in speechSynthesis) speechSynthesis.onvoiceschanged = pickVoice;
+
+  function speak(text, rate, onend) {
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      if (voice) u.voice = voice;
+      u.rate = rate || 0.9;
+      u.pitch = 1.0;
+      if (onend) u.onend = onend;
+      else u.onend = () => {};
+      speechSynthesis.speak(u);
+    } catch (e) {
+      if (onend) setTimeout(onend, 300); // speech API unavailable: don't block progress
+    }
+  }
+
+  // Respelled phoneme approximations (section 3, option 2): real browser/OS TTS
+  // says letter *names* for an isolated letter (and a vowel-less token like "hhh"
+  // falls into the engine's spell-it-out mode, reading the letter name, e.g. "aitch"
+  // for h), so every segment is respelled as a consonant+vowel syllable ("huh",
+  // "fuh") — a nonsense token with a vowel is parsed as a normal word instead.
+  const SEGMENT_SOUNDS = {
+    a: "a", e: "eh", i: "ih", o: "ah", u: "uh",
+    b: "buh", c: "kuh", d: "duh", f: "fuh", g: "guh",
+    h: "huh", j: "juh", k: "kuh", l: "luh", m: "muh",
+    n: "nuh", p: "puh", qu: "kwuh", r: "ruh", s: "suh",
+    t: "tuh", v: "vuh", w: "wuh", x: "ks", y: "yuh", z: "zuh",
+    sh: "shuh", ch: "chuh", th: "thuh", ng: "ng",
+  };
+  function speakSegment(letter) {
+    const sound = SEGMENT_SOUNDS[letter.toLowerCase()] || letter;
+    speak(sound, 0.7);
+  }
+
+  // ---- state ----
+  let pageIndex = 0;
+  let activeWordIndex = 0;
+  let dragStartedThisWord = false;
+  let wordDone = false;
+  let maxSegmentPlayed = 0;
+  let dragging = false;
+
+  const sentenceEl = document.getElementById("sentence");
+  const picEl = document.getElementById("picture");
   const lettersEl = document.getElementById("letters");
   const barEl = document.getElementById("bar");
   const fillEl = document.getElementById("bar-fill");
   const dividersEl = document.getElementById("bar-dividers");
+  const trickyBtn = document.getElementById("tricky-btn");
+  const trickyLabel = document.getElementById("tricky-label");
+  const helpBtn = document.getElementById("help-btn");
+  const nextBtn = document.getElementById("next-btn");
   const rewardEl = document.getElementById("reward");
+  const hintEl = document.getElementById("hint");
+  const storyTitleEl = document.getElementById("story-title");
+  const pageIndicatorEl = document.getElementById("page-indicator");
+  const demoCard = document.getElementById("demo-card");
 
-  segments.forEach((letter) => {
-    const span = document.createElement("span");
-    span.className = "letter";
-    span.textContent = letter;
-    lettersEl.appendChild(span);
-  });
-  segments.forEach(() => {
-    const seg = document.createElement("div");
-    seg.className = "seg";
-    dividersEl.appendChild(seg);
-  });
+  storyTitleEl.textContent = STORY.title;
 
-  const letterEls = [...lettersEl.children];
-  let completed = false;
+  function currentPage() { return STORY.pages[pageIndex]; }
+  function currentWord() { return currentPage()[activeWordIndex]; }
 
-  function setProgress(fraction) {
-    fraction = Math.max(0, Math.min(1, fraction));
-    fillEl.style.width = (fraction * 100) + "%";
+  function renderSentence() {
+    sentenceEl.innerHTML = "";
+    currentPage().forEach((w, i) => {
+      const span = document.createElement("span");
+      span.className = "w " + (i < activeWordIndex ? "done" : i === activeWordIndex ? "active" : "upcoming");
+      span.textContent = w.t;
+      sentenceEl.appendChild(span);
+    });
+  }
 
-    const filledCount = fraction >= 0.999
-      ? segments.length
-      : Math.min(segments.length, Math.floor(fraction * segments.length));
+  function renderActiveWord() {
+    const word = currentWord();
+    dragStartedThisWord = false;
+    wordDone = false;
+    maxSegmentPlayed = 0;
+    dragging = false; // a drag held over from the previous word must not carry into this one
+    nextBtn.style.display = "none";
 
-    letterEls.forEach((el, i) => el.classList.toggle("filled", i < filledCount));
+    picEl.classList.remove("show");
+    picEl.textContent = word.img || "";
+    picEl.style.visibility = word.img ? "visible" : "hidden";
 
-    if (filledCount === segments.length && fraction >= 0.999) {
-      if (!completed) {
-        completed = true;
-        rewardEl.classList.add("show");
-        setTimeout(() => rewardEl.classList.remove("show"), 1200);
-      }
+    if (word.sight) {
+      barEl.style.display = "none";
+      lettersEl.style.display = "none";
+      trickyBtn.style.display = "flex";
+      trickyLabel.style.display = "block";
+      trickyBtn.textContent = word.t;
+      hintEl.textContent = "This one's tricky — tap it to hear it.";
     } else {
-      completed = false;
+      barEl.style.display = "block";
+      lettersEl.style.display = "flex";
+      trickyBtn.style.display = "none";
+      trickyLabel.style.display = "none";
+      hintEl.textContent = "Drag your finger (or mouse) across the bar to sound out the word.";
+
+      lettersEl.innerHTML = "";
+      word.seg.forEach(letter => {
+        const span = document.createElement("span");
+        span.className = "letter";
+        span.textContent = letter;
+        lettersEl.appendChild(span);
+      });
+      dividersEl.innerHTML = "";
+      word.seg.forEach(() => {
+        const seg = document.createElement("div");
+        seg.className = "seg";
+        dividersEl.appendChild(seg);
+      });
+      fillEl.style.width = "0%";
     }
   }
 
+  function renderPage() {
+    pageIndicatorEl.textContent = "Page " + (pageIndex + 1) + " of " + STORY.pages.length;
+    activeWordIndex = 0;
+    renderSentence();
+    renderActiveWord();
+  }
+
+  function wordCompleted() {
+    if (wordDone) return;
+    wordDone = true;
+    const word = currentWord();
+    const myPage = pageIndex, myWordIndex = activeWordIndex;
+    speak(word.t, 0.9, () => {
+      // Ignore a stale callback if the page/word already moved on for any other reason.
+      if (pageIndex !== myPage || activeWordIndex !== myWordIndex) return;
+      if (activeWordIndex < currentPage().length - 1) {
+        activeWordIndex++;
+        renderSentence();
+        renderActiveWord();
+      } else {
+        // page finished: read the full sentence once, then show Next / Finish
+        renderSentence();
+        const fullSentence = currentPage().map(w => w.t).join(" ");
+        setTimeout(() => {
+          speak(fullSentence, 1.0, () => {
+            rewardEl.classList.add("show");
+            setTimeout(() => rewardEl.classList.remove("show"), 1400);
+            nextBtn.textContent = (pageIndex === STORY.pages.length - 1) ? "Finish story ▸" : "Next ▸";
+            nextBtn.style.display = "inline-flex";
+          });
+        }, 350);
+      }
+    });
+  }
+
+  // ---- drag/scrub ----
   function fractionFromX(clientX) {
     const rect = barEl.getBoundingClientRect();
     return (clientX - rect.left) / rect.width;
   }
+  function setProgress(fraction) {
+    const word = currentWord();
+    if (!word || word.sight || wordDone) return;
+    fraction = Math.max(0, Math.min(1, fraction));
+    fillEl.style.width = (fraction * 100) + "%";
 
-  let dragging = false;
+    if (fraction > 0 && !dragStartedThisWord) {
+      dragStartedThisWord = true;
+      if (word.img) picEl.classList.add("show");
+    }
+
+    const segs = word.seg;
+    const filledCount = fraction >= 0.999 ? segs.length : Math.min(segs.length, Math.floor(fraction * segs.length));
+    [...lettersEl.children].forEach((el, i) => el.classList.toggle("filled", i < filledCount));
+
+    if (filledCount > maxSegmentPlayed) {
+      speakSegment(segs[filledCount - 1]);
+      maxSegmentPlayed = filledCount;
+    }
+
+    if (filledCount === segs.length && fraction >= 0.999) {
+      wordCompleted();
+    }
+  }
 
   function onDown(e) {
     dragging = true;
@@ -244,9 +374,7 @@
     setProgress(fractionFromX(x));
     e.preventDefault();
   }
-  function onUp() {
-    dragging = false;
-  }
+  function onUp() { dragging = false; }
 
   barEl.addEventListener("mousedown", onDown);
   window.addEventListener("mousemove", onMove);
@@ -254,6 +382,63 @@
   barEl.addEventListener("touchstart", onDown, { passive: true });
   window.addEventListener("touchmove", onMove, { passive: false });
   window.addEventListener("touchend", onUp);
+
+  // ---- tricky (sight) word ----
+  trickyBtn.addEventListener("click", () => {
+    const word = currentWord();
+    if (!word.sight || wordDone) return;
+    trickyBtn.style.transform = "scale(1.05)";
+    setTimeout(() => (trickyBtn.style.transform = ""), 150);
+    wordCompleted();
+  });
+
+  // ---- picture tap speaks the word (help, not completion) ----
+  picEl.addEventListener("click", () => {
+    const word = currentWord();
+    if (word && word.img) speak(word.t, 0.9);
+  });
+
+  // ---- help button: slow whole-word speech, then segment-by-segment sounded-out replay ----
+  helpBtn.addEventListener("click", () => {
+    const word = currentWord();
+    if (!word) return;
+    speak(word.t, 0.6, () => {
+      if (word.sight) return;
+      const letterEls = [...lettersEl.children];
+      let i = 0;
+      const step = () => {
+        letterEls.forEach(el => el.classList.remove("hinting"));
+        if (i >= letterEls.length) return;
+        letterEls[i].classList.add("hinting");
+        speakSegment(word.seg[i]);
+        i++;
+        setTimeout(step, 600);
+      };
+      setTimeout(step, 200);
+      setTimeout(() => letterEls.forEach(el => el.classList.remove("hinting")), letterEls.length * 600 + 300);
+    });
+  });
+
+  // ---- next page / end screen ----
+  nextBtn.addEventListener("click", () => {
+    if (pageIndex < STORY.pages.length - 1) {
+      pageIndex++;
+      renderPage();
+    } else {
+      showEndScreen();
+    }
+  });
+
+  function showEndScreen() {
+    demoCard.innerHTML = '<div class="end-screen"><div class="big-star">⭐⭐⭐</div>' +
+      "<h2>Great reading!</h2><p>You finished “" + STORY.title + "”.</p>" +
+      '<button class="btn btn-primary" id="restart-btn">Read it again</button></div>';
+    pageIndicatorEl.textContent = "Done!";
+    hintEl.textContent = "";
+    document.getElementById("restart-btn").addEventListener("click", () => location.reload());
+  }
+
+  renderPage();
 </script>
 
 </body>
