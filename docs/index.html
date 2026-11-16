@@ -198,18 +198,21 @@
     }
   }
 
-  // Respelled phoneme approximations (section 3, option 2): real browser/OS TTS
-  // says letter *names* for an isolated letter (and a vowel-less token like "hhh"
-  // falls into the engine's spell-it-out mode, reading the letter name, e.g. "aitch"
-  // for h), so every segment is respelled as a consonant+vowel syllable ("huh",
-  // "fuh") — a nonsense token with a vowel is parsed as a normal word instead.
+  // Real browser/OS TTS has no way to say an isolated phoneme: a bare letter
+  // ("h") is read as its letter name ("aitch"), and even an invented
+  // consonant+vowel syllable ("guh") can come out wrong, since its
+  // pronunciation depends on the engine's grapheme-to-phoneme guessing for a
+  // made-up token (confirmed broken for at least "hhh" and "guh" on this
+  // voice). A short, common dictionary word is in every TTS engine's
+  // pronunciation lexicon already, so its first sound is reliably correct —
+  // this is the same "A is for Apple" trick phonics teaching already uses.
   const SEGMENT_SOUNDS = {
-    a: "a", e: "eh", i: "ih", o: "ah", u: "uh",
-    b: "buh", c: "kuh", d: "duh", f: "fuh", g: "guh",
-    h: "huh", j: "juh", k: "kuh", l: "luh", m: "muh",
-    n: "nuh", p: "puh", qu: "kwuh", r: "ruh", s: "suh",
-    t: "tuh", v: "vuh", w: "wuh", x: "ks", y: "yuh", z: "zuh",
-    sh: "shuh", ch: "chuh", th: "thuh", ng: "ng",
+    a: "apple", e: "egg", i: "igloo", o: "ox", u: "up",
+    b: "ball", c: "cup", d: "dog", f: "fish", g: "goat",
+    h: "hat", j: "jam", k: "kite", l: "leaf", m: "map",
+    n: "net", p: "pig", qu: "queen", r: "red", s: "sun",
+    t: "top", v: "van", w: "web", x: "box", y: "yes", z: "zip",
+    sh: "ship", ch: "chip", th: "thumb", ng: "ring",
   };
   function speakSegment(letter) {
     const sound = SEGMENT_SOUNDS[letter.toLowerCase()] || letter;
