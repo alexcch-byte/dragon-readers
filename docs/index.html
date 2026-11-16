@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Early Reader — phonics app for pre-readers</title>
+<meta name="description" content="A calm, offline phonics app for pre-readers. Drag to sound out each word, then hear it read aloud." />
+<style>
+  :root {
+    --violet: #5031F5;
+    --bg: #FAF7F2;
+    --accent: #FF8A3D;
+    --segment-empty: #E3DEF7;
+    --text-dark: #2B2640;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-dark);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  header {
+    width: 100%;
+    max-width: 720px;
+    padding: 32px 24px 8px;
+    text-align: center;
+  }
+  h1 {
+    color: var(--violet);
+    font-size: 2.2rem;
+    margin: 0 0 4px;
+  }
+  .tagline {
+    font-size: 1.05rem;
+    opacity: 0.8;
+    margin: 0 0 20px;
+  }
+  .cta-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 1rem;
+  }
+  .btn-primary {
+    background: var(--violet);
+    color: white;
+  }
+  .btn-secondary {
+    background: white;
+    color: var(--violet);
+    border: 2px solid var(--violet);
+  }
+  main {
+    width: 100%;
+    max-width: 480px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .demo-card {
+    width: 100%;
+    background: white;
+    border-radius: 28px;
+    padding: 40px 24px 32px;
+    box-shadow: 0 12px 30px rgba(80, 49, 245, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+  .reward {
+    position: absolute;
+    top: 8px;
+    font-size: 2.6rem;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+  }
+  .reward.show { opacity: 1; }
+  .letters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 28px;
+    user-select: none;
+  }
+  .letter {
+    font-size: 4.5rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    transition: color 0.15s ease;
+  }
+  .letter.filled { color: var(--accent); }
+
+  .bar {
+    width: 85%;
+    height: 72px;
+    border-radius: 36px;
+    background: var(--segment-empty);
+    position: relative;
+    overflow: hidden;
+    touch-action: none;
+    cursor: pointer;
+  }
+  .bar-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 0%;
+    background: var(--violet);
+    border-radius: 36px;
+    transition: width 0.08s linear;
+  }
+  .bar-dividers {
+    position: absolute;
+    inset: 0;
+    display: flex;
+  }
+  .bar-dividers .seg {
+    flex: 1;
+    border-right: 2px solid rgba(255,255,255,0.5);
+  }
+  .bar-dividers .seg:last-child { border-right: none; }
+
+  .hint {
+    margin-top: 18px;
+    font-size: 0.95rem;
+    opacity: 0.65;
+    text-align: center;
+  }
+
+  footer {
+    margin: 32px 0 24px;
+    font-size: 0.85rem;
+    opacity: 0.6;
+    text-align: center;
+    padding: 0 24px;
+  }
+  footer a { color: var(--violet); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Early Reader</h1>
+  <p class="tagline">A calm, offline phonics app. Drag to sound out each word, then hear it read aloud.</p>
+  <div class="cta-row">
+    <a class="btn btn-primary" id="download-link" href="#" rel="noopener">⬇ Download Android App</a>
+    <a class="btn btn-secondary" href="https://github.com/" id="repo-link" rel="noopener">View source on GitHub</a>
+  </div>
+</header>
+
+<main>
+  <div class="demo-card">
+    <div class="reward" id="reward">⭐</div>
+    <div class="letters" id="letters"></div>
+    <div class="bar" id="bar">
+      <div class="bar-fill" id="bar-fill"></div>
+      <div class="bar-dividers" id="bar-dividers"></div>
+    </div>
+    <p class="hint">Try it: drag your finger (or mouse) across the bar to sound out the word.</p>
+  </div>
+</main>
+
+<footer>
+  This is a browser recreation of the drag-to-scrub interaction from the Early Reader Android app.
+  The real app adds spoken audio, full stories and offline voice. No ads, no accounts, no data collection.
+</footer>
+
+<script>
+  const segments = ["c", "a", "t"];
+  const lettersEl = document.getElementById("letters");
+  const barEl = document.getElementById("bar");
+  const fillEl = document.getElementById("bar-fill");
+  const dividersEl = document.getElementById("bar-dividers");
+  const rewardEl = document.getElementById("reward");
+
+  segments.forEach((letter) => {
+    const span = document.createElement("span");
+    span.className = "letter";
+    span.textContent = letter;
+    lettersEl.appendChild(span);
+  });
+  segments.forEach(() => {
+    const seg = document.createElement("div");
+    seg.className = "seg";
+    dividersEl.appendChild(seg);
+  });
+
+  const letterEls = [...lettersEl.children];
+  let completed = false;
+
+  function setProgress(fraction) {
+    fraction = Math.max(0, Math.min(1, fraction));
+    fillEl.style.width = (fraction * 100) + "%";
+
+    const filledCount = fraction >= 0.999
+      ? segments.length
+      : Math.min(segments.length, Math.floor(fraction * segments.length));
+
+    letterEls.forEach((el, i) => el.classList.toggle("filled", i < filledCount));
+
+    if (filledCount === segments.length && fraction >= 0.999) {
+      if (!completed) {
+        completed = true;
+        rewardEl.classList.add("show");
+        setTimeout(() => rewardEl.classList.remove("show"), 1200);
+      }
+    } else {
+      completed = false;
+    }
+  }
+
+  function fractionFromX(clientX) {
+    const rect = barEl.getBoundingClientRect();
+    return (clientX - rect.left) / rect.width;
+  }
+
+  let dragging = false;
+
+  function onDown(e) {
+    dragging = true;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    setProgress(fractionFromX(x));
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    setProgress(fractionFromX(x));
+    e.preventDefault();
+  }
+  function onUp() {
+    dragging = false;
+  }
+
+  barEl.addEventListener("mousedown", onDown);
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+  barEl.addEventListener("touchstart", onDown, { passive: true });
+  window.addEventListener("touchmove", onMove, { passive: false });
+  window.addEventListener("touchend", onUp);
+</script>
+
+</body>
+</html>
