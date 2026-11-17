@@ -105,23 +105,28 @@ class ScrubBarModelTest {
 
     @Test
     fun testStoryModelIntegrity() {
-        val story = StoryBank.redHenStory
-        assertEquals("hen", story.id)
-        assertEquals("The Red Hen", story.title)
-        assertEquals("Story must have 4 pages", 4, story.pages.size)
-        for ((idx, page) in story.pages.withIndex()) {
-            assertTrue("Page $idx must have words", page.words.isNotEmpty())
-            assertTrue("Page $idx sentence must match words", page.fullSentence.isNotBlank())
-            for (word in page.words) {
-                assertTrue("Word text must not be blank", word.text.isNotBlank())
-                if (!word.sight) {
-                    assertTrue("Decodable word ${word.text} must have segments", word.segments.isNotEmpty())
-                    val cleanText = word.text.trimEnd('.', '!', '?', ',')
-                    assertEquals(
-                        "Segments must join to word text for ${word.text}",
-                        cleanText.lowercase(),
-                        word.segments.joinToString("").lowercase(),
-                    )
+        val stories = StoryBank.allStories
+        assertEquals("StoryBank must contain all 5 stories", 5, stories.size)
+        val expectedIds = listOf("hen", "pig", "bug", "cat", "net")
+        assertEquals(expectedIds, stories.map { it.id })
+
+        for (story in stories) {
+            assertTrue("Story title must not be blank", story.title.isNotBlank())
+            assertEquals("Each story must have 4 pages", 4, story.pages.size)
+            for ((idx, page) in story.pages.withIndex()) {
+                assertTrue("${story.title} Page $idx must have words", page.words.isNotEmpty())
+                assertTrue("${story.title} Page $idx sentence must match words", page.fullSentence.isNotBlank())
+                for (word in page.words) {
+                    assertTrue("Word text in ${story.title} must not be blank", word.text.isNotBlank())
+                    if (!word.sight) {
+                        assertTrue("Decodable word ${word.text} in ${story.title} must have segments", word.segments.isNotEmpty())
+                        val cleanText = word.text.trimEnd('.', '!', '?', ',')
+                        assertEquals(
+                            "Segments must join to word text for ${word.text} in ${story.title}",
+                            cleanText.lowercase(),
+                            word.segments.joinToString("").lowercase(),
+                        )
+                    }
                 }
             }
         }

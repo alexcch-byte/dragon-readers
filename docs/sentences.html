@@ -211,6 +211,7 @@
 
   .end { text-align: center; padding-top: 12px; }
   .stars { font-size: 2.2rem; letter-spacing: 0.1em; line-height: 1.3; }
+  .master-badge { display: inline-block; margin: 16px auto 8px; background: #FFFBEB; border: 2px solid #F59E0B; border-radius: 16px; padding: 12px 20px; color: #92400E; font-weight: 700; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15); }
   .end .tools { margin-top: 16px; }
 
   .parent { margin-top: 20px; background: white; border-radius: 20px; padding: 4px 16px; box-shadow: 0 6px 18px rgba(80, 49, 245, 0.06); }
@@ -1154,16 +1155,33 @@
     const total = L.items.length;
     const stars = "⭐".repeat(solved) + "✨".repeat(peek);
     const hasNext = st.level < LEVELS.length - 1;
-    stage.replaceChildren(el("div", { class: "end" },
+    const allFinished = LEVELS.every(l => progress[l.id] === "done" || progress[l.id] === "peek");
+
+    const children = [
       el("h2", { tabindex: "-1", id: "prompt", text: "Level " + (st.level + 1) + " finished!" }),
       el("div", { class: "stars", role: "img", "aria-label": solved + " sentences on your own and " + peek + " learned with a peek" , text: stars }),
       el("p", { class: "lead", text: "You finished " + total + " of " + total + " sentences." }),
       el("p", { class: "lead" },
-        "⭐ " + solved + " on your own" + (peek ? "   ✨ " + peek + " learned with a peek" : ""))));
-    tools.replaceChildren(
-      el("button", { type: "button", class: "btn btn-secondary", onclick: () => startLevel(st.level) }, "↺ Play again"),
-      hasNext ? el("button", { type: "button", class: "btn btn-primary", onclick: () => startLevel(st.level + 1) }, "Next level ▸")
-              : el("a", { class: "btn btn-primary", href: "index.html" }, "Back to Early Reader"));
+        "⭐ " + solved + " on your own" + (peek ? "   ✨ " + peek + " learned with a peek" : ""))
+    ];
+    if (allFinished) {
+      children.push(el("div", { class: "master-badge", role: "status" }, "🏆 All 6 Levels Finished! You are a sentence master!"));
+    }
+    stage.replaceChildren(el("div", { class: "end" }, ...children));
+
+    const toolBtns = [
+      el("button", { type: "button", class: "btn btn-secondary", onclick: () => startLevel(st.level) }, "↺ Play again")
+    ];
+    if (hasNext) {
+      toolBtns.push(el("button", { type: "button", class: "btn btn-primary", onclick: () => startLevel(st.level + 1) }, "Next level ▸"));
+    }
+    if (allFinished && hasNext) {
+      toolBtns.push(el("button", { type: "button", class: "btn btn-secondary", onclick: () => startLevel(0) }, "↺ Replay from Level 1"));
+    }
+    if (!hasNext || allFinished) {
+      toolBtns.push(el("a", { class: "btn btn-primary", href: "index.html" }, "Back to Early Reader"));
+    }
+    tools.replaceChildren(...toolBtns);
     showReward();
     $("prompt").focus();
   }

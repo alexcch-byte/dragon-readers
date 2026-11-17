@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -86,7 +87,7 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     EarlyReaderApp(
                         words = WordBank.starterWords,
-                        story = StoryBank.redHenStory,
+                        stories = StoryBank.allStories,
                         onSpeakWord = { text -> speech.speakWord(text) },
                     )
                 }
@@ -127,7 +128,7 @@ fun WordScreen(
 ) {
     EarlyReaderApp(
         words = words,
-        story = StoryBank.redHenStory,
+        stories = StoryBank.allStories,
         onSpeakWord = onSpeakWord,
     )
 }
@@ -136,13 +137,15 @@ fun WordScreen(
 @Composable
 fun EarlyReaderApp(
     words: List<WordData> = WordBank.starterWords,
-    story: StoryData = StoryBank.redHenStory,
+    stories: List<StoryData> = StoryBank.allStories,
     onSpeakWord: (String) -> Unit = {},
 ) {
     var appMode by rememberSaveable { mutableStateOf(AppMode.WORD_PRACTICE) }
+    var selectedStoryIndex by rememberSaveable { mutableIntStateOf(0) }
     var wordsCompletedCount by rememberSaveable { mutableIntStateOf(0) }
     var storiesCompletedCount by rememberSaveable { mutableIntStateOf(0) }
 
+    var showStoryPicker by remember { mutableStateOf(false) }
     var showMathGate by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var mathChallenge by remember { mutableStateOf(generateMathChallenge()) }
@@ -150,6 +153,8 @@ fun EarlyReaderApp(
 
     var practiceResetKey by rememberSaveable { mutableIntStateOf(0) }
     var storyResetKey by rememberSaveable { mutableIntStateOf(0) }
+
+    val currentStory = stories[selectedStoryIndex % stories.size]
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -229,16 +234,64 @@ fun EarlyReaderApp(
                         }
                     }
                     AppMode.STORY_MODE -> {
-                        key(storyResetKey) {
+                        key(selectedStoryIndex, storyResetKey) {
                             StoryModeScreen(
-                                story = story,
+                                story = currentStory,
                                 onSpeakWord = onSpeakWord,
+                                onOpenStoryPicker = { showStoryPicker = true },
                                 onStoryCompleted = { storiesCompletedCount++ },
+                                onNextStory = {
+                                    selectedStoryIndex = (selectedStoryIndex + 1) % stories.size
+                                },
                             )
                         }
                     }
                 }
             }
+        }
+
+        // Story Picker Dialog
+        if (showStoryPicker) {
+            AlertDialog(
+                onDismissRequest = { showStoryPicker = false },
+                title = { Text(text = "Choose a Story", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        stories.forEachIndexed { idx, s ->
+                            val isSelected = idx == (selectedStoryIndex % stories.size)
+                            Button(
+                                onClick = {
+                                    selectedStoryIndex = idx
+                                    showStoryPicker = false
+                                },
+                                colors = if (isSelected) {
+                                    ButtonDefaults.buttonColors(containerColor = VioletPrimary)
+                                } else {
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                            ) {
+                                Text(
+                                    text = "${idx + 1}. ${s.title}",
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 15.sp,
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { showStoryPicker = false }) {
+                        Text(text = "Cancel")
+                    }
+                },
+            )
         }
 
         // Math challenge dialog for grown-ups
@@ -297,7 +350,8 @@ fun EarlyReaderApp(
                         Text(text = "Early Reader - Adult Dashboard", fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = "• TTS Voice: English (US) 0.8x rate, offline preferred")
-                        Text(text = "• Current Mode: ${if (appMode == AppMode.WORD_PRACTICE) "Word Practice" else "Story Mode (${story.title})"}")
+                        Text(text = "• Current Mode: ${if (appMode == AppMode.WORD_PRACTICE) "Word Practice" else "Story Mode (${currentStory.title})"}")
+                        Text(text = "• Story Suite: ${stories.size} decodable stories available")
                         Text(text = "• Completed words in session: $wordsCompletedCount")
                         Text(text = "• Completed stories in session: $storiesCompletedCount")
                         Spacer(modifier = Modifier.height(16.dp))
@@ -305,6 +359,7 @@ fun EarlyReaderApp(
                             onClick = {
                                 practiceResetKey++
                                 storyResetKey++
+                                selectedStoryIndex = 0
                                 wordsCompletedCount = 0
                                 storiesCompletedCount = 0
                                 showSettingsDialog = false
@@ -487,7 +542,9 @@ fun WordPracticeScreen(
 fun StoryModeScreen(
     story: StoryData = StoryBank.redHenStory,
     onSpeakWord: (String) -> Unit = {},
+    onOpenStoryPicker: () -> Unit = {},
     onStoryCompleted: () -> Unit = {},
+    onNextStory: () -> Unit = {},
 ) {
     var pageIndex by rememberSaveable { mutableIntStateOf(0) }
     var activeWordIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -510,14 +567,24 @@ fun StoryModeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            // Page Indicator
-            Text(
-                text = "${story.title} • Page ${pageIndex + 1} of ${story.pages.size}",
-                style = MaterialTheme.typography.titleSmall,
-                color = VioletPrimary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 12.dp),
-            )
+            // Interactive Story & Page Indicator (tapping opens story picker)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onOpenStoryPicker() }
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    text = "${story.title} • Page ${pageIndex + 1} of ${story.pages.size} ▾",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = VioletPrimary,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Sentence Context across the top (using FlowRow to wrap gracefully on mobile)
             FlowRow(
@@ -578,14 +645,14 @@ fun StoryModeScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     OutlinedButton(
                         onClick = { onSpeakWord(currentPage.fullSentence) },
                         modifier = Modifier.height(52.dp),
                     ) {
-                        Text(text = "Read page 🔊", fontSize = 18.sp)
+                        Text(text = "Read page 🔊", fontSize = 17.sp)
                     }
 
                     if (pageIndex < story.pages.size - 1) {
@@ -600,12 +667,11 @@ fun StoryModeScreen(
                             },
                             modifier = Modifier.height(52.dp),
                         ) {
-                            Text(text = "Next page ▸", fontSize = 18.sp)
+                            Text(text = "Next page ▸", fontSize = 17.sp)
                         }
                     } else {
-                        Button(
+                        OutlinedButton(
                             onClick = {
-                                onStoryCompleted()
                                 pageIndex = 0
                                 activeWordIndex = 0
                                 pageCompleted = false
@@ -615,7 +681,17 @@ fun StoryModeScreen(
                             },
                             modifier = Modifier.height(52.dp),
                         ) {
-                            Text(text = "Read again ↺", fontSize = 18.sp)
+                            Text(text = "Read again ↺", fontSize = 17.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                onStoryCompleted()
+                                onNextStory()
+                            },
+                            modifier = Modifier.height(52.dp),
+                        ) {
+                            Text(text = "Next story ▸", fontSize = 17.sp)
                         }
                     }
                 }

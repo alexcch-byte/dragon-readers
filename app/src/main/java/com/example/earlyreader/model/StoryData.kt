@@ -75,4 +75,256 @@ object StoryBank {
             )
         )
     )
+
+    val bigPigStory = StoryData(
+        id = "pig",
+        title = "The Big Pig",
+        pages = listOf(
+            PageData(
+                words = listOf(
+                    WordData(text = "A", segments = emptyList(), sight = true),
+                    WordData(text = "big", segments = listOf("b", "i", "g")),
+                    WordData(text = "pig", segments = listOf("p", "i", "g"), img = "🐷"),
+                    WordData(text = "sat.", segments = listOf("s", "a", "t")),
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "pig", segments = listOf("p", "i", "g"), img = "🐷"),
+                    WordData(text = "is", segments = emptyList(), sight = true),
+                    WordData(text = "in", segments = listOf("i", "n")),
+                    WordData(text = "mud.", segments = listOf("m", "u", "d"), img = "🟫"),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "pig", segments = listOf("p", "i", "g"), img = "🐷"),
+                    WordData(text = "can", segments = listOf("c", "a", "n")),
+                    WordData(text = "dig.", segments = listOf("d", "i", "g")),
+                    WordData(text = "Dig,", segments = listOf("D", "i", "g")),
+                    WordData(text = "pig,", segments = listOf("p", "i", "g"), img = "🐷"),
+                    WordData(text = "dig!", segments = listOf("d", "i", "g")),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "A", segments = emptyList(), sight = true),
+                    WordData(text = "dog", segments = listOf("d", "o", "g"), img = "🐶"),
+                    WordData(text = "ran", segments = listOf("r", "a", "n"), img = "🏃"),
+                    WordData(text = "to", segments = emptyList(), sight = true),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "pig.", segments = listOf("p", "i", "g"), img = "🐷"),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "pig", segments = listOf("p", "i", "g"), img = "🐷"),
+                    WordData(text = "and", segments = listOf("a", "n", "d")),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "dog", segments = listOf("d", "o", "g"), img = "🐶"),
+                    WordData(text = "sat", segments = listOf("s", "a", "t")),
+                    WordData(text = "in", segments = listOf("i", "n")),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "sun.", segments = listOf("s", "u", "n"), img = "☀️"),
+                )
+            )
+        )
+    )
+
+    val sunAndBugStory = StoryData(
+        id = "bug",
+        title = "The Sun and the Bug",
+        pages = listOf(
+            PageData(
+                words = listOf(
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "sun", segments = listOf("s", "u", "n"), img = "☀️"),
+                    WordData(text = "is", segments = emptyList(), sight = true),
+                    WordData(text = "hot.", segments = listOf("h", "o", "t")),
+                    WordData(text = "A", segments = emptyList(), sight = true),
+                    WordData(text = "bug", segments = listOf("b", "u", "g"), img = "🐞"),
+                    WordData(text = "sat", segments = listOf("s", "a", "t")),
+                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "a", segments = emptyList(), sight = true),
+                    WordData(text = "cup.", segments = listOf("c", "u", "p"), img = "🥤"),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "bug", segments = listOf("b", "u", "g"), img = "🐞"),
+                    WordData(text = "got", segments = listOf("g", "o", "t")),
+                    WordData(text = "in", segments = listOf("i", "n")),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "mud.", segments = listOf("m", "u", "d"), img = "🟫"),
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "bug", segments = listOf("b", "u", "g"), img = "🐞"),
+                    WordData(text = "is", segments = emptyList(), sight = true),
+                    WordData(text = "wet.", segments = listOf("w", "e", "t")),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "A", segments = emptyList(), sight = true),
+                    WordData(text = "big", segments = listOf("b", "i", "g")),
+                    WordData(text = "dog", segments = listOf("d", "o", "g"), img = "🐶"),
+                    WordData(text = "ran", segments = listOf("r", "a", "n"), img = "🏃"),
+                    WordData(text = "up.", segments = listOf("u", "p")),
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "dog", segments = listOf("d", "o", "g"), img = "🐶"),
+                    WordData(text = "did", segments = listOf("d", "i", "d")),
+                    WordData(text = "not", segments = listOf("n", "o", "t")),
+                    WordData(text = "see", segments = emptyList(), sight = true),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "bug.", segments = listOf("b", "u", "g"), img = "🐞"),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "bug", segments = listOf("b", "u", "g"), img = "🐞"),
+                    WordData(text = "ran", segments = listOf("r", "a", "n"), img = "🏃"),
+                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "bus.", segments = listOf("b", "u", "s"), img = "🚌"),
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "bug", segments = listOf("b", "u", "g"), img = "🐞"),
+                    WordData(text = "won!", segments = emptyList(), sight = true),
+                )
+            )
+        )
+    )
+
+    val catOnMatStory = StoryData(
+        id = "cat",
+        title = "The Cat on the Mat",
+        pages = listOf(
+            PageData(
+                words = listOf(
+                    WordData(text = "A", segments = emptyList(), sight = true),
+                    WordData(text = "fat", segments = listOf("f", "a", "t")),
+                    WordData(text = "cat", segments = listOf("c", "a", "t"), img = "🐱"),
+                    WordData(text = "sat.", segments = listOf("s", "a", "t")),
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "cat", segments = listOf("c", "a", "t"), img = "🐱"),
+                    WordData(text = "is", segments = emptyList(), sight = true),
+                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "a", segments = emptyList(), sight = true),
+                    WordData(text = "mat.", segments = listOf("m", "a", "t"), img = "🧶"),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "A", segments = emptyList(), sight = true),
+                    WordData(text = "rat", segments = listOf("r", "a", "t"), img = "🐀"),
+                    WordData(text = "ran", segments = listOf("r", "a", "n"), img = "🏃"),
+                    WordData(text = "by.", segments = emptyList(), sight = true),
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "cat", segments = listOf("c", "a", "t"), img = "🐱"),
+                    WordData(text = "saw", segments = emptyList(), sight = true),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "rat.", segments = listOf("r", "a", "t"), img = "🐀"),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "cat", segments = listOf("c", "a", "t"), img = "🐱"),
+                    WordData(text = "got", segments = listOf("g", "o", "t")),
+                    WordData(text = "a", segments = emptyList(), sight = true),
+                    WordData(text = "big", segments = listOf("b", "i", "g")),
+                    WordData(text = "hat.", segments = listOf("h", "a", "t"), img = "🎩"),
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "hat", segments = listOf("h", "a", "t"), img = "🎩"),
+                    WordData(text = "is", segments = emptyList(), sight = true),
+                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "cat.", segments = listOf("c", "a", "t"), img = "🐱"),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "Can", segments = listOf("C", "a", "n")),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "cat", segments = listOf("c", "a", "t"), img = "🐱"),
+                    WordData(text = "nap?", segments = listOf("n", "a", "p"), img = "💤"),
+                    WordData(text = "Yes!", segments = listOf("Y", "e", "s")),
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "cat", segments = listOf("c", "a", "t"), img = "🐱"),
+                    WordData(text = "can", segments = listOf("c", "a", "n")),
+                    WordData(text = "nap", segments = listOf("n", "a", "p"), img = "💤"),
+                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "mat.", segments = listOf("m", "a", "t"), img = "🧶"),
+                )
+            )
+        )
+    )
+
+    val petInNetStory = StoryData(
+        id = "net",
+        title = "A Pet in the Net",
+        pages = listOf(
+            PageData(
+                words = listOf(
+                    WordData(text = "A", segments = emptyList(), sight = true),
+                    WordData(text = "boy", segments = emptyList(), sight = true),
+                    WordData(text = "has", segments = listOf("h", "a", "s")),
+                    WordData(text = "a", segments = emptyList(), sight = true),
+                    WordData(text = "pet.", segments = listOf("p", "e", "t"), img = "🐶"),
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "pet", segments = listOf("p", "e", "t"), img = "🐶"),
+                    WordData(text = "is", segments = emptyList(), sight = true),
+                    WordData(text = "a", segments = emptyList(), sight = true),
+                    WordData(text = "wet", segments = listOf("w", "e", "t"), img = "💧"),
+                    WordData(text = "dog.", segments = listOf("d", "o", "g"), img = "🐶"),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "dog", segments = listOf("d", "o", "g"), img = "🐶"),
+                    WordData(text = "got", segments = listOf("g", "o", "t")),
+                    WordData(text = "in", segments = listOf("i", "n")),
+                    WordData(text = "a", segments = emptyList(), sight = true),
+                    WordData(text = "net.", segments = listOf("n", "e", "t"), img = "🕸️"),
+                    WordData(text = "Can", segments = listOf("C", "a", "n")),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "dog", segments = listOf("d", "o", "g"), img = "🐶"),
+                    WordData(text = "get", segments = listOf("g", "e", "t")),
+                    WordData(text = "out?", segments = emptyList(), sight = true),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "boy", segments = emptyList(), sight = true, img = "👦"),
+                    WordData(text = "ran", segments = listOf("r", "a", "n"), img = "🏃"),
+                    WordData(text = "to", segments = emptyList(), sight = true),
+                    WordData(text = "help.", segments = listOf("h", "e", "l", "p")),
+                    WordData(text = "He", segments = emptyList(), sight = true),
+                    WordData(text = "cut", segments = listOf("c", "u", "t"), img = "✂️"),
+                    WordData(text = "the", segments = emptyList(), sight = true),
+                    WordData(text = "net.", segments = listOf("n", "e", "t"), img = "🕸️"),
+                )
+            ),
+            PageData(
+                words = listOf(
+                    WordData(text = "The", segments = emptyList(), sight = true),
+                    WordData(text = "pet", segments = listOf("p", "e", "t"), img = "🐶"),
+                    WordData(text = "is", segments = emptyList(), sight = true),
+                    WordData(text = "glad.", segments = listOf("g", "l", "a", "d"), img = "😊"),
+                    WordData(text = "Good", segments = emptyList(), sight = true),
+                    WordData(text = "dog!", segments = listOf("d", "o", "g"), img = "🐶"),
+                )
+            )
+        )
+    )
+
+    val allStories: List<StoryData> = listOf(
+        redHenStory,
+        bigPigStory,
+        sunAndBugStory,
+        catOnMatStory,
+        petInNetStory,
+    )
 }
