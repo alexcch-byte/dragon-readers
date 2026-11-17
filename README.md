@@ -19,7 +19,7 @@ A calm phonics app for pre-readers (built for a 4-year-old, used together with a
   6. **Build a sentence**: put scrambled words in order and choose the capital letter and end mark (. ? !).
 
   Finished levels are remembered on the device (in the browser's local storage), and completing all 6 levels awards a special Sentence Master celebration badge.
-- **Android app** (Kotlin + Compose): Milestones 1, 2, 3, 4, and 5. Features mode selection between Word Practice and Story Mode with the full 5-story suite ("The Red Hen", "The Big Pig", "The Sun and the Bug", "The Cat on the Mat", "A Pet in the Net"), interactive story picker dialog, offline session progress persistence via SharedPreferences (retaining completed words, finished stories, active mode, and story index), tricky/sight words, segmented scrub bar, auto-advancing, page sentence read-aloud, starter word bank cycling ("cat", "hen", "fox", "box", "big", "red") with sentence-in-context display, TextToSpeech audio support with offline voice detection and system TTS settings shortcut, Help button, picture/emoji reveal on decode attempt, parent gate settings with math challenge and progress reset, Compose UI previews for phone and tablet form factors, and accessibility semantics.
+- **Android app** (Kotlin + Compose): Milestones 1, 2, 3, 4, and 5+. Features a 3-mode switcher between Word Practice, Story Mode (5-story suite: "The Red Hen", "The Big Pig", "The Sun and the Bug", "The Cat on the Mat", "A Pet in the Net"), and Sentence Lab Level 1 (naming words / nouns for ages 6–8 with interactive chips and kind nudges), interactive story picker dialog, offline session progress persistence via SharedPreferences, tricky/sight words, segmented scrub bar, auto-advancing, page sentence read-aloud, starter word bank cycling with sentence-in-context display, TextToSpeech audio support with offline voice detection and system TTS settings shortcut, Help button, picture/emoji reveal on decode attempt, parent gate settings with math challenge and progress reset, Compose UI previews for phone and tablet form factors, and accessibility semantics.
 
 Per-letter sounds use short dictionary words ("ant" for a, "hat" for h) because TTS reads a lone letter by its name. Key words start with the letter sound and avoid story words. A real phoneme clip pack is planned.
 
@@ -27,9 +27,13 @@ Per-letter sounds use short dictionary words ("ant" for a, "hat" for h) because 
 
 The demo is live at the GitHub Pages link in the repo "About" section. Features the complete 5-story suite ("The Red Hen", "The Big Pig", "The Sun and the Bug", "The Cat on the Mat", and "A Pet in the Net") with an interactive story switcher, circular next-story navigation, segmented sounding out, TTS audio, picture reveals, and tricky words. The Sentence Lab is at `sentences.html` next to it with an all-levels master celebration.
 
-## Download the Android prototype (one word)
+## Download the Android prototype
 
-Grab the latest debug APK from the [Releases page](../../releases/latest). This is an early prototype with a single word ("cat") to drag, not the full story app; the story and the Sentence Lab only exist in the browser for now. The repo and the APK file (`dragon-readers-debug.apk`) are named "dragon-readers"; the app itself is called Early Reader. The release asset name must stay as is, because the download link depends on it. You'll need to allow "install from unknown sources" since this isn't on the Play Store yet.
+Grab the latest debug APK from GitHub Actions CI build artifacts or the Releases page. The release asset name (`dragon-readers-debug.apk`) is preserved for direct download compatibility. You'll need to allow "install from unknown sources" since this isn't on the Play Store yet.
+
+## Continuous Integration
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) automatically runs on all pushes and pull requests to `master`, verifying the full test suite and generating the `dragon-readers-debug.apk` artifact on JDK 17.
 
 ## Build from source
 

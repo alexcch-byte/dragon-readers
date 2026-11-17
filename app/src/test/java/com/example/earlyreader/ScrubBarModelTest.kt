@@ -2,6 +2,7 @@ package com.example.earlyreader
 
 import com.example.earlyreader.model.StoryBank
 import com.example.earlyreader.model.WordBank
+import com.example.earlyreader.ui.sentences.SentenceLabData
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -189,5 +190,24 @@ class ScrubBarModelTest {
         assertFalse("Offline voice should not trigger offline download guidance", shouldShowOfflineGuidance(offlineVoice))
         assertTrue("Network voice should trigger offline download guidance", shouldShowOfflineGuidance(networkVoice))
         assertTrue("Missing voice should trigger offline download guidance", shouldShowOfflineGuidance(null))
+    }
+
+    @Test
+    fun testSentenceLabLevel1Dataset() {
+        val items = SentenceLabData.level1Items
+        assertEquals("Sentence Lab Level 1 must have 6 items", 6, items.size)
+        for ((idx, item) in items.withIndex()) {
+            assertTrue("Item $idx text must not be blank", item.text.isNotBlank())
+            assertEquals(
+                "Words count must match tags count for item $idx",
+                item.words.size,
+                item.tags.size,
+            )
+            assertTrue("Item $idx must have at least one noun", item.nounIndices.isNotEmpty())
+            for (nounIdx in item.nounIndices) {
+                assertTrue("Noun index $nounIdx must be valid", nounIdx in item.words.indices)
+                assertEquals("Tag at noun index must be 'noun'", "noun", item.tags[nounIdx])
+            }
+        }
     }
 }

@@ -67,6 +67,7 @@ import com.example.earlyreader.model.WordBank
 import com.example.earlyreader.model.WordData
 import com.example.earlyreader.storage.ProgressStorage
 import com.example.earlyreader.ui.scrub.SegmentedScrubBar
+import com.example.earlyreader.ui.sentences.SentenceLabScreen
 import com.example.earlyreader.ui.theme.EarlyReaderTheme
 import com.example.earlyreader.ui.theme.VioletPrimary
 import com.example.earlyreader.ui.theme.WarmAccent
@@ -76,6 +77,7 @@ import kotlinx.coroutines.launch
 enum class AppMode {
     WORD_PRACTICE,
     STORY_MODE,
+    SENTENCE_LAB,
 }
 
 class MainActivity : ComponentActivity() {
@@ -150,10 +152,10 @@ fun EarlyReaderApp(
     speechManager: SpeechManager? = null,
     onSpeakWord: (String) -> Unit = {},
 ) {
-    val initialMode = if (progressStorage?.lastAppMode == ProgressStorage.MODE_STORY) {
-        AppMode.STORY_MODE
-    } else {
-        AppMode.WORD_PRACTICE
+    val initialMode = when (progressStorage?.lastAppMode) {
+        ProgressStorage.MODE_STORY -> AppMode.STORY_MODE
+        ProgressStorage.MODE_SENTENCES -> AppMode.SENTENCE_LAB
+        else -> AppMode.WORD_PRACTICE
     }
     var appMode by rememberSaveable { mutableStateOf(initialMode) }
     var selectedStoryIndex by rememberSaveable {
@@ -179,8 +181,11 @@ fun EarlyReaderApp(
 
     val handleModeChange: (AppMode) -> Unit = { mode ->
         appMode = mode
-        progressStorage?.lastAppMode =
-            if (mode == AppMode.STORY_MODE) ProgressStorage.MODE_STORY else ProgressStorage.MODE_WORDS
+        progressStorage?.lastAppMode = when (mode) {
+            AppMode.STORY_MODE -> ProgressStorage.MODE_STORY
+            AppMode.SENTENCE_LAB -> ProgressStorage.MODE_SENTENCES
+            AppMode.WORD_PRACTICE -> ProgressStorage.MODE_WORDS
+        }
     }
 
     val handleStorySelect: (Int) -> Unit = { idx ->
@@ -218,7 +223,7 @@ fun EarlyReaderApp(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Mode Toggle
+                // 3-Mode Toggle
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -231,12 +236,12 @@ fun EarlyReaderApp(
                             .clip(RoundedCornerShape(16.dp))
                             .background(if (appMode == AppMode.WORD_PRACTICE) VioletPrimary else Color.Transparent)
                             .clickable { handleModeChange(AppMode.WORD_PRACTICE) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
                         Text(
-                            text = "Word Practice",
+                            text = "Words",
                             color = if (appMode == AppMode.WORD_PRACTICE) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -245,12 +250,26 @@ fun EarlyReaderApp(
                             .clip(RoundedCornerShape(16.dp))
                             .background(if (appMode == AppMode.STORY_MODE) VioletPrimary else Color.Transparent)
                             .clickable { handleModeChange(AppMode.STORY_MODE) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
                         Text(
-                            text = "Story Mode",
+                            text = "Stories",
                             color = if (appMode == AppMode.STORY_MODE) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (appMode == AppMode.SENTENCE_LAB) VioletPrimary else Color.Transparent)
+                            .clickable { handleModeChange(AppMode.SENTENCE_LAB) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            text = "Sentence Lab",
+                            color = if (appMode == AppMode.SENTENCE_LAB) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -300,6 +319,11 @@ fun EarlyReaderApp(
                                 },
                             )
                         }
+                    }
+                    AppMode.SENTENCE_LAB -> {
+                        SentenceLabScreen(
+                            onSpeakSentence = onSpeakWord,
+                        )
                     }
                 }
             }
