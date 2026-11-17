@@ -792,7 +792,7 @@
     [...lettersEl.children].forEach(el => el.classList.remove("hinting"));
   }
 
-  function currentPage() { return STORY.pages[pageIndex]; }
+  function currentPage() { return currentStory().pages[pageIndex]; }
   function currentWord() { return currentPage()[activeWordIndex]; }
 
   function renderSentence() {
