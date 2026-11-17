@@ -63,14 +63,46 @@
   }
   .reward.show { opacity: 1; }
 
+  .sentence-wrap {
+    display: flex; flex-direction: column; align-items: center; width: 100%;
+    margin-bottom: 12px;
+  }
   .sentence {
     display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
-    margin-bottom: 12px; user-select: none; width: 100%;
+    user-select: none; width: 100%; cursor: pointer; border-radius: 8px;
+    padding: 6px 10px; transition: background 0.2s, box-shadow 0.2s;
+  }
+  .sentence:hover {
+    background: rgba(139, 92, 246, 0.08);
+  }
+  .sentence:focus-visible {
+    outline: 2px solid var(--violet);
+    outline-offset: 2px;
+  }
+  .sentence.speaking-full {
+    background: rgba(139, 92, 246, 0.15);
+    box-shadow: 0 0 0 2px var(--violet);
   }
   .sentence .w { font-size: 1.1rem; font-weight: 600; transition: color 0.2s, opacity 0.2s, font-size 0.2s; }
   .sentence .w.upcoming { color: var(--dim); }
   .sentence .w.done { color: var(--accent); }
   .sentence .w.active { color: var(--violet); font-size: 1.4rem; }
+  .sentence .w.sentence-highlight { color: var(--violet); }
+
+  .read-sentence-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.85rem; font-weight: 600; padding: 4px 14px; border-radius: 16px;
+    background: #F3E8FF; color: #7C3AED; border: 1px solid #DDD6FE;
+    cursor: pointer; transition: all 0.15s ease; margin-top: 4px;
+    font-family: inherit;
+  }
+  .read-sentence-btn:hover {
+    background: #EDE9FE; border-color: #C4B5FD;
+  }
+  .read-sentence-btn:focus-visible {
+    outline: 2px solid var(--violet);
+    outline-offset: 2px;
+  }
 
   .active-area { display: flex; flex-direction: column; align-items: center; margin: auto 0; padding-top: 12px; }
 
@@ -129,8 +161,8 @@
   .end-screen { text-align: center; margin: auto 0; }
   .end-screen .big-star { font-size: 4rem; }
   /* the story sections swap for the end screen / start card without rebuilding the card */
-  .demo-card.finished .sentence, .demo-card.finished .active-area, .demo-card.finished .reward,
-  .demo-card.not-started .sentence, .demo-card.not-started .active-area { display: none; }
+  .demo-card.finished .sentence-wrap, .demo-card.finished .active-area, .demo-card.finished .reward,
+  .demo-card.not-started .sentence-wrap, .demo-card.not-started .active-area { display: none; }
   .end-screen, .start-card { display: none; }
   .demo-card.finished .end-screen { display: block; }
   .demo-card.not-started .start-card { display: flex; }
@@ -237,7 +269,10 @@
       </div>
     </div>
     <div class="reward" id="reward" aria-hidden="true">⭐</div>
-    <div class="sentence" id="sentence"></div>
+    <div class="sentence-wrap" id="sentence-wrap">
+      <div class="sentence" id="sentence" role="button" tabindex="0" title="Tap to hear full sentence"></div>
+      <button type="button" class="read-sentence-btn" id="read-sentence-btn" title="Hear full sentence read aloud">🔊 Read full sentence</button>
+    </div>
 
     <div class="active-area" id="active-area">
       <button type="button" class="picture" id="picture" disabled aria-hidden="true">🐔</button>
@@ -758,6 +793,7 @@
   function clearSavedPage() { try { sessionStorage.removeItem(PAGE_KEY); } catch (e) {} savedPage = 0; }
 
   const sentenceEl = document.getElementById("sentence");
+  const readSentenceBtn = document.getElementById("read-sentence-btn");
   const picEl = document.getElementById("picture");
   const lettersEl = document.getElementById("letters");
   const barEl = document.getElementById("bar");
@@ -799,6 +835,10 @@
       span.textContent = w.t;
       sentenceEl.appendChild(span);
     });
+    const fullText = currentPage().map(w => w.t).join(" ");
+    sentenceEl.setAttribute("aria-label", "Sentence: " + fullText + ". Tap to hear full sentence");
+    sentenceEl.setAttribute("role", "button");
+    sentenceEl.setAttribute("tabindex", "0");
   }
 
   function releasePointer() {
@@ -1198,6 +1238,39 @@
     };
     step();
   }
+
+  // ---- full sentence read-aloud ----
+  function readFullSentence() {
+    if (speechLocked()) return;
+    cancelHelp();
+    laneReset();
+    const text = currentPage().map(w => w.t).join(" ");
+    const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
+    sentenceEl.classList.add("speaking-full");
+    [...sentenceEl.children].forEach(c => c.classList.add("sentence-highlight"));
+    speakCore(fullSentence, 0.95, () => {
+      sentenceEl.classList.remove("speaking-full");
+      [...sentenceEl.children].forEach(c => c.classList.remove("sentence-highlight"));
+    }, true);
+  }
+
+  if (readSentenceBtn) {
+    readSentenceBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      readFullSentence();
+    });
+  }
+
+  sentenceEl.addEventListener("click", () => {
+    readFullSentence();
+  });
+
+  sentenceEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      readFullSentence();
+    }
+  });
 
   // ---- next page / end screen ----
   nextBtn.addEventListener("click", () => {

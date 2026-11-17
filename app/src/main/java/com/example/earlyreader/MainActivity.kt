@@ -530,23 +530,59 @@ fun WordPracticeScreen(
         ) {
             // Sentence context across the top
             if (currentWord.sentenceContext.isNotEmpty()) {
-                Row(
+                val fullSentenceText = currentWord.sentenceContext.joinToString(" ")
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .padding(horizontal = 24.dp)
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
+                        .padding(bottom = 16.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onSpeakWord(fullSentenceText) }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .semantics {
+                            contentDescription = "Sentence: $fullSentenceText. Tap to hear full sentence"
+                        },
                 ) {
-                    currentWord.sentenceContext.forEachIndexed { idx, token ->
-                        val cleanToken = token.trimEnd('.', '!', '?', ',')
-                        val isActive = cleanToken.equals(currentWord.text, ignoreCase = true)
-                        Text(
-                            text = if (idx == currentWord.sentenceContext.size - 1) token else "$token ",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontSize = if (isActive) 28.sp else 22.sp,
-                            color = if (isActive) WarmAccent else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                        )
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        currentWord.sentenceContext.forEachIndexed { idx, token ->
+                            val cleanToken = token.trimEnd('.', '!', '?', ',')
+                            val isActive = cleanToken.equals(currentWord.text, ignoreCase = true)
+                            Text(
+                                text = if (idx == currentWord.sentenceContext.size - 1) token else "$token ",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontSize = if (isActive) 28.sp else 22.sp,
+                                color = if (isActive) WarmAccent else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .clickable { onSpeakWord(fullSentenceText) }
+                            .semantics {
+                                contentDescription = "Read full sentence: $fullSentenceText"
+                            },
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        ) {
+                            Text(
+                                text = "🔊 Read sentence",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = VioletPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                     }
                 }
             }
@@ -716,31 +752,67 @@ fun StoryModeScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             // Sentence Context across the top (using FlowRow to wrap gracefully on mobile)
-            FlowRow(
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 20.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalArrangement = Arrangement.Center,
+                    .padding(bottom = 16.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onSpeakWord(currentPage.fullSentence) }
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .semantics {
+                        contentDescription = "Sentence: ${currentPage.fullSentence}. Tap to hear full sentence"
+                    },
             ) {
-                currentPage.words.forEachIndexed { idx, w ->
-                    val isDone = pageCompleted || idx < activeWordIndex
-                    val isActive = !pageCompleted && idx == activeWordIndex
-                    Text(
-                        text = "${w.text} ",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontSize = if (isActive) 28.sp else 22.sp,
-                        color = when {
-                            isActive -> WarmAccent
-                            isDone -> VioletPrimary
-                            else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    currentPage.words.forEachIndexed { idx, w ->
+                        val isDone = pageCompleted || idx < activeWordIndex
+                        val isActive = !pageCompleted && idx == activeWordIndex
+                        Text(
+                            text = "${w.text} ",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontSize = if (isActive) 28.sp else 22.sp,
+                            color = when {
+                                isActive -> WarmAccent
+                                isDone -> VioletPrimary
+                                else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+                            },
+                            fontWeight = if (isActive || isDone) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { onSpeakWord(w.text.trimEnd('.', '!', '?', ',')) }
+                                .padding(horizontal = 2.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier
+                        .clickable { onSpeakWord(currentPage.fullSentence) }
+                        .semantics {
+                            contentDescription = "Read full sentence: ${currentPage.fullSentence}"
                         },
-                        fontWeight = if (isActive || isDone) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable { onSpeakWord(w.text.trimEnd('.', '!', '?', ',')) }
-                            .padding(horizontal = 2.dp, vertical = 2.dp),
-                    )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            text = "🔊 Read full sentence",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = VioletPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
             }
 

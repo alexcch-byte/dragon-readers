@@ -59,12 +59,12 @@ Rich multi-sentence decodable stories for pre-readers:
 - **Interactive Story Switcher:** Pick any story from an accessible modal dialog with completion star indicators.
 - **Circular Progression:** Finishing a story offers immediate circular navigation to the next tale.
 - **Emoji / Picture Reveal:** Emojis remain calm and hidden until the child's first decode attempt, rewarding reading effort.
-- **Whole-Sentence Read Aloud:** Hear the completed page read smoothly with system text-to-speech.
+- **Whole-Sentence Read Aloud:** Hear the completed page read smoothly with system text-to-speech, or tap the sentence container or "🔊 Read full sentence" button anytime to hear the entire sentence read aloud in context.
 
 ### 2. Android 3-Mode Experience
 Switch seamlessly between learning modes from the top bar:
-- **Word Practice (Ages 4–5):** Starter word bank cycling with decodable letter segments, short synthetic phonics sounds ("ah", "buh", "kuh"), and sentence-in-context highlight.
-- **Story Mode (Ages 4–6):** Full multi-page decodable reader with tricky word flashcard assistance and celebratory rewards.
+- **Word Practice (Ages 4–5):** Starter word bank cycling with decodable letter segments, short synthetic phonics sounds ("ah", "buh", "kuh"), sentence-in-context highlight, and tap-to-read full sentence audio.
+- **Story Mode (Ages 4–6):** Full multi-page decodable reader with tricky word flashcard assistance, dedicated "🔊 Read full sentence" audio button, and celebratory rewards.
 - **Sentence Lab (Ages 6–8):** Comprehensive 6-level interactive grammar suite.
 
 ### 3. Complete 6-Level Sentence Lab

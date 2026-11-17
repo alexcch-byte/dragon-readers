@@ -359,4 +359,28 @@ class ScrubBarModelTest {
         assertEquals("ah", sounds["o"])
         assertEquals("uh", sounds["u"])
     }
+
+    @Test
+    fun testFullSentenceAssemblyCoverage() {
+        // Test starter words sentence contexts
+        for (word in WordBank.starterWords) {
+            assertTrue("Word ${word.text} must have non-empty sentenceContext", word.sentenceContext.isNotEmpty())
+            val fullSentence = word.sentenceContext.joinToString(" ")
+            assertTrue("Full sentence for ${word.text} must not be blank", fullSentence.isNotBlank())
+            val containsTarget = word.sentenceContext.any { token ->
+                token.trimEnd('.', '!', '?', ',').equals(word.text, ignoreCase = true)
+            }
+            assertTrue("Full sentence for ${word.text} must contain target word", containsTarget)
+        }
+
+        // Test all stories fullSentence properties
+        for (story in StoryBank.allStories) {
+            assertTrue("Story ${story.title} must have pages", story.pages.isNotEmpty())
+            for ((idx, page) in story.pages.withIndex()) {
+                assertTrue("Story ${story.title} page $idx fullSentence must not be blank", page.fullSentence.isNotBlank())
+                val joinedWords = page.words.joinToString(" ") { it.text }
+                assertEquals("Story ${story.title} page $idx fullSentence should match joined words", joinedWords, page.fullSentence)
+            }
+        }
+    }
 }
