@@ -99,6 +99,7 @@ class MainActivity : ComponentActivity() {
                         progressStorage = progressStorage,
                         speechManager = speech,
                         onSpeakWord = { text -> speech.speakWord(text) },
+                        onSpeakPhoneme = { segment -> speech.speakPhoneme(segment) },
                     )
                 }
             }
@@ -135,11 +136,13 @@ fun generateMathChallenge(): MathChallenge {
 fun WordScreen(
     words: List<WordData> = WordBank.starterWords,
     onSpeakWord: (String) -> Unit = {},
+    onSpeakPhoneme: (String) -> Unit = {},
 ) {
     EarlyReaderApp(
         words = words,
         stories = StoryBank.allStories,
         onSpeakWord = onSpeakWord,
+        onSpeakPhoneme = onSpeakPhoneme,
     )
 }
 
@@ -151,6 +154,7 @@ fun EarlyReaderApp(
     progressStorage: ProgressStorage? = null,
     speechManager: SpeechManager? = null,
     onSpeakWord: (String) -> Unit = {},
+    onSpeakPhoneme: (String) -> Unit = { speechManager?.speakPhoneme(it) },
 ) {
     val initialMode = when (progressStorage?.lastAppMode) {
         ProgressStorage.MODE_STORY -> AppMode.STORY_MODE
@@ -302,6 +306,7 @@ fun EarlyReaderApp(
                             WordPracticeScreen(
                                 words = words,
                                 onSpeakWord = onSpeakWord,
+                                onSpeakPhoneme = onSpeakPhoneme,
                                 onWordCompleted = handleWordComplete,
                             )
                         }
@@ -311,6 +316,7 @@ fun EarlyReaderApp(
                             StoryModeScreen(
                                 story = currentStory,
                                 onSpeakWord = onSpeakWord,
+                                onSpeakPhoneme = onSpeakPhoneme,
                                 onOpenStoryPicker = { showStoryPicker = true },
                                 onStoryCompleted = { handleStoryComplete(currentStory) },
                                 onNextStory = {
@@ -503,6 +509,7 @@ fun EarlyReaderApp(
 fun WordPracticeScreen(
     words: List<WordData> = WordBank.starterWords,
     onSpeakWord: (String) -> Unit = {},
+    onSpeakPhoneme: (String) -> Unit = {},
     onWordCompleted: () -> Unit = {},
 ) {
     var wordIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -566,6 +573,7 @@ fun WordPracticeScreen(
                 SegmentedScrubBar(
                     segments = currentWord.segments,
                     onDragStart = { pictureRevealed = true },
+                    onSegmentSound = onSpeakPhoneme,
                     onWordComplete = {
                         showReward = true
                         completed = true
@@ -662,6 +670,7 @@ fun WordPracticeScreen(
 fun StoryModeScreen(
     story: StoryData = StoryBank.redHenStory,
     onSpeakWord: (String) -> Unit = {},
+    onSpeakPhoneme: (String) -> Unit = {},
     onOpenStoryPicker: () -> Unit = {},
     onStoryCompleted: () -> Unit = {},
     onNextStory: () -> Unit = {},
@@ -873,6 +882,7 @@ fun StoryModeScreen(
                         SegmentedScrubBar(
                             segments = currentWord.segments,
                             onDragStart = { pictureRevealed = true },
+                            onSegmentSound = onSpeakPhoneme,
                             onWordComplete = {
                                 onSpeakWord(cleanSpoken)
                                 pictureRevealed = true

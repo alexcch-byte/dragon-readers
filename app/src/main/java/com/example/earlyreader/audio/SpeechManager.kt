@@ -60,6 +60,13 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "word_${System.currentTimeMillis()}")
     }
 
+    fun speakPhoneme(segment: String) {
+        if (!isInitialized || segment.isBlank()) return
+        val sound = phonemeSounds[segment.lowercase()] ?: segment
+        tts?.stop()
+        tts?.speak(sound, TextToSpeech.QUEUE_FLUSH, null, "phoneme_${System.currentTimeMillis()}")
+    }
+
     fun stop() {
         if (isInitialized) {
             tts?.stop()
@@ -71,5 +78,16 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
         tts?.shutdown()
         tts = null
         isInitialized = false
+    }
+
+    companion object {
+        val phonemeSounds: Map<String, String> = mapOf(
+            "a" to "ah", "e" to "eh", "i" to "ih", "o" to "ah", "u" to "uh",
+            "b" to "buh", "c" to "kuh", "d" to "duh", "f" to "fff", "g" to "guh",
+            "h" to "huh", "j" to "juh", "k" to "kuh", "l" to "luh", "m" to "mmm",
+            "n" to "nnn", "p" to "puh", "q" to "kwuh", "qu" to "kwuh", "r" to "ruh", "s" to "sss",
+            "t" to "tuh", "v" to "vuh", "w" to "wuh", "x" to "ks", "y" to "yuh", "z" to "zzz",
+            "sh" to "shh", "ch" to "chuh", "th" to "th", "ng" to "ng",
+        )
     }
 }

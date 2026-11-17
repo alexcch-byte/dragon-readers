@@ -702,20 +702,15 @@
   // made-up token (confirmed broken for at least "hhh" and "guh" on this
   // voice). A short, common dictionary word is in every TTS engine's
   // pronunciation lexicon already, so its first sound is reliably correct —
-  // this is the same "A is for Apple" trick phonics teaching already uses.
-  // Each key word is one short syllable that STARTS with the letter's sound, so the sound is heard
-  // at once, and none is a word the story asks the child to read (so not "red", "box" or "yes", and
-  // not "goat" or "net", which sit too close to "got" and "not"). A key word therefore never gives
-  // an answer away. Two exceptions to "starts with": no English word starts with the sound of x
-  // (/ks/), so "ax" is used, where it is heard clearly at the end; and "ng" only ever ends a word,
-  // so "ring" stands in for it (neither is used by the current story).
+  // Short phonetic letter sounds for synthetic phonics blending.
+  // We speak the short sound for each letter / phoneme directly (e.g. "ah", "buh", "kuh").
   const SEGMENT_SOUNDS = {
-    a: "ant", e: "egg", i: "itch", o: "odd", u: "up",
-    b: "ball", c: "cup", d: "dog", f: "fish", g: "gum",
-    h: "hat", j: "jam", k: "kite", l: "leaf", m: "map",
-    n: "nap", p: "pig", qu: "queen", r: "rug", s: "sun",
-    t: "top", v: "van", w: "web", x: "ax", y: "yak", z: "zip",
-    sh: "ship", ch: "chip", th: "thumb", ng: "ring",
+    a: "ah", e: "eh", i: "ih", o: "ah", u: "uh",
+    b: "buh", c: "kuh", d: "duh", f: "fff", g: "guh",
+    h: "huh", j: "juh", k: "kuh", l: "luh", m: "mmm",
+    n: "nnn", p: "puh", q: "kwuh", qu: "kwuh", r: "ruh", s: "sss",
+    t: "tuh", v: "vuh", w: "wuh", x: "ks", y: "yuh", z: "zzz",
+    sh: "shh", ch: "chuh", th: "th", ng: "ng",
   };
   function segmentSound(letter) {
     return SEGMENT_SOUNDS[letter.toLowerCase()] || letter;

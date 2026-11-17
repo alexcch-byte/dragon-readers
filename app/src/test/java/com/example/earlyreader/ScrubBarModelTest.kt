@@ -1,5 +1,6 @@
 package com.example.earlyreader
 
+import com.example.earlyreader.audio.SpeechManager
 import com.example.earlyreader.model.StoryBank
 import com.example.earlyreader.model.WordBank
 import com.example.earlyreader.ui.sentences.SentenceLabData
@@ -326,5 +327,36 @@ class ScrubBarModelTest {
         assertEquals("Level 6 id must be 'roles'", "roles", SentenceLabData.level6.id)
         assertEquals("Level 6 type must be SORT_ROLES", com.example.earlyreader.ui.sentences.SentenceLabType.SORT_ROLES, SentenceLabData.level6.type)
         assertEquals("All levels list must have 6 levels", 6, SentenceLabData.allLevels.size)
+    }
+
+    @Test
+    fun testPhonemeSoundsCoverage() {
+        val sounds = SpeechManager.phonemeSounds
+        assertTrue("Phoneme sounds map must not be empty", sounds.isNotEmpty())
+
+        // All 26 lowercase English letters
+        for (c in 'a'..'z') {
+            val key = c.toString()
+            assertTrue("Phoneme sound map must contain letter '$key'", sounds.containsKey(key))
+            val sound = sounds[key]
+            assertNotNull("Sound for '$key' must not be null", sound)
+            assertTrue("Sound for '$key' must not be blank", sound!!.isNotBlank())
+        }
+
+        // Essential phonics digraphs
+        val digraphs = listOf("sh", "ch", "th", "ng")
+        for (dg in digraphs) {
+            assertTrue("Phoneme sound map must contain digraph '$dg'", sounds.containsKey(dg))
+            val sound = sounds[dg]
+            assertNotNull("Sound for '$dg' must not be null", sound)
+            assertTrue("Sound for '$dg' must not be blank", sound!!.isNotBlank())
+        }
+
+        // Short vowel phonemes
+        assertEquals("ah", sounds["a"])
+        assertEquals("eh", sounds["e"])
+        assertEquals("ih", sounds["i"])
+        assertEquals("ah", sounds["o"])
+        assertEquals("uh", sounds["u"])
     }
 }

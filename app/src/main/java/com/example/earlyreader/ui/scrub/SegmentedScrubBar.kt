@@ -108,6 +108,7 @@ fun SegmentedScrubBar(
     segments: List<String>,
     modifier: Modifier = Modifier,
     onDragStart: () -> Unit = {},
+    onSegmentSound: (String) -> Unit = {},
     onWordComplete: () -> Unit = {},
 ) {
     var progress by rememberSaveable(segments) { mutableStateOf(0f) }
@@ -136,6 +137,19 @@ fun SegmentedScrubBar(
         segments.size
     } else {
         boundaries.count { it <= progress }
+    }
+
+    var lastSoundedSegment by rememberSaveable(segments) { mutableIntStateOf(0) }
+
+    LaunchedEffect(filledSegments) {
+        if (filledSegments > lastSoundedSegment && filledSegments <= segments.size) {
+            for (idx in lastSoundedSegment until filledSegments) {
+                onSegmentSound(segments[idx])
+            }
+            lastSoundedSegment = filledSegments
+        } else if (progress <= RESCRUB_RESET) {
+            lastSoundedSegment = 0
+        }
     }
 
     Column(

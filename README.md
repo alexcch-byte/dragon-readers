@@ -63,7 +63,7 @@ Rich multi-sentence decodable stories for pre-readers:
 
 ### 2. Android 3-Mode Experience
 Switch seamlessly between learning modes from the top bar:
-- **Word Practice (Ages 4–5):** Starter word bank cycling with decodable letter segments, dictionary key-word sound hints, and sentence-in-context highlight.
+- **Word Practice (Ages 4–5):** Starter word bank cycling with decodable letter segments, short synthetic phonics sounds ("ah", "buh", "kuh"), and sentence-in-context highlight.
 - **Story Mode (Ages 4–6):** Full multi-page decodable reader with tricky word flashcard assistance and celebratory rewards.
 - **Sentence Lab (Ages 6–8):** Comprehensive 6-level interactive grammar suite.
 
