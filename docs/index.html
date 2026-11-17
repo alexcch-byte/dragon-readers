@@ -388,7 +388,10 @@
 
 <header>
   <div class="head-row">
-    <h1>Early Reader</h1>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button type="button" class="btn btn-secondary btn-small" id="home-btn" aria-label="Home: return to start" title="Return to start of Early Reader">🏠 Home</button>
+      <h1>Early Reader</h1>
+    </div>
     <a class="btn btn-secondary btn-small" id="sentence-lab-link" href="sentences.html" title="Sentence Lab, for readers about 6 to 8">✏ Sentence Lab<span class="long"> (ages 6–8)</span></a>
   </div>
   <p class="tagline">A calm, offline phonics app. Drag to sound out each word, then hear it read aloud.</p>
@@ -2061,6 +2064,31 @@
     speakCore(currentStory().title, 0.9, null);
   }
   startBtn.addEventListener("click", beginStory);
+
+  function goHome() {
+    stopSpeech();
+    started = false;
+    storyIndex = 0;
+    pageIndex = 0;
+    activeWordIndex = 0;
+    progress = 0;
+    trackProgress = 0;
+    trackedIndex = 0;
+    trackReached = 0;
+    trackPageCompleted = false;
+    demoCard.classList.remove("finished");
+    demoCard.classList.add("not-started");
+    setReadingMode("scrub");
+    renderStoryTabs();
+    try { localStorage.removeItem("early_reader_story"); } catch (_) {}
+    try { localStorage.removeItem("early_reader_page"); } catch (_) {}
+    startTextEl.textContent = "Story 1 of " + STORIES.length + ": " + STORIES[0].title;
+    startBtn.textContent = "▶ Start story";
+  }
+  const homeBtn = document.getElementById("home-btn");
+  if (homeBtn) {
+    homeBtn.addEventListener("click", goHome);
+  }
 
   renderPage();
 </script>

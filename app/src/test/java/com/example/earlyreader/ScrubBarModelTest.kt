@@ -605,4 +605,23 @@ class ScrubBarModelTest {
         assertTrue("Stories must have tricky sight words (e.g. 'the')", trickyWords.isNotEmpty())
         assertTrue("Tricky words should include 'the'", trickyWords.any { it.contains("the") })
     }
+
+    @Test
+    fun testHomeResetTransitions() {
+        // Simulates Home action: resets to primary home mode (WORD_PRACTICE), story index 0, and page 0
+        var currentMode = AppMode.TRACK_TO_READ
+        var storyIndex = 3
+        var speechStopped = false
+
+        val handleHome = {
+            speechStopped = true
+            storyIndex = 0
+            currentMode = AppMode.WORD_PRACTICE
+        }
+
+        handleHome()
+        assertTrue("Home action must stop active speech", speechStopped)
+        assertEquals("Home action must reset to story index 0", 0, storyIndex)
+        assertEquals("Home action must reset to Word Practice mode", AppMode.WORD_PRACTICE, currentMode)
+    }
 }

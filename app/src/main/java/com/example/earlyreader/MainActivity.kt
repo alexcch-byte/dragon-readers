@@ -15,6 +15,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -273,16 +275,59 @@ fun EarlyReaderApp(
         showSettingsDialog = false
     }
 
+    val handleHomeClick: () -> Unit = {
+        onStopSpeech()
+        saveableStateHolder.removeState("story-$selectedStoryIndex-$storyResetKey")
+        saveableStateHolder.removeState("track-$selectedStoryIndex-$storyResetKey")
+        selectedStoryIndex = 0
+        progressStorage?.lastActiveStoryIndex = 0
+        practiceResetKey++
+        storyResetKey++
+        showStoryPicker = false
+        showSettingsDialog = false
+        showMathGate = false
+        showResetConfirm = false
+        handleModeChange(AppMode.WORD_PRACTICE)
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar with mode selector and adult parent gate
+            // Top Bar with Home button, mode selector, and adult parent gate
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // Dedicated Home button at top start
+                Surface(
+                    onClick = handleHomeClick,
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .semantics { contentDescription = "Home: return to start" },
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = "🏠 Home",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = VioletPrimary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 // Mode switcher: every chip is at least 48dp tall.
                 Row(
                     modifier = Modifier
@@ -296,6 +341,8 @@ fun EarlyReaderApp(
                     ModeChip("Track", appMode == AppMode.TRACK_TO_READ) { handleModeChange(AppMode.TRACK_TO_READ) }
                     ModeChip("Sentence Lab", appMode == AppMode.SENTENCE_LAB) { handleModeChange(AppMode.SENTENCE_LAB) }
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
                     onClick = {
