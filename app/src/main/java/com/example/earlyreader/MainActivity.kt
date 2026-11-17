@@ -62,6 +62,7 @@ import com.example.earlyreader.model.StoryBank
 import com.example.earlyreader.model.StoryData
 import com.example.earlyreader.model.WordBank
 import com.example.earlyreader.model.WordData
+import com.example.earlyreader.storage.ProgressStorage
 import com.example.earlyreader.ui.scrub.SegmentedScrubBar
 import com.example.earlyreader.ui.theme.EarlyReaderTheme
 import com.example.earlyreader.ui.theme.VioletPrimary
@@ -76,11 +77,13 @@ enum class AppMode {
 
 class MainActivity : ComponentActivity() {
     private var speechManager: SpeechManager? = null
+    private lateinit var progressStorage: ProgressStorage
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val speech = SpeechManager(this)
         speechManager = speech
+        progressStorage = ProgressStorage(this)
 
         setContent {
             EarlyReaderTheme {
@@ -88,6 +91,7 @@ class MainActivity : ComponentActivity() {
                     EarlyReaderApp(
                         words = WordBank.starterWords,
                         stories = StoryBank.allStories,
+                        progressStorage = progressStorage,
                         onSpeakWord = { text -> speech.speakWord(text) },
                     )
                 }
@@ -138,12 +142,24 @@ fun WordScreen(
 fun EarlyReaderApp(
     words: List<WordData> = WordBank.starterWords,
     stories: List<StoryData> = StoryBank.allStories,
+    progressStorage: ProgressStorage? = null,
     onSpeakWord: (String) -> Unit = {},
 ) {
-    var appMode by rememberSaveable { mutableStateOf(AppMode.WORD_PRACTICE) }
-    var selectedStoryIndex by rememberSaveable { mutableIntStateOf(0) }
-    var wordsCompletedCount by rememberSaveable { mutableIntStateOf(0) }
-    var storiesCompletedCount by rememberSaveable { mutableIntStateOf(0) }
+    val initialMode = if (progressStorage?.lastAppMode == ProgressStorage.MODE_STORY) {
+        AppMode.STORY_MODE
+    } else {
+        AppMode.WORD_PRACTICE
+    }
+    var appMode by rememberSaveable { mutableStateOf(initialMode) }
+    var selectedStoryIndex by rememberSaveable {
+        mutableIntStateOf(progressStorage?.lastActiveStoryIndex ?: 0)
+    }
+    var wordsCompletedCount by rememberSaveable {
+        mutableIntStateOf(progressStorage?.completedWordsCount ?: 0)
+    }
+    var completedStories by remember {
+        mutableStateOf(progressStorage?.completedStoryTitles ?: emptySet())
+    }
 
     var showStoryPicker by remember { mutableStateOf(false) }
     var showMathGate by remember { mutableStateOf(false) }
@@ -155,6 +171,37 @@ fun EarlyReaderApp(
     var storyResetKey by rememberSaveable { mutableIntStateOf(0) }
 
     val currentStory = stories[selectedStoryIndex % stories.size]
+
+    val handleModeChange: (AppMode) -> Unit = { mode ->
+        appMode = mode
+        progressStorage?.lastAppMode =
+            if (mode == AppMode.STORY_MODE) ProgressStorage.MODE_STORY else ProgressStorage.MODE_WORDS
+    }
+
+    val handleStorySelect: (Int) -> Unit = { idx ->
+        selectedStoryIndex = idx
+        progressStorage?.lastActiveStoryIndex = idx
+    }
+
+    val handleWordComplete: () -> Unit = {
+        wordsCompletedCount++
+        progressStorage?.recordWordCompleted()
+    }
+
+    val handleStoryComplete: (StoryData) -> Unit = { s ->
+        progressStorage?.recordStoryCompleted(s.title)
+        completedStories = progressStorage?.completedStoryTitles ?: (completedStories + s.title)
+    }
+
+    val handleResetProgress: () -> Unit = {
+        progressStorage?.resetAll()
+        wordsCompletedCount = 0
+        completedStories = emptySet()
+        selectedStoryIndex = 0
+        practiceResetKey++
+        storyResetKey++
+        showSettingsDialog = false
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -178,7 +225,7 @@ fun EarlyReaderApp(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
                             .background(if (appMode == AppMode.WORD_PRACTICE) VioletPrimary else Color.Transparent)
-                            .clickable { appMode = AppMode.WORD_PRACTICE }
+                            .clickable { handleModeChange(AppMode.WORD_PRACTICE) }
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     ) {
                         Text(
@@ -192,7 +239,7 @@ fun EarlyReaderApp(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
                             .background(if (appMode == AppMode.STORY_MODE) VioletPrimary else Color.Transparent)
-                            .clickable { appMode = AppMode.STORY_MODE }
+                            .clickable { handleModeChange(AppMode.STORY_MODE) }
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     ) {
                         Text(
@@ -210,9 +257,11 @@ fun EarlyReaderApp(
                         gateError = false
                         showMathGate = true
                     },
-                    modifier = Modifier.semantics {
-                        contentDescription = "For grown-ups: settings and voice info"
-                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .semantics {
+                            contentDescription = "For grown-ups: settings and voice info"
+                        },
                 ) {
                     Text(text = "⚙️", fontSize = 20.sp)
                 }
@@ -229,7 +278,7 @@ fun EarlyReaderApp(
                             WordPracticeScreen(
                                 words = words,
                                 onSpeakWord = onSpeakWord,
-                                onWordCompleted = { wordsCompletedCount++ },
+                                onWordCompleted = handleWordComplete,
                             )
                         }
                     }
@@ -239,9 +288,10 @@ fun EarlyReaderApp(
                                 story = currentStory,
                                 onSpeakWord = onSpeakWord,
                                 onOpenStoryPicker = { showStoryPicker = true },
-                                onStoryCompleted = { storiesCompletedCount++ },
+                                onStoryCompleted = { handleStoryComplete(currentStory) },
                                 onNextStory = {
-                                    selectedStoryIndex = (selectedStoryIndex + 1) % stories.size
+                                    val nextIdx = (selectedStoryIndex + 1) % stories.size
+                                    handleStorySelect(nextIdx)
                                 },
                             )
                         }
@@ -259,9 +309,10 @@ fun EarlyReaderApp(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         stories.forEachIndexed { idx, s ->
                             val isSelected = idx == (selectedStoryIndex % stories.size)
+                            val isCompleted = completedStories.contains(s.title)
                             Button(
                                 onClick = {
-                                    selectedStoryIndex = idx
+                                    handleStorySelect(idx)
                                     showStoryPicker = false
                                 },
                                 colors = if (isSelected) {
@@ -277,7 +328,7 @@ fun EarlyReaderApp(
                                     .height(48.dp),
                             ) {
                                 Text(
-                                    text = "${idx + 1}. ${s.title}",
+                                    text = "${idx + 1}. ${s.title}" + if (isCompleted) " ⭐" else "",
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     fontSize = 15.sp,
                                 )
@@ -324,6 +375,7 @@ fun EarlyReaderApp(
                                             gateError = true
                                         }
                                     },
+                                    modifier = Modifier.height(48.dp),
                                 ) {
                                     Text(text = "$opt", fontSize = 18.sp)
                                 }
@@ -344,7 +396,7 @@ fun EarlyReaderApp(
         if (showSettingsDialog) {
             AlertDialog(
                 onDismissRequest = { showSettingsDialog = false },
-                title = { Text(text = "Settings & Voice Info", fontWeight = FontWeight.Bold) },
+                title = { Text(text = "Settings & Session Progress", fontWeight = FontWeight.Bold) },
                 text = {
                     Column {
                         Text(text = "Early Reader - Adult Dashboard", fontWeight = FontWeight.SemiBold)
@@ -352,25 +404,25 @@ fun EarlyReaderApp(
                         Text(text = "• TTS Voice: English (US) 0.8x rate, offline preferred")
                         Text(text = "• Current Mode: ${if (appMode == AppMode.WORD_PRACTICE) "Word Practice" else "Story Mode (${currentStory.title})"}")
                         Text(text = "• Story Suite: ${stories.size} decodable stories available")
-                        Text(text = "• Completed words in session: $wordsCompletedCount")
-                        Text(text = "• Completed stories in session: $storiesCompletedCount")
+                        Text(text = "• Total words completed: $wordsCompletedCount")
+                        Text(text = "• Completed stories: ${completedStories.size} of ${stories.size}")
+                        if (completedStories.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            completedStories.forEach { title ->
+                                Text(text = "  ✓ $title", color = VioletPrimary, fontSize = 13.sp)
+                            }
+                        }
                         Spacer(modifier = Modifier.height(16.dp))
                         OutlinedButton(
-                            onClick = {
-                                practiceResetKey++
-                                storyResetKey++
-                                selectedStoryIndex = 0
-                                wordsCompletedCount = 0
-                                storiesCompletedCount = 0
-                                showSettingsDialog = false
-                            },
+                            onClick = handleResetProgress,
+                            modifier = Modifier.height(48.dp),
                         ) {
-                            Text(text = "Reset word & story progress")
+                            Text(text = "Reset all progress")
                         }
                     }
                 },
                 confirmButton = {
-                    Button(onClick = { showSettingsDialog = false }) {
+                    Button(onClick = { showSettingsDialog = false }, modifier = Modifier.height(48.dp)) {
                         Text(text = "Close")
                     }
                 },

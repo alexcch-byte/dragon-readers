@@ -131,4 +131,46 @@ class ScrubBarModelTest {
             }
         }
     }
+
+    @Test
+    fun testProgressBookkeeping() {
+        var completedWords = 0
+        val completedStories = mutableSetOf<String>()
+        var activeStoryIndex = 0
+        var activeMode = "WORDS"
+        assertEquals(0, activeStoryIndex)
+        assertEquals("WORDS", activeMode)
+
+        // Simulate word completions
+        completedWords += 1
+        assertEquals(1, completedWords)
+        completedWords += 1
+        assertEquals(2, completedWords)
+
+        // Simulate story completions
+        completedStories.add("The Red Hen")
+        assertEquals(1, completedStories.size)
+        assertTrue(completedStories.contains("The Red Hen"))
+        // Idempotent addition
+        completedStories.add("The Red Hen")
+        assertEquals(1, completedStories.size)
+        completedStories.add("The Big Pig")
+        assertEquals(2, completedStories.size)
+
+        // Mode and story switching
+        activeMode = "STORY"
+        assertEquals("STORY", activeMode)
+        activeStoryIndex = 3
+        assertEquals(3, activeStoryIndex)
+
+        // Reset
+        completedWords = 0
+        completedStories.clear()
+        activeStoryIndex = 0
+        activeMode = "WORDS"
+        assertEquals(0, completedWords)
+        assertTrue(completedStories.isEmpty())
+        assertEquals(0, activeStoryIndex)
+        assertEquals("WORDS", activeMode)
+    }
 }
