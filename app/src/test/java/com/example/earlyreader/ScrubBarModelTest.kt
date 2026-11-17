@@ -383,4 +383,30 @@ class ScrubBarModelTest {
             }
         }
     }
+
+    @Test
+    fun testTrackToReadModeModel() {
+        assertEquals("TRACKING", com.example.earlyreader.storage.ProgressStorage.MODE_TRACKING)
+        assertEquals(4, AppMode.values().size)
+        assertTrue(AppMode.values().contains(AppMode.TRACK_TO_READ))
+
+        // Simulate finger word-tracking across each story page
+        for (story in StoryBank.allStories) {
+            for ((pIdx, page) in story.pages.withIndex()) {
+                val words = page.words
+                assertTrue("Page $pIdx in ${story.title} must have words to track", words.isNotEmpty())
+                var trackedIndex = 0
+                for (step in words.indices) {
+                    trackedIndex = step
+                    val isComplete = trackedIndex == words.size - 1
+                    if (step < words.size - 1) {
+                        assertFalse("Should not be complete at word index $step", isComplete)
+                    } else {
+                        assertTrue("Must be complete at final word index $step", isComplete)
+                    }
+                }
+                assertEquals("Final tracked index must equal last word index", words.size - 1, trackedIndex)
+            }
+        }
+    }
 }

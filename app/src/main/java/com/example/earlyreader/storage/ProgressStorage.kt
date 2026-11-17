@@ -62,6 +62,7 @@ class ProgressStorage(context: Context) {
 
         const val MODE_WORDS = "WORDS"
         const val MODE_STORY = "STORY"
+        const val MODE_TRACKING = "TRACKING"
         const val MODE_SENTENCES = "SENTENCES"
     }
 }

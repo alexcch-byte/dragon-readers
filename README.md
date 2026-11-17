@@ -64,10 +64,11 @@ Rich multi-sentence decodable stories for pre-readers:
 - **Emoji / Picture Reveal:** Emojis remain calm and hidden until the child's first decode attempt, rewarding reading effort.
 - **Whole-Sentence Read Aloud:** Hear the completed page read smoothly with system text-to-speech, or tap the sentence container or "🔊 Read full sentence" button anytime to hear the entire sentence read aloud in context.
 
-### 2. Android 3-Mode Experience
+### 2. Android 4-Mode Experience
 Switch seamlessly between learning modes from the top bar:
 - **Word Practice (Ages 4–5):** Starter word bank cycling with decodable letter segments, short synthetic phonics sounds ("ah", "buh", "kuh"), sentence-in-context highlight, and tap-to-read full sentence audio.
-- **Story Mode (Ages 4–6):** Full multi-page decodable reader with tricky word flashcard assistance, dedicated "🔊 Read full sentence" audio button, and celebratory rewards.
+- **Story Mode (Ages 4–6):** Full multi-page decodable reader with segmented scrub bar, tricky word flashcard assistance, dedicated "🔊 Read full sentence" audio button, and celebratory rewards.
+- **Track to Read (Ages 4–6):** Finger word-tracking mode establishing 1-to-1 word correspondence. Children tap or drag their finger across large word chips with a 👆 guide pointer, hear each word read aloud immediately on touch, and hear the complete sentence smoothly upon reaching the end.
 - **Sentence Lab (Ages 6–8):** Comprehensive 6-level interactive grammar suite.
 
 ### 3. Complete 6-Level Sentence Lab

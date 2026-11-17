@@ -77,6 +77,7 @@ import kotlinx.coroutines.launch
 enum class AppMode {
     WORD_PRACTICE,
     STORY_MODE,
+    TRACK_TO_READ,
     SENTENCE_LAB,
 }
 
@@ -158,6 +159,7 @@ fun EarlyReaderApp(
 ) {
     val initialMode = when (progressStorage?.lastAppMode) {
         ProgressStorage.MODE_STORY -> AppMode.STORY_MODE
+        ProgressStorage.MODE_TRACKING -> AppMode.TRACK_TO_READ
         ProgressStorage.MODE_SENTENCES -> AppMode.SENTENCE_LAB
         else -> AppMode.WORD_PRACTICE
     }
@@ -187,6 +189,7 @@ fun EarlyReaderApp(
         appMode = mode
         progressStorage?.lastAppMode = when (mode) {
             AppMode.STORY_MODE -> ProgressStorage.MODE_STORY
+            AppMode.TRACK_TO_READ -> ProgressStorage.MODE_TRACKING
             AppMode.SENTENCE_LAB -> ProgressStorage.MODE_SENTENCES
             AppMode.WORD_PRACTICE -> ProgressStorage.MODE_WORDS
         }
@@ -266,6 +269,20 @@ fun EarlyReaderApp(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
+                            .background(if (appMode == AppMode.TRACK_TO_READ) VioletPrimary else Color.Transparent)
+                            .clickable { handleModeChange(AppMode.TRACK_TO_READ) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            text = "Track",
+                            color = if (appMode == AppMode.TRACK_TO_READ) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
                             .background(if (appMode == AppMode.SENTENCE_LAB) VioletPrimary else Color.Transparent)
                             .clickable { handleModeChange(AppMode.SENTENCE_LAB) }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -317,6 +334,20 @@ fun EarlyReaderApp(
                                 story = currentStory,
                                 onSpeakWord = onSpeakWord,
                                 onSpeakPhoneme = onSpeakPhoneme,
+                                onOpenStoryPicker = { showStoryPicker = true },
+                                onStoryCompleted = { handleStoryComplete(currentStory) },
+                                onNextStory = {
+                                    val nextIdx = (selectedStoryIndex + 1) % stories.size
+                                    handleStorySelect(nextIdx)
+                                },
+                            )
+                        }
+                    }
+                    AppMode.TRACK_TO_READ -> {
+                        key(selectedStoryIndex, storyResetKey) {
+                            TrackToReadScreen(
+                                story = currentStory,
+                                onSpeakWord = onSpeakWord,
                                 onOpenStoryPicker = { showStoryPicker = true },
                                 onStoryCompleted = { handleStoryComplete(currentStory) },
                                 onNextStory = {
@@ -476,7 +507,12 @@ fun EarlyReaderApp(
                             Text(text = "⚙️ System TTS Settings", fontSize = 14.sp)
                         }
                         Spacer(modifier = Modifier.height(10.dp))
-                        Text(text = "• Current Mode: ${if (appMode == AppMode.WORD_PRACTICE) "Word Practice" else "Story Mode (${currentStory.title})"}")
+                        Text(text = "• Current Mode: ${when (appMode) {
+                            AppMode.WORD_PRACTICE -> "Word Practice"
+                            AppMode.STORY_MODE -> "Story Mode (${currentStory.title})"
+                            AppMode.TRACK_TO_READ -> "Track to Read (${currentStory.title})"
+                            AppMode.SENTENCE_LAB -> "Sentence Lab"
+                        }}")
                         Text(text = "• Story Suite: ${stories.size} decodable stories available")
                         Text(text = "• Total words completed: $wordsCompletedCount")
                         Text(text = "• Completed stories: ${completedStories.size} of ${stories.size}")
@@ -1009,6 +1045,259 @@ fun StoryModeScreen(
         LaunchedEffect(showReward) {
             if (showReward) {
                 delay(1200)
+                showReward = false
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun TrackToReadScreen(
+    story: StoryData = StoryBank.redHenStory,
+    onSpeakWord: (String) -> Unit = {},
+    onOpenStoryPicker: () -> Unit = {},
+    onStoryCompleted: () -> Unit = {},
+    onNextStory: () -> Unit = {},
+) {
+    var pageIndex by rememberSaveable { mutableIntStateOf(0) }
+    var trackedWordIndex by rememberSaveable { mutableIntStateOf(0) }
+    var pageCompleted by rememberSaveable { mutableStateOf(false) }
+    var showReward by rememberSaveable { mutableStateOf(false) }
+
+    val coroutineScope = rememberCoroutineScope()
+    val currentPage = story.pages[pageIndex % story.pages.size]
+
+    val handleWordTrack: (Int) -> Unit = { idx ->
+        if (!pageCompleted && idx in currentPage.words.indices) {
+            trackedWordIndex = idx
+            val word = currentPage.words[idx]
+            val cleanSpoken = word.text.trimEnd('.', '!', '?', ',')
+            onSpeakWord(cleanSpoken)
+            if (idx == currentPage.words.size - 1) {
+                pageCompleted = true
+                showReward = true
+                coroutineScope.launch {
+                    delay(500)
+                    onSpeakWord(currentPage.fullSentence)
+                }
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            // Interactive Story & Page Indicator
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onOpenStoryPicker() }
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    text = "👆 Track to Read • ${story.title} • Page ${pageIndex + 1} of ${story.pages.size} ▾",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = VioletPrimary,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = if (pageCompleted) "You tracked the whole sentence! 🎉" else "Track each word with your finger:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (pageCompleted) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (pageCompleted) FontWeight.Bold else FontWeight.Normal,
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Sentence Tracking Chips
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                currentPage.words.forEachIndexed { idx, word ->
+                    val isDone = pageCompleted || idx < trackedWordIndex
+                    val isActive = !pageCompleted && idx == trackedWordIndex
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = when {
+                                isActive -> VioletPrimary.copy(alpha = 0.15f)
+                                isDone -> MaterialTheme.colorScheme.surfaceVariant
+                                else -> MaterialTheme.colorScheme.surface
+                            },
+                            border = BorderStroke(
+                                width = if (isActive) 2.5.dp else 1.dp,
+                                color = when {
+                                    isActive -> WarmAccent
+                                    isDone -> VioletPrimary.copy(alpha = 0.5f)
+                                    else -> MaterialTheme.colorScheme.outlineVariant
+                                },
+                            ),
+                            modifier = Modifier
+                                .clickable { handleWordTrack(idx) }
+                                .semantics {
+                                    contentDescription = "${word.text}. " + when {
+                                        isActive -> "Current word. Tap to track"
+                                        isDone -> "Read"
+                                        else -> "Upcoming word"
+                                    }
+                                },
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            ) {
+                                if (word.img != null) {
+                                    Text(
+                                        text = word.img,
+                                        fontSize = 24.sp,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                    )
+                                }
+                                Text(
+                                    text = word.text,
+                                    fontSize = 24.sp,
+                                    fontWeight = if (isActive || isDone) FontWeight.Bold else FontWeight.Normal,
+                                    color = when {
+                                        isActive -> WarmAccent
+                                        isDone -> VioletPrimary
+                                        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                                    },
+                                )
+                                if (isDone) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "✓",
+                                        fontSize = 15.sp,
+                                        color = VioletPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        if (isActive) {
+                            Text(
+                                text = "👆",
+                                fontSize = 22.sp,
+                                modifier = Modifier.semantics { contentDescription = "Finger here" },
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.height(22.dp))
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier
+                    .clickable { onSpeakWord(currentPage.fullSentence) }
+                    .semantics {
+                        contentDescription = "Read full sentence: ${currentPage.fullSentence}"
+                    },
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        text = "🔊 Read full sentence",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = VioletPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            if (pageCompleted) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            trackedWordIndex = 0
+                            pageCompleted = false
+                            showReward = false
+                        },
+                        modifier = Modifier.height(52.dp),
+                    ) {
+                        Text(text = "Track again ↺", fontSize = 17.sp)
+                    }
+
+                    if (pageIndex < story.pages.size - 1) {
+                        Button(
+                            onClick = {
+                                pageIndex++
+                                trackedWordIndex = 0
+                                pageCompleted = false
+                                showReward = false
+                            },
+                            modifier = Modifier.height(52.dp),
+                        ) {
+                            Text(text = "Next page ▸", fontSize = 17.sp)
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                onStoryCompleted()
+                                onNextStory()
+                            },
+                            modifier = Modifier.height(52.dp),
+                        ) {
+                            Text(text = "Next story ▸", fontSize = 17.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = showReward,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp),
+        ) {
+            Text(
+                text = "⭐",
+                fontSize = 64.sp,
+                modifier = Modifier.semantics {
+                    contentDescription = "Great job tracking the sentence!"
+                    liveRegion = LiveRegionMode.Polite
+                },
+            )
+        }
+
+        LaunchedEffect(showReward) {
+            if (showReward) {
+                delay(1400)
                 showReward = false
             }
         }
