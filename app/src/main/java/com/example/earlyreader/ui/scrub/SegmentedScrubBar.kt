@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,12 +65,18 @@ private const val DONE_THRESHOLD = 0.92f
 // wide bars. A touch outside it is not ignored (a 4-year-old tapping the middle
 // of the bar would see nothing happen): it snaps to the nearest allowed point
 // (the start, or the current progress) and a "start here" thumb pulses there.
+// After such a snapped start the drag does not follow the finger at all until the
+// finger comes within reach of the thumb (or into the first segment), so pressing
+// and jittering at the far end of the bar can't creep the word to completion.
 private const val MIN_START_REACH = 0.35f
 private const val START_REACH_DP = 100
 
 // Keeps a stray tap near the far end from completing the word in one jump: while
-// dragging, progress can advance at most this far per input event.
+// dragging, progress can advance at most this far per input event...
 private const val MAX_STEP = 0.4f
+
+// ...and at most this many bar-lengths per second (the same cap as MAX_SPEED in docs/index.html).
+private const val MAX_SPEED = 2.0f
 
 // Keeps the bar's start clear of the system back-gesture edge (plan section 10).
 private val BarHorizontalPadding = 32.dp
@@ -101,7 +107,6 @@ fun SegmentedScrubBar(
 
     // "Start here" pulse shown when a touch was snapped to an allowed start point.
     var startHint by remember { mutableStateOf(false) }
-    var startHintAt by remember { mutableFloatStateOf(0f) }
     var barWidthPx by remember { mutableIntStateOf(0) }
 
     // Segment boxes are weighted by letter count, so "filled" must be measured
@@ -166,6 +171,9 @@ fun SegmentedScrubBar(
                 .onSizeChanged { barWidthPx = it.width }
                 .clip(RoundedCornerShape(36.dp))
                 .background(SegmentEmpty)
+                // The pale empty track alone is ~1.7:1 against the background, so it gets a violet outline
+                // (the same 2dp outline as the web bar). The violet fill drawn on top hides it as it fills.
+                .border(width = 2.dp, color = VioletPrimary, shape = RoundedCornerShape(36.dp))
                 .semantics {
                     contentDescription = "Sound out the word $wordText"
                     stateDescription = "$filledSegments of ${segments.size} sounds"
@@ -202,22 +210,25 @@ fun SegmentedScrubBar(
                         if (width <= 0f) return@awaitEachGesture
 
                         val reach = maxOf(MIN_START_REACH, START_REACH_DP.dp.toPx() / width)
+                        val firstBoundary = boundaries.firstOrNull() ?: 1f
                         val touch = (down.position.x / width).coerceIn(0f, 1f)
-                        val insideFirstSegment = touch <= (boundaries.firstOrNull() ?: 1f)
+                        val insideFirstSegment = touch <= firstBoundary
                         val nearCurrent = abs(touch - progress) <= reach
-                        if (insideFirstSegment || nearCurrent) {
+                        // False after a snapped start: moves are ignored until the finger reaches the thumb.
+                        var following = insideFirstSegment || nearCurrent
+                        if (following) {
                             progress = touch.coerceAtMost(progress + MAX_STEP)
                         } else {
                             // Too far from anywhere a drag may begin: start from the nearest
                             // allowed point (the start or the current progress) and show where.
                             val snapTo = if (touch <= progress / 2f) 0f else progress
-                            startHintAt = snapTo
                             startHint = true
                             progress = snapTo
                         }
 
                         // Track only this pointer; any other finger or palm is ignored.
                         val pointerId = down.id
+                        var lastUptime = down.uptimeMillis
                         down.consume()
                         while (true) {
                             if (progress >= DONE_THRESHOLD) { locked = true; break }
@@ -225,7 +236,14 @@ fun SegmentedScrubBar(
                             val change = event.changes.firstOrNull { it.id == pointerId } ?: break
                             if (!change.pressed) break
                             val x = (change.position.x / width).coerceIn(0f, 1f)
-                            progress = x.coerceAtMost(progress + MAX_STEP)
+                            val dt = (change.uptimeMillis - lastUptime).coerceAtLeast(0L) / 1000f
+                            lastUptime = change.uptimeMillis
+                            if (!following) {
+                                following = x <= firstBoundary || abs(x - progress) <= reach
+                            }
+                            if (following) {
+                                progress = x.coerceAtMost(progress + minOf(MAX_STEP, dt * MAX_SPEED))
+                            }
                             change.consume()
                         }
                         if (progress >= DONE_THRESHOLD) locked = true
@@ -251,21 +269,35 @@ fun SegmentedScrubBar(
                 }
             }
 
-            if (hintAlpha > 0.01f) {
-                val thumbPx = with(LocalDensity.current) { ThumbSize.roundToPx() }
-                val x = (startHintAt * barWidthPx - thumbPx / 2f)
-                    .coerceIn(0f, (barWidthPx - thumbPx).coerceAtLeast(0).toFloat())
+            // The thumb always rests at the fill edge (at the start before the first drag), so there is a
+            // visible handle to grab (plan section 8). A snapped start makes it pulse with a halo.
+            val thumbPx = with(LocalDensity.current) { ThumbSize.roundToPx() }
+            val thumbX = (fillFraction * barWidthPx - thumbPx / 2f)
+                .coerceIn(0f, (barWidthPx - thumbPx).coerceAtLeast(0).toFloat())
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset { IntOffset(thumbX.roundToInt(), 0) }
+                    .size(ThumbSize)
+                    .graphicsLayer {
+                        val pulse = 1f + 0.3f * hintAlpha
+                        scaleX = pulse
+                        scaleY = pulse
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (hintAlpha > 0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .requiredSize(ThumbSize + 16.dp)
+                            .graphicsLayer { alpha = hintAlpha }
+                            .clip(CircleShape)
+                            .background(VioletPrimary.copy(alpha = 0.35f)),
+                    )
+                }
                 Box(
                     modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .offset { IntOffset(x.roundToInt(), 0) }
-                        .size(ThumbSize)
-                        .graphicsLayer {
-                            alpha = hintAlpha
-                            val pulse = 0.8f + 0.5f * hintAlpha
-                            scaleX = pulse
-                            scaleY = pulse
-                        }
+                        .fillMaxSize()
                         .clip(CircleShape)
                         .background(Color.White)
                         .border(width = 4.dp, color = TextDark, shape = CircleShape),

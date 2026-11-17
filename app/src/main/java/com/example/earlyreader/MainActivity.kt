@@ -9,14 +9,20 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -49,6 +55,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun WordScreen(word: WordData) {
     var showReward by rememberSaveable { mutableStateOf(false) }
+    var completed by rememberSaveable { mutableStateOf(false) }
+    // The bar finishes for good once the word is complete (its progress and "locked" flag are saved).
+    // Bumping this builds a brand new bar, so "Again" gives the child another go.
+    var attempt by rememberSaveable { mutableIntStateOf(0) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -58,10 +68,31 @@ fun WordScreen(word: WordData) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            SegmentedScrubBar(
-                segments = word.segments,
-                onWordComplete = { showReward = true },
-            )
+            key(attempt) {
+                SegmentedScrubBar(
+                    segments = word.segments,
+                    onWordComplete = {
+                        showReward = true
+                        completed = true
+                    },
+                )
+            }
+
+            if (completed) {
+                Spacer(modifier = Modifier.height(32.dp))
+                Button(
+                    onClick = {
+                        attempt++
+                        completed = false
+                        showReward = false
+                    },
+                    modifier = Modifier
+                        .height(64.dp)
+                        .widthIn(min = 160.dp),
+                ) {
+                    Text(text = "Again", fontSize = 24.sp)
+                }
+            }
         }
 
         AnimatedVisibility(

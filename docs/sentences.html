@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sentence Lab — Early Reader</title>
-<meta name="description" content="Sentence Lab: a calm, offline practice page for readers about 6 to 8. Find naming, action and describing words, label the parts of a sentence, and build sentences." />
+<meta name="description" content="Sentence Lab: a calm, offline practice page for readers about 6 to 8. Find naming, action and describing words, label the parts of a sentence, tell a whole sentence from a piece of one, and build sentences." />
 <style>
   :root {
     --violet: #5031F5;
@@ -55,6 +55,10 @@
   /* level picker */
   .levels { list-style: none; margin: 0 0 14px; padding: 0; display: flex; gap: 6px; justify-content: center; }
   .levels li { flex: 1 1 0; max-width: 96px; }
+  @media (max-width: 480px) {
+    .levels { flex-wrap: wrap; }
+    .levels li { flex: 1 1 28%; max-width: none; }
+  }
   .lvl {
     width: 100%; min-height: 56px; border-radius: 16px; border: 2px solid var(--edge); background: white;
     color: var(--text-dark); font: inherit; font-weight: 700; font-size: 1.15rem; cursor: pointer;
@@ -90,6 +94,11 @@
   .arrow { align-self: center; color: var(--dim); font-weight: 700; }
   details.how-d { margin-bottom: 12px; }
   details.how-d > summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; color: var(--violet); font-weight: 600; padding: 4px 2px; }
+  /* open / closed marker on every disclosure */
+  details > summary { list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: "\25B8"; display: inline-block; width: 1.2em; flex: none; }
+  details[open] > summary::before { content: "\25BE"; }
 
   /* chips */
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; align-items: flex-start; }
@@ -145,6 +154,7 @@
     display: flex; flex-direction: column; gap: 2px; justify-content: center;
   }
   .slot .lab { font-weight: 700; font-size: 1rem; }
+  .slot .ask { font-size: 0.9rem; font-style: italic; }
   .slot .val { font-size: 1.15rem; font-weight: 600; }
   .slot .val.empty { font-size: 0.9rem; font-weight: 500; color: var(--dim); }
   .slot.sel { border-style: solid; border-color: var(--violet); box-shadow: 0 0 0 3px #CFC6FA; }
@@ -164,6 +174,19 @@
   .bank-label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); margin: 6px 0 4px; }
 
   .tools { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 12px; }
+  .tools .btn { flex: 1 1 40%; padding-left: 12px; padding-right: 12px; }
+
+  /* "Is it a sentence?" */
+  .quote { font-size: 1.6rem; font-weight: 700; text-align: center; margin: 6px 0 14px; padding: 18px 12px; border-radius: 16px; background: #F3F0FF; overflow-wrap: anywhere; }
+  .choices { display: flex; flex-direction: column; gap: 10px; margin: 0 0 14px; }
+  @media (min-width: 480px) { .choices { flex-direction: row; } .choices .choice { flex: 1 1 0; } }
+  .choice {
+    min-height: 64px; padding: 8px 14px; border-radius: 16px; border: 2px solid var(--edge); background: white; color: var(--text-dark);
+    font: inherit; font-size: 1.15rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.2;
+  }
+  .choice:hover { background: #F3F0FF; }
+  .choice.right { background: var(--adj-bg); color: var(--adj-fg); border-color: var(--adj-line); border-width: 3px; cursor: default; }
+  .choice.nudge { border-style: dashed; animation: wob 0.35s; }
   .btn.speaking { background: #F3F0FF; }
 
   .feedback { min-height: 3.2em; margin: 6px 0 0; padding: 10px 14px; border-radius: 14px; font-size: 1.02rem; line-height: 1.4; background: #F6F4FC; }
@@ -204,7 +227,7 @@
 <header>
   <a class="btn btn-secondary" href="index.html" id="back-link">&larr; Back to Early Reader</a>
   <h1>Sentence Lab</h1>
-  <p class="tagline">Ready for more? Spot the naming, action and describing words, sort the parts of a sentence, then build your own. For readers about 6 to 8.</p>
+  <p class="tagline">Ready for more? Spot the naming, action and describing words, sort the parts of a sentence, decide what is a whole sentence, then build your own. For readers about 6 to 8.</p>
 </header>
 
 <main>
@@ -223,16 +246,18 @@
     <ul>
       <li><strong>Level 1, naming words (nouns).</strong> A noun names a person, animal, place or thing. Ask: &ldquo;Can you point to it, or picture it?&rdquo; &ldquo;Which words are the names of things?&rdquo;</li>
       <li><strong>Level 2, the action word (verb).</strong> A verb tells what is happening. Ask: &ldquo;Which word tells us what is happening?&rdquo; &ldquo;Can you act it out?&rdquo;</li>
-      <li><strong>Level 3, describing words (adjectives).</strong> An adjective tells more about a thing: how it looks, feels, sounds or tastes. Ask: &ldquo;Which word tells us more about the thing?&rdquo; &ldquo;What changes if we take it out?&rdquo;</li>
-      <li><strong>Level 4, who and what.</strong> The subject is who or what the sentence is about, the verb is the action, and the ending (object) is what the action happened to. Ask: &ldquo;Who or what is this about?&rdquo; &ldquo;What did they do?&rdquo; &ldquo;What did they do it to?&rdquo;</li>
-      <li><strong>Level 5, build a sentence.</strong> A sentence starts with a capital letter and ends with a period (telling), a question mark (asking) or an exclamation mark (a big feeling). Ask: &ldquo;Does it sound right when you read it aloud?&rdquo; &ldquo;Are we telling or asking?&rdquo;</li>
+      <li><strong>Level 3, describing words (adjectives).</strong> An adjective tells more about a person or thing: what it is like (big, soft, tired, hungry, cozy). Ask: &ldquo;Which word tells us more about the thing?&rdquo; &ldquo;What changes if we take it out?&rdquo;</li>
+      <li><strong>Level 4, who and what.</strong> The subject is who or what the sentence is about, the verb is the action, and the object is what they did it to. Not every sentence has an object (&ldquo;The baby slept.&rdquo;), but these ones do. The boxes change places each time, so reading matters. Ask: &ldquo;Who or what is this about?&rdquo; &ldquo;What did they do?&rdquo; &ldquo;What did they do it to?&rdquo;</li>
+      <li><strong>Level 5, is it a sentence?</strong> A sentence is a complete thought: it tells who or what, and what happens. A group of words that is missing one of those is only a piece of a sentence (&ldquo;The big dog.&rdquo; or &ldquo;In the park.&rdquo;), even with a capital letter and a period. Ask: &ldquo;Who or what is it about?&rdquo; &ldquo;What happens?&rdquo; &ldquo;Does it feel finished?&rdquo;</li>
+      <li><strong>Level 6, build a sentence.</strong> A sentence starts with a capital letter and ends with a period (telling), a question mark (asking) or an exclamation mark (a big feeling). Ask: &ldquo;Does it sound right when you read it aloud?&rdquo; &ldquo;Are we telling or asking?&rdquo;</li>
     </ul>
-    <p>Sentences are read aloud with your browser&rsquo;s built-in voice. If there is no voice, everything still works silently. Only the numbers of finished levels may be remembered on this device; nothing is sent anywhere.</p>
+    <p>Sentences are read aloud with your browser&rsquo;s voice, and a voice stored on the device is preferred. Some browsers only offer online voices, and those may send the sentence text to a speech service. If there is no voice, everything still works silently. Only which levels are finished may be remembered on this device. There are no accounts, no ads and no tracking.</p>
   </details>
 </main>
 
 <footer>
-  Sentence Lab is part of the Early Reader browser demo. No ads, no accounts, no data collection, and it works fully offline.
+  Sentence Lab is part of the Early Reader browser demo. No accounts, no ads, no tracking. Once the page has loaded it works
+  without internet if your device has a built-in voice.
   <br /><a href="index.html">Back to Early Reader</a>
 </footer>
 
@@ -242,19 +267,26 @@
   // ---------------------------------------------------------------------------
   // CONTENT. Plain data only (no functions), so it can be ported to Android as JSON.
   //
-  // Levels 1-3 ("tap"): item = { text, tags }. `tags` has one word class per space-separated word:
-  //   det = a/the/my/our, noun, verb, adj, prep = in/on/to/up..., pron = we/she...
+  // Every level has a stable string `id` (saved progress uses it, never the position, so levels can
+  // be reordered or inserted). The number the child sees is just the level's position in the list.
+  //
+  // "tap" (nouns, verbs, adjectives): item = { text, tags }. `tags` has one word class per
+  //   space-separated word: det = a/the/my/our, noun, verb, adj, prep = in/on/to/up..., pron = we/she...
   //   The level's `target` class is what the child must tap. Trailing . ? ! is not part of the word.
-  // Level 4 ("label"): item = { chunks: [{ t, role }] } where role is subject | verb | object.
-  // Level 5 ("build"): item = { kind: telling | asking | exciting, text }. The text is the answer.
+  // "label" (roles): item = { chunks: [{ t, role }] } where role is subject | verb | object.
+  // "judge" (sentence-check): item = { text, sentence: true | false, why, hint }. `why` is said after
+  //   the right answer; `hint` is added to the kind nudge after a wrong one.
+  // "build": item = { kind: telling | asking | exciting, text, alts?, silly? }. The text is the answer.
   //   Words are scrambled at runtime; the end mark is chosen from . ? !
+  //   `alts` are other real sentences made of the same words that are accepted too. `silly` are
+  //   real but silly sentences (the nouns swapped) that get a friendly "try the other way".
   // `prompt` uses {n} for the number of targets.
   // ---------------------------------------------------------------------------
   const CONTENT = {
-    version: 1,
+    version: 2,
     levels: [
       {
-        id: 1, type: "tap", target: "noun",
+        id: "nouns", type: "tap", target: "noun",
         title: "Find the naming words", term: "nouns",
         how: "Naming words (nouns) name a person, animal, place or thing. Tap every naming word in the sentence.",
         example: { text: "A frog sat on a log.", tags: "det noun verb prep det noun",
@@ -271,13 +303,13 @@
         ]
       },
       {
-        id: 2, type: "tap", target: "verb",
+        id: "verbs", type: "tap", target: "verb",
         title: "Find the action word", term: "verb",
         how: "The action word (verb) tells what someone or something does. Tap the one action word.",
         example: { text: "The frog jumped into the pond.", tags: "det noun verb prep det noun",
                    note: "Jumped tells what the frog did, so it is the action word." },
         prompt: "Tap the action word (verb).",
-        nudge: "Almost! Does that word tell what someone is doing?",
+        nudge: "Almost! Does that word tell what someone or something is doing?",
         items: [
           { text: "The children laughed at the funny clown.", tags: "det noun verb prep det adj noun" },
           { text: "Mom baked bread for dinner.",               tags: "noun verb noun prep noun" },
@@ -288,9 +320,9 @@
         ]
       },
       {
-        id: 3, type: "tap", target: "adj",
+        id: "adjectives", type: "tap", target: "adj",
         title: "Find the describing words", term: "adjectives",
-        how: "Describing words (adjectives) tell us more about a thing: how it looks, feels or sounds. Tap every describing word.",
+        how: "Describing words (adjectives) tell us more about a person or thing: what it is like. Tap every describing word.",
         example: { text: "The green frog sat on a wet log.", tags: "det adj noun verb prep det adj noun",
                    note: "Green and wet tell us more about the frog and the log." },
         prompt: "Tap all {n} describing words (adjectives).",
@@ -299,15 +331,15 @@
           { text: "The soft kitten drank warm milk.",           tags: "det adj noun verb adj noun" },
           { text: "A yellow bus drove down the long road.",     tags: "det adj noun verb prep det adj noun" },
           { text: "The tired boy slept in a cozy bed.",         tags: "det adj noun verb prep det adj noun" },
-          { text: "Grandma wore a bright blue scarf.",          tags: "noun verb det adj adj noun" },
+          { text: "Grandma wore a long blue scarf.",            tags: "noun verb det adj adj noun" },
           { text: "The cold wind shook the tiny leaves.",       tags: "det adj noun verb det adj noun" },
           { text: "We ate crunchy apples on a sunny day.",      tags: "pron verb adj noun prep det adj noun" }
         ]
       },
       {
-        id: 4, type: "label",
+        id: "roles", type: "label",
         title: "Who and what", term: "subject, verb, object",
-        how: "Every sentence is about someone or something (the subject), says what they do (the verb), and often ends with what they did it to (the object).",
+        how: "Most sentences are about someone or something (the subject), say what they do (the verb), and often end with what they did it to (the object). Match each part of the sentence to its box. The boxes change places each time, so think about what each part does.",
         example: { chunks: [ { t: "The frog", role: "subject" }, { t: "caught", role: "verb" }, { t: "a fly.", role: "object" } ],
                    note: "The sentence is about the frog. Caught is the action. A fly is what got caught." },
         prompt: "Tap a part of the sentence, then tap the box where it belongs.",
@@ -316,12 +348,41 @@
           { chunks: [ { t: "Dad", role: "subject" }, { t: "washed", role: "verb" }, { t: "the car.", role: "object" } ] },
           { chunks: [ { t: "Our teacher", role: "subject" }, { t: "reads", role: "verb" }, { t: "a story.", role: "object" } ] },
           { chunks: [ { t: "The children", role: "subject" }, { t: "planted", role: "verb" }, { t: "some seeds.", role: "object" } ] },
-          { chunks: [ { t: "The wind", role: "subject" }, { t: "blew", role: "verb" }, { t: "my hat.", role: "object" } ] },
+          { chunks: [ { t: "The wind", role: "subject" }, { t: "shook", role: "verb" }, { t: "the trees.", role: "object" } ] },
           { chunks: [ { t: "A girl", role: "subject" }, { t: "drew", role: "verb" }, { t: "a rainbow.", role: "object" } ] }
         ]
       },
       {
-        id: 5, type: "build",
+        id: "sentence-check", type: "judge",
+        title: "Is it a sentence?", term: "a complete thought",
+        how: "A sentence is a complete thought. It tells who or what, and what happens. If one of those is missing, it is not a sentence yet, even with a capital letter and a period. Read it, then tap your answer.",
+        example: { pairs: [ { text: "The big dog.", sentence: false }, { text: "The big dog ran.", sentence: true } ],
+                   note: "“The big dog” tells who, but not what happens. Add “ran” and the thought is complete." },
+        prompt: "Read it aloud. Is it a whole sentence?",
+        ask: "Ask: who or what is it about, and what happens?",
+        items: [
+          { text: "The big dog.", sentence: false,
+            why: "“The big dog” tells who it is about, but not what happens. Add a word like “ran” and it becomes a sentence.",
+            hint: "Who is it about? A big dog. But what happens? It does not say yet." },
+          { text: "We played in the park.", sentence: true,
+            why: "“We” is who it is about and “played” is what happens. That is a whole thought.",
+            hint: "Who is it about? We. What happens? We played. Does the thought feel finished?" },
+          { text: "The baby sleeps.", sentence: true,
+            why: "“The baby” is who it is about and “sleeps” is what happens. That is a whole thought.",
+            hint: "Who is it about? The baby. What happens? The baby sleeps." },
+          { text: "Ran down the hill.", sentence: false,
+            why: "It tells what happened, but not who ran. Add “We” at the start and it becomes a sentence.",
+            hint: "What happens? Someone ran down the hill. But who or what is it about?" },
+          { text: "In the park.", sentence: false,
+            why: "It tells where, but not who or what it is about, and not what happens.",
+            hint: "Who or what is it about? It does not say. What happens? It does not say either." },
+          { text: "My sister reads a book.", sentence: true,
+            why: "“My sister” is who it is about and “reads a book” is what she does. That is a whole thought.",
+            hint: "Who is it about? My sister. What does she do? She reads a book." }
+        ]
+      },
+      {
+        id: "build", type: "build",
         title: "Build a sentence", term: "capital letter and end mark",
         how: "Tap the words in the right order. A sentence starts with a capital letter and ends with a mark: a period (.) for telling, a question mark (?) for asking, or an exclamation mark (!) for a big feeling.",
         example: { text: "The cat sleeps.", scrambled: ["sleeps", "The", "cat", "."],
@@ -332,12 +393,13 @@
           exciting: "Build an exciting sentence (it shows a big feeling). Tap the words in order, then add the ending mark."
         },
         items: [
-          { kind: "telling",  text: "The cat is on the bed." },
+          { kind: "telling",  text: "The cat is very soft." },
           { kind: "asking",   text: "Do you like soup?" },
-          { kind: "telling",  text: "We planted seeds in the garden." },
+          { kind: "telling",  text: "We planted seeds in the garden.", alts: ["We in the garden planted seeds."] },
           { kind: "asking",   text: "Where did the dog go?" },
-          { kind: "exciting", text: "What a big rainbow!" },
-          { kind: "telling",  text: "The bus stops at our school." }
+          { kind: "exciting", text: "I see a big rainbow!" },
+          { kind: "telling",  text: "The bus stops at our school.", alts: ["The bus at our school stops."],
+            silly: ["The school stops at our bus.", "The school at our bus stops."] }
         ]
       }
     ]
@@ -350,12 +412,12 @@
     adj:  { name: "describing word", term: "adjective", art: "a",  icon: "🎨", cls: "c-adj"  }
   };
   const ROLES = {
-    subject: { label: "Who or what", term: "subject", icon: "🙋", cls: "c-subj",
+    subject: { label: "Who or what", term: "subject", icon: "🙋", cls: "c-subj", ask: "Who or what is it about?",
                question: "tell who or what the sentence is about", good: "is who or what the sentence is about" },
-    verb:    { label: "Action",      term: "verb",    icon: "⚡", cls: "c-verb",
-               question: "tell what is happening", good: "is the action" },
-    object:  { label: "Ending",      term: "object",  icon: "🎯", cls: "c-obj",
-               question: "tell what the action happened to", good: "is the ending: what the action happened to" }
+    verb:    { label: "Action",      term: "verb",    icon: "⚡", cls: "c-verb", ask: "What did they do?",
+               question: "tell what they did", good: "is the action" },
+    object:  { label: "What?",       term: "object",  icon: "🎯", cls: "c-obj",  ask: "What did they do it to?",
+               question: "tell what they did it to", good: "is what they did it to" }
   };
   const ROLE_ORDER = ["subject", "verb", "object"];
   const MARKS = [
@@ -374,7 +436,12 @@
     asking:   "Yes! An asking sentence: it starts with a capital letter and ends with a question mark.",
     exciting: "Yes! An exciting sentence: it starts with a capital letter and ends with an exclamation mark."
   };
-  const STORE_KEY = "earlyReader.sentenceLab.doneLevels";
+  // Saved progress: { levelId: "done" | "peek" } under STORE_KEY. The older version stored a list of
+  // level numbers (by position) under OLD_STORE_KEY; those are mapped to ids once, never trusted as positions.
+  const STORE_KEY = "earlyReader.sentenceLab.levels";
+  const OLD_STORE_KEY = "earlyReader.sentenceLab.doneLevels";
+  const OLD_LEVEL_IDS = { 1: "nouns", 2: "verbs", 3: "adjectives", 4: "roles", 5: "build" };
+  const NEXT_GUARD_MS = 700;   // Next ignores taps this soon after an item finishes (a double tap on "Show me")
 
   // ---- speech (same approach as index.html) ----
   let voice = null;
@@ -382,7 +449,10 @@
   function pickVoice() {
     const voices = speechSynthesis.getVoices();
     const enVoices = voices.filter(v => /^en/i.test(v.lang));
-    voice = enVoices.find(v => FEMALE_VOICE_HINTS.test(v.name)) || enVoices[0] || voices[0] || null;
+    // Voices stored on the device come first (network voices need internet and send the text to a
+    // speech service); the female-name preference only chooses among them.
+    const pool = enVoices.some(v => v.localService) ? enVoices.filter(v => v.localService) : enVoices;
+    voice = pool.find(v => FEMALE_VOICE_HINTS.test(v.name)) || pool[0] || voices[0] || null;
   }
   let speechOk = true;
   try {
@@ -474,6 +544,8 @@
     node.classList.add("nudge");
     setTimeout(() => node.classList.remove("nudge"), 1200);
   }
+  // A chunk or sentence without its end mark, for quoting inside a message.
+  const plain = t => t.replace(/[.,!?]+$/, "");
   function parseWord(raw) {
     const m = raw.match(/^(.*?)([.,!?]*)$/);
     return { w: m[1], p: m[2] };
@@ -488,14 +560,25 @@
   }
 
   // ---- progress (optional; the page works without storage) ----
-  let doneLevels = new Set();
-  try {
-    const raw = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
-    if (Array.isArray(raw)) raw.forEach(n => { if (Number.isInteger(n)) doneLevels.add(n); });
-  } catch (e) { /* storage blocked or empty: fine */ }
-  function saveDone() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify([...doneLevels])); } catch (e) {}
+  const progress = {};   // levelId -> "done" (solved at least one on its own) | "peek" (only peeked)
+  function saveProgress() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(progress)); } catch (e) {}
   }
+  (function loadProgress() {
+    const known = new Set(CONTENT.levels.map(L => L.id));
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        Object.keys(raw).forEach(k => { if (known.has(k) && (raw[k] === "done" || raw[k] === "peek")) progress[k] = raw[k]; });
+      } else if (raw === null) {
+        const old = JSON.parse(localStorage.getItem(OLD_STORE_KEY) || "[]");
+        if (Array.isArray(old)) old.forEach(n => {
+          if (Number.isInteger(n) && OLD_LEVEL_IDS[n] && known.has(OLD_LEVEL_IDS[n])) progress[OLD_LEVEL_IDS[n]] = "done";
+        });
+        if (Object.keys(progress).length) saveProgress();
+      }
+    } catch (e) { /* storage blocked or unreadable: start fresh */ }
+  })();
 
   // ---- state ----
   const LEVELS = CONTENT.levels;
@@ -508,7 +591,7 @@
     LEVELS.forEach((L, i) => {
       const b = el("button", { type: "button", class: "lvl", "data-level": i,
         onclick: () => { stopSpeech(); startLevel(i); } },
-        el("span", { "aria-hidden": "true", text: String(L.id) }),
+        el("span", { "aria-hidden": "true", text: String(i + 1) }),
         el("small", { "aria-hidden": "true" }));
       levelsEl.append(el("li", null, b));
     });
@@ -516,10 +599,11 @@
   }
   function updateNav() {
     [...levelsEl.querySelectorAll(".lvl")].forEach((b, i) => {
-      const L = LEVELS[i], done = doneLevels.has(L.id);
+      const L = LEVELS[i], status = progress[L.id];
       b.setAttribute("aria-current", i === st.level ? "true" : "false");
-      b.setAttribute("aria-label", "Level " + L.id + ": " + L.title + (done ? " (finished)" : ""));
-      b.querySelector("small").textContent = done ? "✓ done" : " ";
+      b.setAttribute("aria-label", "Level " + (i + 1) + ": " + L.title +
+        (status === "done" ? " (finished)" : status === "peek" ? " (finished by peeking)" : ""));
+      b.querySelector("small").textContent = status === "done" ? "✓ done" : status === "peek" ? "✨ peeked" : " ";
     });
   }
 
@@ -547,6 +631,12 @@
           el("span", { class: "cw", text: c.t }),
           el("span", { class: "tag", text: tagText("role", c.role) })));
       });
+    } else if (L.type === "judge") {
+      ex.pairs.forEach(pr => {
+        box.append(el("span", { class: "chip static tagged " + (pr.sentence ? "c-adj" : "c-verb") },
+          el("span", { text: pr.text }),
+          el("span", { class: "tag", text: pr.sentence ? "✔ a sentence" : "✖ not yet a sentence" })));
+      });
     } else {
       ex.scrambled.forEach(t => box.append(el("span", { class: "chip static" }, el("span", { text: t }))));
       box.append(el("span", { class: "arrow", "aria-hidden": "true", text: "→" }));
@@ -561,7 +651,7 @@
   }
   function levelBar(L) {
     return el("div", { class: "levelbar" },
-      el("span", { class: "lvl-title", text: "Level " + L.id + " · " + L.title }),
+      el("span", { class: "lvl-title", text: "Level " + (st.level + 1) + " · " + L.title }),
       el("span", { class: "count", text: "Sentence " + (st.idx + 1) + " of " + L.items.length }));
   }
   function hearBtn(label, getText) {
@@ -580,7 +670,11 @@
   function nextBtn(L) {
     const last = st.idx === L.items.length - 1;
     return el("button", { type: "button", class: "btn btn-primary", hidden: true,
-      onclick: () => { stopSpeech(); st.idx++; if (st.idx >= L.items.length) renderEnd(); else renderItem(); } },
+      onclick: () => {
+        // A double tap on "Show me" lands on this button, which appears in the same spot: ignore it.
+        if (cur && cur.doneAt && performance.now() - cur.doneAt < NEXT_GUARD_MS) return;
+        stopSpeech(); st.idx++; if (st.idx >= L.items.length) renderEnd(); else renderItem();
+      } },
       last ? "Finish level ▸" : "Next ▸");
   }
   function promptHeading(text) {
@@ -611,7 +705,7 @@
     cur = null;
     say("");
     stage.replaceChildren(
-      el("div", { class: "levelbar" }, el("span", { class: "lvl-title", text: "Level " + L.id + " of " + LEVELS.length })),
+      el("div", { class: "levelbar" }, el("span", { class: "lvl-title", text: "Level " + (st.level + 1) + " of " + LEVELS.length })),
       el("h2", { tabindex: "-1", id: "prompt", text: L.title + " (" + L.term + ")" }),
       el("p", { class: "lead", text: "How this works" }),
       howBlock(L));
@@ -625,6 +719,7 @@
     tools.replaceChildren();
     if (L.type === "tap") renderTap(L, L.items[st.idx]);
     else if (L.type === "label") renderLabel(L, L.items[st.idx]);
+    else if (L.type === "judge") renderJudge(L, L.items[st.idx]);
     else renderBuild(L, L.items[st.idx]);
     const p = $("prompt");
     if (p) p.focus();
@@ -633,6 +728,7 @@
   function finishItem(result, msg, text) {
     if (cur.done) return;
     cur.done = true;
+    cur.doneAt = performance.now();
     st.results[st.idx] = result;
     say(msg, "ok");
     showReward();
@@ -712,6 +808,12 @@
     const chunks = item.chunks;
     cur = { type: "label", chunks, placed: {}, selChunk: null, selSlot: null, done: false, chipEls: [], slotEls: {} };
     const text = chunks.map(c => c.t).join(" ");
+    // The boxes come in a different order each time, so the answer can't be found by position alone.
+    let order = ROLE_ORDER;
+    for (let tries = 0; tries < 30; tries++) {
+      order = shuffle(ROLE_ORDER);
+      if (order.some((r, i) => r !== ROLE_ORDER[i])) break;
+    }
 
     const group = el("div", { class: "chips", role: "group", "data-arrows": "1",
       "aria-label": "The sentence, in parts. Tap a part to pick it." });
@@ -722,11 +824,12 @@
       group.append(chip);
     });
     const slots = el("div", { class: "slots", role: "group", "data-arrows": "1", "aria-label": "Boxes to put the parts in" });
-    ROLE_ORDER.forEach(role => {
+    order.forEach(role => {
       const R = ROLES[role];
       const val = el("span", { class: "val empty", text: "tap here to place" });
       const slot = el("button", { type: "button", class: "slot", "aria-pressed": "false", onclick: () => clickSlot(role) },
-        el("span", { class: "lab", text: R.icon + " " + R.label + " (" + R.term + ")" }), val);
+        el("span", { class: "lab", text: R.icon + " " + R.label + " (" + R.term + ")" }),
+        el("span", { class: "ask", text: R.ask }), val);
       cur.slotEls[role] = { btn: slot, val };
       slots.append(slot);
     });
@@ -739,8 +842,8 @@
       chunks.forEach((c, i) => { if (cur.placed[c.role] == null) cur.placed[c.role] = i; });
       cur.selChunk = cur.selSlot = null;
       paint();
-      finishItem("peek", "Here they are. The sentence is about “" + chunks[0].t + "”. The action is “" + chunks[1].t +
-        "”. The ending is “" + chunks[2].t + "”.", text);
+      finishItem("peek", "Here they are. The sentence is about “" + plain(chunks[0].t) + "”. The action is “" + plain(chunks[1].t) +
+        "”. What they did it to is “" + plain(chunks[2].t) + "”.", text);
     });
     cur.hear = hear; cur.show = show; cur.next = nextBtn(L); cur.hideOnDone = [show];
     tools.append(hear, show, cur.next);
@@ -759,10 +862,10 @@
         if (isUsed) {
           chip.classList.add(R.cls);
           chip.setAttribute("aria-pressed", "true");
-          chip.setAttribute("aria-label", c.t + ", placed as " + R.label + " (" + R.term + ")");
+          chip.setAttribute("aria-label", plain(c.t) + ", placed as " + R.label + " (" + R.term + ")");
         } else {
           chip.setAttribute("aria-pressed", cur.selChunk === i ? "true" : "false");
-          chip.setAttribute("aria-label", c.t + (cur.selChunk === i ? ", picked" : ""));
+          chip.setAttribute("aria-label", plain(c.t) + (cur.selChunk === i ? ", picked" : ""));
         }
       });
       ROLE_ORDER.forEach(role => {
@@ -774,14 +877,14 @@
         if (filled) {
           S.btn.classList.add(R.cls);
           S.val.className = "val";
-          S.val.replaceChildren(el("span", { class: "cw", text: chunks[idx].t }));
+          S.val.replaceChildren(el("span", { class: "cw", text: plain(chunks[idx].t) }));
           S.btn.setAttribute("aria-pressed", "true");
         } else {
           S.val.className = "val empty";
           S.val.textContent = cur.selSlot === role ? "now tap a part of the sentence" : "tap here to place";
           S.btn.setAttribute("aria-pressed", cur.selSlot === role ? "true" : "false");
         }
-        S.btn.setAttribute("aria-label", R.label + " (" + R.term + "). " + (filled ? "Filled with " + chunks[idx].t : "Empty") +
+        S.btn.setAttribute("aria-label", R.label + " (" + R.term + "). " + R.ask + " " + (filled ? "Filled with " + plain(chunks[idx].t) : "Empty") +
           (cur.selSlot === role ? ", picked" : ""));
       });
     }
@@ -792,23 +895,23 @@
         cur.placed[role] = ci;
         paint();
         if (Object.keys(cur.placed).length === ROLE_ORDER.length) {
-          finishItem("solved", "Yes! “" + c.t + "” " + R.good + ". You sorted the whole sentence!", text);
+          finishItem("solved", "Yes! “" + plain(c.t) + "” " + R.good + ". You sorted the whole sentence!", text);
         } else {
-          say("Yes! “" + c.t + "” " + R.good + ".", "ok");
+          say("Yes! “" + plain(c.t) + "” " + R.good + ".", "ok");
         }
       } else {
         paint();
         nudgeEl(cur.chipEls[ci]);
-        say("Almost! Does “" + c.t + "” " + R.question + "? Try another box.", "nudge");
+        say("Almost! Does “" + plain(c.t) + "” " + R.question + "? Try another box.", "nudge");
       }
     }
     function clickChunk(i) {
       if (cur.done) return;
-      if (placedIndexSet().has(i)) { say("“" + chunks[i].t + "” is already in its box. Pick another part.", "info"); return; }
+      if (placedIndexSet().has(i)) { say("“" + plain(chunks[i].t) + "” is already in its box. Pick another part.", "info"); return; }
       cur.selChunk = cur.selChunk === i ? null : i;
       if (cur.selChunk != null && cur.selSlot) { attempt(); return; }
       paint();
-      if (cur.selChunk != null) say("Picked “" + chunks[i].t + "”. Now tap the box where it belongs.", "info");
+      if (cur.selChunk != null) say("Picked “" + plain(chunks[i].t) + "”. Now tap the box where it belongs.", "info");
       else say("");
     }
     function clickSlot(role) {
@@ -823,7 +926,50 @@
     paint();
   }
 
-  // ===== Level 5: build a sentence =====
+  // ===== Level 5: is it a sentence? =====
+  function renderJudge(L, item) {
+    cur = { type: "judge", done: false, btns: {} };
+    const mk = (isSentence, icon, label) => {
+      const b = el("button", { type: "button", class: "choice", "aria-pressed": "false", onclick: () => choose(isSentence) },
+        el("span", { "aria-hidden": "true", text: icon }), el("span", { text: label }));
+      cur.btns[String(isSentence)] = b;
+      return b;
+    };
+    const choices = el("div", { class: "choices", role: "group", "data-arrows": "1", "aria-label": "Your answer" },
+      mk(true, "✔", "Sentence"), mk(false, "✖", "Not yet a sentence"));
+    stage.append(levelBar(L),
+      el("details", { class: "how-d" }, el("summary", { text: "How this works" }), howBlock(L)),
+      promptHeading(L.prompt),
+      el("p", { class: "quote", text: item.text }),
+      choices);
+
+    const hear = hearBtn("Hear the sentence", () => item.text);
+    const show = showMeBtn(() => {
+      markRight();
+      finishItem("peek", "Here it is: " + (item.sentence ? "this is a sentence. " : "this is not a sentence yet. ") + item.why, item.text);
+    });
+    cur.hear = hear; cur.show = show; cur.next = nextBtn(L); cur.hideOnDone = [show];
+    tools.append(hear, show, cur.next);
+
+    function markRight() {
+      const right = cur.btns[String(item.sentence)];
+      right.classList.add("right");
+      right.setAttribute("aria-pressed", "true");
+      Object.values(cur.btns).forEach(b => b.setAttribute("aria-disabled", "true"));
+    }
+    function choose(isSentence) {
+      if (cur.done) return;
+      if (isSentence === item.sentence) {
+        markRight();
+        finishItem("solved", "Yes! " + item.why, item.text);
+      } else {
+        nudgeEl(cur.btns[String(isSentence)]);
+        say("Almost! " + L.ask + " " + item.hint, "nudge");
+      }
+    }
+  }
+
+  // ===== Level 6: build a sentence =====
   function renderBuild(L, item) {
     const m = item.text.match(/^(.*?)([.?!])$/);
     const words = m[1].split(" "), endMark = m[2];
@@ -926,7 +1072,17 @@
       if (!/^[.?!]$/.test(tx[tx.length - 1])) return say("Almost! The ending mark goes at the very end.", "nudge");
       if (tx[tx.length - 1] !== endMark) return say("Almost! " + KIND_TIP[item.kind] + " Try a different mark.", "nudge");
       const right = tx.filter((t, i) => t === answer[i]).length - 1; // words in the right place (end mark counted separately)
-      if (tx.join(" ") !== answer.join(" ")) {
+      const builtKey = tx.join(" ");
+      const asKey = t => { const q = t.match(/^(.*?)([.?!])$/); return q[1].split(" ").concat([q[2]]).join(" "); };
+      if (builtKey !== answer.join(" ") && (item.alts || []).some(a => asKey(a) === builtKey)) {
+        finishItem("solved", "Yes! That is a real sentence too. The way I had in mind is: " + item.text, builtText());
+        paint();
+        return;
+      }
+      if ((item.silly || []).some(a => asKey(a) === builtKey)) {
+        return say("That is a real sentence, but a silly one! Try the other way: think about who or what is doing the thing.", "nudge");
+      }
+      if (builtKey !== answer.join(" ")) {
         return say("Nearly! " + Math.max(0, right) + " of " + words.length + " words are in the right place. " +
           "Read your sentence aloud: does it sound right? Tap a word to take it out and try again.", "nudge");
       }
@@ -942,16 +1098,17 @@
     stopSpeech();
     cur = null;
     say("");
-    doneLevels.add(L.id);
-    saveDone();
-    updateNav();
     const solved = st.results.filter(r => r === "solved").length;
     const peek = st.results.filter(r => r === "peek").length;
+    // Peeking is fine, but a level finished only by peeking gets its own badge; a better result is never replaced by a worse one.
+    if (progress[L.id] !== "done") progress[L.id] = solved === 0 && peek > 0 ? "peek" : "done";
+    saveProgress();
+    updateNav();
     const total = L.items.length;
     const stars = "⭐".repeat(solved) + "✨".repeat(peek);
     const hasNext = st.level < LEVELS.length - 1;
     stage.replaceChildren(el("div", { class: "end" },
-      el("h2", { tabindex: "-1", id: "prompt", text: "Level " + L.id + " finished!" }),
+      el("h2", { tabindex: "-1", id: "prompt", text: "Level " + (st.level + 1) + " finished!" }),
       el("div", { class: "stars", role: "img", "aria-label": solved + " sentences on your own and " + peek + " learned with a peek" , text: stars }),
       el("p", { class: "lead", text: "You finished " + total + " of " + total + " sentences." }),
       el("p", { class: "lead" },
@@ -966,12 +1123,24 @@
 
   // ---- data sanity check (logs a problem instead of breaking the page) ----
   (function validate() {
-    LEVELS.forEach(L => L.items.forEach((it, n) => {
-      if (L.type === "tap") {
-        if (it.text.split(" ").length !== it.tags.split(" ").length) console.error("Tag count mismatch:", L.id, n, it.text);
-        if (!it.tags.split(" ").includes(L.target)) console.error("No target in item:", L.id, n);
-      }
-    }));
+    const ids = new Set();
+    LEVELS.forEach(L => {
+      if (typeof L.id !== "string" || ids.has(L.id)) console.error("Level id must be a unique string:", L.id);
+      ids.add(L.id);
+      L.items.forEach((it, n) => {
+        if (L.type === "tap") {
+          if (it.text.split(" ").length !== it.tags.split(" ").length) console.error("Tag count mismatch:", L.id, n, it.text);
+          if (!it.tags.split(" ").includes(L.target)) console.error("No target in item:", L.id, n);
+        } else if (L.type === "label") {
+          if (it.chunks.length !== 3 || ROLE_ORDER.some((r, i) => it.chunks[i].role !== r)) console.error("Chunks must be subject, verb, object:", L.id, n);
+        } else if (L.type === "judge") {
+          if (typeof it.sentence !== "boolean" || !it.why || !it.hint) console.error("Judge item needs sentence, why and hint:", L.id, n);
+        } else if (L.type === "build") {
+          const key = t => t.split(/[ .?!]+/).filter(Boolean).sort().join(" ");
+          (it.alts || []).concat(it.silly || []).forEach(a => { if (key(a) !== key(it.text)) console.error("Alternative uses different words:", L.id, n, a); });
+        }
+      });
+    });
   })();
 
   buildNav();

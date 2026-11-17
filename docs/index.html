@@ -35,8 +35,8 @@
   .tagline { font-size: 1.05rem; opacity: 0.8; margin: 0 0 20px; }
   .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
   .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 12px 22px; border-radius: 999px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 12px 22px; border-radius: 999px; font-weight: 600;
     text-decoration: none; font-size: 1rem; border: none; cursor: pointer;
     font-family: inherit;
   }
@@ -165,8 +165,8 @@
     header { padding: 10px 16px 0; }
     h1 { font-size: 1.5rem; margin: 0 0 6px; }
     .tagline { display: none; }
-    .cta-row { gap: 8px; margin-bottom: 0; }
-    .cta-row .btn { padding: 6px 12px; font-size: 0.8rem; }
+    .cta-row { gap: 8px; margin-bottom: 8px; }
+    .cta-row .btn { padding: 6px 12px; font-size: 0.8rem; min-height: 44px; }
     main { padding: 8px 16px 16px; }
     .story-header { margin-bottom: 6px; }
     .demo-card { min-height: 0; padding: 14px 12px 18px; border-radius: 24px; }
@@ -195,7 +195,7 @@
   <h1>Early Reader</h1>
   <p class="tagline">A calm, offline phonics app. Drag to sound out each word, then hear it read aloud.</p>
   <div class="cta-row">
-    <a class="btn btn-primary" id="download-link" href="https://github.com/alexcch-byte/dragon-readers/releases/latest/download/dragon-readers-debug.apk" rel="noopener">⬇ Download Android App</a>
+    <a class="btn btn-primary" id="download-link" href="https://github.com/alexcch-byte/dragon-readers/releases/latest/download/dragon-readers-debug.apk" rel="noopener">⬇ Download Android prototype (one word)</a>
     <a class="btn btn-secondary" href="https://github.com/alexcch-byte/dragon-readers" id="repo-link" rel="noopener">View source on GitHub</a>
   </div>
   <div class="cta-row">
@@ -254,7 +254,8 @@
 <footer>
   This browser demo plays the full reading interaction from the plan: sentence-in-context, drag-to-scrub
   phonics, revealed pictures, tricky (sight) words, a spoken help button, and a read-aloud page finish —
-  using your browser's built-in speech voice. No ads, no accounts, no data collection.
+  using your browser's built-in speech voice. No accounts, no ads, no tracking. Once the page has loaded it works
+  without internet if your device has a built-in voice.
 </footer>
 
 <script>
@@ -279,11 +280,16 @@
   // A touch picks the bar up where it lands only inside the first segment or within this reach of
   // where the last drag stopped: the larger of this fraction of the bar and START_REACH_PX. A touch
   // further away is not ignored; it snaps to the nearest allowed point (the start or the current
-  // progress) and a "start here" pulse shows where. While dragging, progress can advance at most
-  // MAX_STEP per input event, so a stray touch near the far end can't complete the word in one jump.
+  // progress) and a "start here" pulse shows where. After such a snapped start the drag does not
+  // follow the finger until the finger comes within reach of the thumb (or into the first segment),
+  // so pressing and jittering at the far end does nothing. While dragging, progress can advance at
+  // most MAX_STEP per input event and MAX_SPEED bar-lengths per second.
   const MIN_START_REACH = 0.35;
   const START_REACH_PX = 100;
   const MAX_STEP = 0.4;
+  // On top of MAX_STEP, progress may not advance faster than this many bar-lengths per second, so
+  // a finger that merely jitters (or a stray touch) can never run the thumb to the end in a few events.
+  const MAX_SPEED = 2.0;
   const PREFERS_REDUCED_MOTION = !!window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const HELP_DEBOUNCE_MS = 400;
 
@@ -293,7 +299,10 @@
   function pickVoice() {
     const voices = speechSynthesis.getVoices();
     const enVoices = voices.filter(v => /^en/i.test(v.lang));
-    voice = enVoices.find(v => FEMALE_VOICE_HINTS.test(v.name)) || enVoices[0] || voices[0] || null;
+    // Voices stored on the device come first (network voices need internet and send the text to a
+    // speech service); the female-name preference only chooses among them.
+    const pool = enVoices.some(v => v.localService) ? enVoices.filter(v => v.localService) : enVoices;
+    voice = pool.find(v => FEMALE_VOICE_HINTS.test(v.name)) || pool[0] || voices[0] || null;
   }
   try {
     pickVoice();
@@ -396,6 +405,8 @@
   let filledNow = 0;
   let boundaries = [];       // cumulative end of each segment as a fraction of the bar (letter-count weighted)
   let activePointerId = null;
+  let following = false;     // the current drag may move the thumb (false after a snapped start)
+  let lastMoveAt = 0;        // event time (ms) of the previous input of this drag
   // active -> completing (word spoken) -> [reading (page sentence)] -> ready (Next shown)
   let phase = "active";
   // Bumped whenever the word/page changes; story-flow callbacks from an older flow do nothing.
@@ -479,7 +490,11 @@
     const word = currentWord();
     flow++;
     cancelHelp();
+    // A help tap queued while the previous word was being read aloud must not read THIS word aloud
+    // before the child has tried it. The acknowledge pulse was the feedback; the queue is dropped.
+    pendingHelp = false;
     releasePointer(); // a drag held over from the previous word must not carry into this one
+    following = false;
     phase = "active";
     dragStartedThisWord = false;
     wordDone = false;
@@ -533,7 +548,6 @@
     // Keep keyboard / screen-reader focus on the thing to act on next.
     if (started) {
       try { (word.sight ? trickyBtn : barEl).focus({ preventScroll: true }); } catch (e) {}
-      runPendingHelp();
     }
   }
 
@@ -608,10 +622,13 @@
     el.classList.add("ack");
     setTimeout(() => el.classList.remove("ack"), 450);
   }
+  // Only showNext() runs the queued tap (the page is finished and the child is still on that word);
+  // renderActiveWord() throws it away. A stale timer never speaks for a later word or page.
   function runPendingHelp() {
     if (!pendingHelp) return;
     pendingHelp = false;
-    setTimeout(runHelp, 250);
+    const myFlow = flow;
+    setTimeout(() => { if (flow === myFlow) runHelp(); }, 250);
   }
 
   // ---- drag/scrub ----
@@ -652,9 +669,15 @@
     }
   }
 
-  // Moves the thumb to the finger, but never more than MAX_STEP past the current progress.
-  function dragTo(fraction) {
-    setProgress(Math.min(fraction, progress + MAX_STEP));
+  // Moves the thumb to the finger, but never more than MAX_STEP past the current progress, nor
+  // faster than MAX_SPEED bar-lengths per second (`dt` in seconds; omit for the first touch).
+  function dragTo(fraction, dt) {
+    let step = MAX_STEP;
+    if (dt !== undefined) step = Math.min(step, Math.max(0, dt) * MAX_SPEED);
+    setProgress(Math.min(fraction, progress + step));
+  }
+  function startReach() {
+    return Math.max(MIN_START_REACH, START_REACH_PX / barEl.getBoundingClientRect().width);
   }
 
   function pulseThumb() {
@@ -670,26 +693,38 @@
     const word = currentWord();
     if (!word || word.sight || wordDone) return;
     const f = fractionFromX(e.clientX);
-    const reach = Math.max(MIN_START_REACH, START_REACH_PX / barEl.getBoundingClientRect().width);
+    const reach = startReach();
     activePointerId = e.pointerId;
+    lastMoveAt = e.timeStamp;
     try { barEl.setPointerCapture(e.pointerId); } catch (err) {}
     if (f <= boundaries[0] || Math.abs(f - progress) <= reach) {
+      following = true;
       dragTo(f);
     } else {
       // Too far from anywhere a drag may begin: start from the nearest allowed point instead of
-      // ignoring the touch, and show where that is.
+      // ignoring the touch, and show where that is. The drag then waits (following = false)
+      // until the finger actually comes to the thumb.
+      following = false;
       if (f <= progress / 2) setProgress(0);
       pulseThumb();
     }
   });
   barEl.addEventListener("pointermove", e => {
     if (e.pointerId !== activePointerId) return;
-    dragTo(fractionFromX(e.clientX));
     e.preventDefault();
+    const dt = Math.max(0, (e.timeStamp - lastMoveAt) / 1000);
+    lastMoveAt = e.timeStamp;
+    const f = fractionFromX(e.clientX);
+    if (!following) {
+      if (f <= boundaries[0] || Math.abs(f - progress) <= startReach()) following = true;
+      else return; // still far from the thumb: ignore (a finger resting or jittering at the far end)
+    }
+    dragTo(f, dt);
   });
   function endPointer(e) {
     if (e.pointerId !== activePointerId) return;
     releasePointer();
+    following = false;
   }
   barEl.addEventListener("pointerup", endPointer);
   barEl.addEventListener("pointercancel", endPointer);
