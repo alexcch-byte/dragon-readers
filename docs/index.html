@@ -84,12 +84,13 @@
     box-shadow: 0 0 0 2px var(--violet);
   }
   .sentence .w {
-    font-size: 1.25rem; font-weight: 700; padding: 4px 8px; border-radius: 8px;
-    transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+    font-size: 1.25rem; font-weight: 700; padding: 2px 4px;
+    border-bottom: 3.5px solid transparent; border-radius: 0; background: transparent;
+    transition: color 0.15s, border-color 0.15s;
   }
-  .sentence .w.upcoming { color: var(--dim); background: transparent; }
-  .sentence .w.done { color: var(--violet); background: #F3E8FF; }
-  .sentence .w.active { color: var(--accent); background: #FEF3C7; box-shadow: 0 0 0 2px var(--accent); }
+  .sentence .w.upcoming { color: var(--dim); border-bottom-color: transparent; background: transparent; }
+  .sentence .w.done { color: var(--violet); border-bottom-color: transparent; background: transparent; }
+  .sentence .w.active { color: var(--accent); border-bottom-color: var(--accent); background: transparent; box-shadow: none; }
   .sentence .w.sentence-highlight { color: var(--violet); }
 
   .read-sentence-btn {
@@ -144,23 +145,24 @@
     display: flex; flex-wrap: wrap; gap: 10px 12px; justify-content: center;
     width: 100%; user-select: none; margin-bottom: 18px;
   }
-  /* Fixed dimensions, padding, font-size, font-weight, and border-width across all states for zero layout shift */
+  /* Fixed dimensions, padding, font-size, font-weight, and bottom underline across all states for zero layout shift */
   .track-chip {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 10px 16px; border-radius: 16px; font-size: 1.5rem; font-weight: 700;
-    cursor: pointer; background: white; border: 2px solid var(--segment-empty);
-    color: var(--text-dark); transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+    padding: 6px 4px; border-radius: 0; font-size: 1.5rem; font-weight: 700;
+    cursor: pointer; background: transparent; border: none; border-bottom: 4px solid transparent;
+    color: var(--text-dark); box-shadow: none;
+    transition: color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
     font-family: inherit; box-sizing: border-box;
   }
   .track-chip.active {
-    border-color: var(--accent); background: #FEF3C7; color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3); opacity: 1;
+    border-bottom-color: var(--accent); background: transparent; color: var(--accent);
+    box-shadow: none; opacity: 1;
   }
   .track-chip.done {
-    background: #F3E8FF; border-color: #DDD6FE; color: var(--violet); opacity: 1;
+    background: transparent; border-bottom-color: transparent; color: var(--violet); opacity: 1;
   }
   .track-chip.upcoming {
-    opacity: 0.6;
+    background: transparent; border-bottom-color: transparent; opacity: 0.55;
   }
   /* A chip's picture only shows once the tracker has passed that word, so it never gives the word away.
      It always keeps its space (visibility, not display), so nothing shifts when it appears. */

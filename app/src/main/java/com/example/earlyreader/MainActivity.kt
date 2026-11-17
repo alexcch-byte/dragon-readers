@@ -59,6 +59,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -628,10 +630,20 @@ fun WordPracticeScreen(
                                 color = if (isActive) WarmAccent else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
-                                    .padding(horizontal = 3.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (isActive) Color(0xFFFEF3C7) else Color.Transparent)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    .padding(horizontal = 4.dp)
+                                    .drawBehind {
+                                        if (isActive) {
+                                            val strokeWidth = 3.5.dp.toPx()
+                                            val y = size.height - strokeWidth / 2f
+                                            drawLine(
+                                                color = WarmAccent,
+                                                start = Offset(0f, y),
+                                                end = Offset(size.width, y),
+                                                strokeWidth = strokeWidth,
+                                            )
+                                        }
+                                    }
+                                    .padding(horizontal = 2.dp, vertical = 4.dp),
                             )
                         }
                     }
@@ -886,17 +898,21 @@ fun StoryModeScreen(
                             },
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
-                                .padding(horizontal = 3.dp, vertical = 2.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(
-                                    when {
-                                        isActive -> Color(0xFFFEF3C7)
-                                        isDone -> VioletPrimary.copy(alpha = 0.1f)
-                                        else -> Color.Transparent
-                                    }
-                                )
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
                                 .clickable { onSpeakWord(w.text.trimEnd('.', '!', '?', ',')) }
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                                .drawBehind {
+                                    if (isActive) {
+                                        val strokeWidth = 3.5.dp.toPx()
+                                        val y = size.height - strokeWidth / 2f
+                                        drawLine(
+                                            color = WarmAccent,
+                                            start = Offset(0f, y),
+                                            end = Offset(size.width, y),
+                                            strokeWidth = strokeWidth,
+                                        )
+                                    }
+                                }
+                                .padding(horizontal = 2.dp, vertical = 4.dp),
                         )
                     }
                 }
@@ -1323,26 +1339,26 @@ fun TrackToReadScreen(
                     // (it keeps its space until then, so nothing shifts).
                     val isPassed = pageCompleted || idx < reachedWordIndex
 
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = when {
-                            isActive -> Color(0xFFFEF3C7)
-                            isDone -> MaterialTheme.colorScheme.surfaceVariant
-                            else -> MaterialTheme.colorScheme.surface
-                        },
-                        border = BorderStroke(
-                            width = 2.dp,
-                            color = when {
-                                isActive -> WarmAccent
-                                isDone -> VioletPrimary.copy(alpha = 0.5f)
-                                else -> MaterialTheme.colorScheme.outlineVariant
-                            },
-                        ),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                            .padding(horizontal = 6.dp, vertical = 4.dp)
                             .clickable {
                                 updateTrackProgress((idx + 0.5f) / wordCount.toFloat(), TrackSource.CHIP)
                             }
+                            .drawBehind {
+                                if (isActive) {
+                                    val strokeWidth = 4.dp.toPx()
+                                    val y = size.height - strokeWidth / 2f
+                                    drawLine(
+                                        color = WarmAccent,
+                                        start = Offset(0f, y),
+                                        end = Offset(size.width, y),
+                                        strokeWidth = strokeWidth,
+                                    )
+                                }
+                            }
+                            .padding(horizontal = 4.dp, vertical = 6.dp)
                             .semantics {
                                 contentDescription = "${word.text}. " + when {
                                     isActive -> "Current word"
@@ -1351,30 +1367,25 @@ fun TrackToReadScreen(
                                 }
                             },
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        ) {
-                            if (word.img != null) {
-                                Text(
-                                    text = word.img,
-                                    fontSize = 24.sp,
-                                    modifier = Modifier
-                                        .padding(end = 6.dp)
-                                        .alpha(if (isPassed) 1f else 0f),
-                                )
-                            }
+                        if (word.img != null) {
                             Text(
-                                text = word.text,
+                                text = word.img,
                                 fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = when {
-                                    isActive -> WarmAccent
-                                    isDone -> VioletPrimary
-                                    else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                                },
+                                modifier = Modifier
+                                    .padding(end = 6.dp)
+                                    .alpha(if (isPassed) 1f else 0f),
                             )
                         }
+                        Text(
+                            text = word.text,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = when {
+                                isActive -> WarmAccent
+                                isDone -> VioletPrimary
+                                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                            },
+                        )
                     }
                 }
             }
