@@ -5,21 +5,26 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -28,31 +33,54 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import com.example.earlyreader.ui.theme.SegmentEmpty
+import com.example.earlyreader.ui.theme.TextDark
 import com.example.earlyreader.ui.theme.VioletPrimary
 import com.example.earlyreader.ui.theme.WarmAccent
+import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 // Same value as DONE in docs/index.html: a real finger lifts a little short of
 // the physical edge, so requiring ~100% made the word nearly impossible to
 // complete, with no feedback as to why.
 private const val DONE_THRESHOLD = 0.92f
 
-// A touch may pick the bar up again only this close (as a fraction of the bar)
-// to where the last drag left off, or inside the first segment. This stops a
-// stray tap near the far end from completing the word in one jump.
-private const val RESUME_REACH = 0.15f
+// A touch inside the first segment, or within this reach of where the last drag
+// left off, picks the bar up exactly where the finger landed. The reach is the
+// larger of this fraction of the bar and START_REACH_DP, so it stays generous on
+// wide bars. A touch outside it is not ignored (a 4-year-old tapping the middle
+// of the bar would see nothing happen): it snaps to the nearest allowed point
+// (the start, or the current progress) and a "start here" thumb pulses there.
+private const val MIN_START_REACH = 0.35f
+private const val START_REACH_DP = 100
+
+// Keeps a stray tap near the far end from completing the word in one jump: while
+// dragging, progress can advance at most this far per input event.
+private const val MAX_STEP = 0.4f
 
 // Keeps the bar's start clear of the system back-gesture edge (plan section 10).
 private val BarHorizontalPadding = 32.dp
+
+private val ThumbSize = 44.dp
+private val MaxLetterSize = 88.dp
+
+// Rough advance width of a bold letter as a multiple of its font size; used to
+// shrink the letters of a narrow segment so they never spill into the next one.
+private const val LETTER_WIDTH_EM = 0.7f
 
 /**
  * Milestone 1: drag-to-reveal segmented scrub bar.
@@ -68,6 +96,13 @@ fun SegmentedScrubBar(
 ) {
     var progress by rememberSaveable(segments) { mutableStateOf(0f) }
     var completedFired by rememberSaveable(segments) { mutableStateOf(false) }
+    // Once the word is complete the bar is finished: no more dragging, no re-firing the reward.
+    var locked by rememberSaveable(segments) { mutableStateOf(false) }
+
+    // "Start here" pulse shown when a touch was snapped to an allowed start point.
+    var startHint by remember { mutableStateOf(false) }
+    var startHintAt by remember { mutableFloatStateOf(0f) }
+    var barWidthPx by remember { mutableIntStateOf(0) }
 
     // Segment boxes are weighted by letter count, so "filled" must be measured
     // against the cumulative weighted boundaries, not against equal slices.
@@ -78,7 +113,7 @@ fun SegmentedScrubBar(
         weights.map { running += it; running / total }
     }
 
-    val isComplete = progress >= DONE_THRESHOLD
+    val isComplete = locked || progress >= DONE_THRESHOLD
     val displayProgress = if (isComplete) 1f else progress
     val filledSegments = if (isComplete) {
         segments.size
@@ -91,6 +126,8 @@ fun SegmentedScrubBar(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Each letter is centred inside its weighted segment so it sits above its own segment.
+        // The size is in dp (so a large system font scale can't blow it up) and shrinks to fit
+        // narrow segments, e.g. the single-letter segments of a 4-letter word.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -98,13 +135,17 @@ fun SegmentedScrubBar(
                 .padding(bottom = 16.dp),
         ) {
             segments.forEachIndexed { index, letters ->
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier.weight(weights[index].toFloat()),
                     contentAlignment = Alignment.Center,
                 ) {
+                    val fitted = (maxWidth / (letters.length.coerceAtLeast(1) * LETTER_WIDTH_EM))
+                        .coerceAtMost(MaxLetterSize)
+                    val fontSize = with(LocalDensity.current) { fitted.toSp() }
                     Text(
                         text = letters,
                         style = MaterialTheme.typography.displayLarge,
+                        fontSize = fontSize,
                         color = if (index < filledSegments) WarmAccent else MaterialTheme.colorScheme.onBackground,
                         maxLines = 1,
                         softWrap = false,
@@ -114,6 +155,7 @@ fun SegmentedScrubBar(
         }
 
         val fillFraction by animateFloatAsState(targetValue = displayProgress, label = "scrubFill")
+        val hintAlpha by animateFloatAsState(targetValue = if (startHint) 1f else 0f, label = "startHint")
         val wordText = segments.joinToString("")
 
         Box(
@@ -121,39 +163,72 @@ fun SegmentedScrubBar(
                 .fillMaxWidth()
                 .padding(horizontal = BarHorizontalPadding)
                 .height(72.dp)
+                .onSizeChanged { barWidthPx = it.width }
                 .clip(RoundedCornerShape(36.dp))
                 .background(SegmentEmpty)
                 .semantics {
                     contentDescription = "Sound out the word $wordText"
                     stateDescription = "$filledSegments of ${segments.size} sounds"
-                    progressBarRangeInfo = ProgressBarRangeInfo(displayProgress, 0f..1f)
+                    // N segments give N - 1 steps between the ends (0 and 1 are not steps).
+                    progressBarRangeInfo = ProgressBarRangeInfo(
+                        displayProgress,
+                        0f..1f,
+                        steps = (segments.size - 1).coerceAtLeast(0),
+                    )
                     setProgress(action = { target ->
-                        progress = target.coerceIn(0f, 1f)
-                        true
+                        if (locked) {
+                            false
+                        } else {
+                            // Accessibility services move the bar one segment at a time: forward to
+                            // the next segment boundary, back to the previous one. This also keeps
+                            // any single step under ~0.34 of the bar for equal-width segments.
+                            val next = if (target > progress) {
+                                boundaries.firstOrNull { it > progress + 0.001f } ?: 1f
+                            } else if (target < progress) {
+                                boundaries.lastOrNull { it < progress - 0.001f } ?: 0f
+                            } else {
+                                progress
+                            }
+                            progress = next.coerceIn(0f, 1f)
+                            true
+                        }
                     })
                 }
                 .pointerInput(segments, boundaries) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
+                        if (locked) return@awaitEachGesture
                         val width = size.width.toFloat()
                         if (width <= 0f) return@awaitEachGesture
 
-                        val startFraction = (down.position.x / width).coerceIn(0f, 1f)
-                        val insideFirstSegment = startFraction <= (boundaries.firstOrNull() ?: 1f)
-                        val nearCurrent = abs(startFraction - progress) <= RESUME_REACH
-                        if (!insideFirstSegment && !nearCurrent) return@awaitEachGesture
+                        val reach = maxOf(MIN_START_REACH, START_REACH_DP.dp.toPx() / width)
+                        val touch = (down.position.x / width).coerceIn(0f, 1f)
+                        val insideFirstSegment = touch <= (boundaries.firstOrNull() ?: 1f)
+                        val nearCurrent = abs(touch - progress) <= reach
+                        if (insideFirstSegment || nearCurrent) {
+                            progress = touch.coerceAtMost(progress + MAX_STEP)
+                        } else {
+                            // Too far from anywhere a drag may begin: start from the nearest
+                            // allowed point (the start or the current progress) and show where.
+                            val snapTo = if (touch <= progress / 2f) 0f else progress
+                            startHintAt = snapTo
+                            startHint = true
+                            progress = snapTo
+                        }
 
                         // Track only this pointer; any other finger or palm is ignored.
                         val pointerId = down.id
                         down.consume()
-                        progress = startFraction
                         while (true) {
+                            if (progress >= DONE_THRESHOLD) { locked = true; break }
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == pointerId } ?: break
                             if (!change.pressed) break
-                            progress = (change.position.x / width).coerceIn(0f, 1f)
+                            val x = (change.position.x / width).coerceIn(0f, 1f)
+                            progress = x.coerceAtMost(progress + MAX_STEP)
                             change.consume()
                         }
+                        if (progress >= DONE_THRESHOLD) locked = true
                     }
                 },
         ) {
@@ -175,16 +250,42 @@ fun SegmentedScrubBar(
                     )
                 }
             }
+
+            if (hintAlpha > 0.01f) {
+                val thumbPx = with(LocalDensity.current) { ThumbSize.roundToPx() }
+                val x = (startHintAt * barWidthPx - thumbPx / 2f)
+                    .coerceIn(0f, (barWidthPx - thumbPx).coerceAtLeast(0).toFloat())
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .offset { IntOffset(x.roundToInt(), 0) }
+                        .size(ThumbSize)
+                        .graphicsLayer {
+                            alpha = hintAlpha
+                            val pulse = 0.8f + 0.5f * hintAlpha
+                            scaleX = pulse
+                            scaleY = pulse
+                        }
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .border(width = 4.dp, color = TextDark, shape = CircleShape),
+                )
+            }
+        }
+
+        // Clear the pulse shortly after it starts.
+        LaunchedEffect(startHint) {
+            if (startHint) {
+                delay(700)
+                startHint = false
+            }
         }
 
         LaunchedEffect(isComplete) {
-            if (isComplete) {
-                if (!completedFired) {
-                    completedFired = true
-                    onWordComplete()
-                }
-            } else {
-                completedFired = false
+            if (isComplete && !completedFired) {
+                completedFired = true
+                locked = true
+                onWordComplete()
             }
         }
     }

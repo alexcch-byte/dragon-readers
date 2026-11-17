@@ -10,7 +10,7 @@
     --violet: #5031F5;
     --bg: #FAF7F2;
     --accent: #C2410C;   /* darkened for contrast: ~4.8:1 on --bg, ~5:1 on white */
-    --segment-empty: #E3DEF7;
+    --segment-empty: #C9C1EE;   /* ~1.7:1 against white; the bar also has an inset violet outline */
     --text-dark: #2B2640;
     --dim: #6F6892;      /* >= 4.5:1 on --bg and on white */
   }
@@ -53,7 +53,7 @@
     width: 100%; background: white; border-radius: 28px;
     padding: 24px 24px 32px; box-shadow: 0 12px 30px rgba(80, 49, 245, 0.08);
     display: flex; flex-direction: column; align-items: center; position: relative;
-    min-height: 420px; justify-content: center;
+    min-height: 420px; justify-content: flex-start;
   }
 
   .reward {
@@ -64,14 +64,14 @@
 
   .sentence {
     display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
-    margin-bottom: 28px; user-select: none; position: absolute; top: 20px; left: 24px; right: 24px;
+    margin-bottom: 12px; user-select: none; width: 100%;
   }
   .sentence .w { font-size: 1.1rem; font-weight: 600; transition: color 0.2s, opacity 0.2s, font-size 0.2s; }
   .sentence .w.upcoming { color: var(--dim); }
   .sentence .w.done { color: var(--accent); }
   .sentence .w.active { color: var(--violet); font-size: 1.4rem; }
 
-  .active-area { display: flex; flex-direction: column; align-items: center; margin-top: 54px; }
+  .active-area { display: flex; flex-direction: column; align-items: center; margin: auto 0; padding-top: 12px; }
 
   .picture {
     font-size: 3rem; margin-bottom: 8px; cursor: pointer; opacity: 0; transition: opacity 0.2s; height: 3.2rem;
@@ -85,10 +85,12 @@
   .letter { flex: 1 1 0; min-width: 0; text-align: center; font-size: 3.6rem; font-weight: 700; color: var(--text-dark); transition: color 0.15s ease; }
   .letter.filled { color: var(--accent); }
   .letter.hinting { color: var(--violet); transform: scale(1.15); transition: transform 0.15s; }
+  @media (prefers-reduced-motion: reduce) { .letter.hinting { transform: none; text-decoration: underline; } }
 
   .bar {
     width: 260px; height: 72px; border-radius: 36px; background: var(--segment-empty);
     position: relative; overflow: hidden; touch-action: none; cursor: pointer; user-select: none;
+    box-shadow: inset 0 0 0 2px var(--violet);
   }
   .bar:focus-visible { outline: 3px solid var(--text-dark); outline-offset: 3px; }
   .bar-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0%; background: var(--violet); border-radius: 36px; transition: width 0.08s linear; }
@@ -100,11 +102,18 @@
     border-radius: 50%; background: white; border: 4px solid var(--text-dark);
     box-shadow: 0 2px 6px rgba(0,0,0,0.25); pointer-events: none; transition: left 0.08s linear;
   }
+  /* "start here": a touch far from where a drag may begin is snapped to the start / current spot */
+  .thumb.pulse { box-shadow: 0 0 0 8px rgba(80, 49, 245, 0.35); animation: pulse 0.7s ease-out; }
+  @keyframes pulse { 0% { transform: scale(0.8); } 40% { transform: scale(1.3); } 100% { transform: scale(1); } }
+  /* a help / picture tap that arrives while the word is being read aloud */
+  .ack { box-shadow: 0 0 0 8px rgba(80, 49, 245, 0.35); animation: ack 0.45s ease-out; }
+  @keyframes ack { 0% { transform: scale(0.9); } 50% { transform: scale(1.12); } 100% { transform: scale(1); } }
 
   .tricky-btn {
     width: 260px; height: 72px; border-radius: 36px; background: var(--segment-empty);
     border: none; font-size: 2rem; font-weight: 700; color: var(--text-dark);
     cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 0 2px var(--violet);
   }
   .tricky-label { margin-top: 10px; font-size: 0.8rem; color: var(--dim); letter-spacing: 0.04em; text-transform: uppercase; }
 
@@ -116,8 +125,33 @@
 
   .next-btn { margin-top: 18px; }
 
-  .end-screen { text-align: center; }
+  .end-screen { text-align: center; margin: auto 0; }
   .end-screen .big-star { font-size: 4rem; }
+  /* the story sections swap for the end screen / start card without rebuilding the card */
+  .demo-card.finished .sentence, .demo-card.finished .active-area, .demo-card.finished .reward,
+  .demo-card.not-started .sentence, .demo-card.not-started .active-area { display: none; }
+  .end-screen, .start-card { display: none; }
+  .demo-card.finished .end-screen { display: block; }
+  .demo-card.not-started .start-card { display: flex; }
+  .start-card { flex-direction: column; align-items: center; text-align: center; margin: auto 0; gap: 10px; }
+  .start-card .big-star { font-size: 3.4rem; line-height: 1; }
+  .start-card h2, .end-screen h2 { margin: 0; color: var(--violet); }
+  .start-card p, .end-screen p { margin: 0 0 6px; }
+  .start-card .btn { font-size: 1.3rem; padding: 16px 32px; min-height: 56px; }
+
+  .demo-card.not-started ~ .hint { visibility: hidden; }
+
+  .voice-banner {
+    display: flex; align-items: center; gap: 8px; width: calc(100% - 32px); max-width: 520px;
+    margin: 8px 16px 0; padding: 8px 8px 8px 14px; border-radius: 14px;
+    background: #FFF4D6; color: var(--text-dark); font-size: 0.9rem;
+  }
+  .voice-banner[hidden] { display: none; }
+  .voice-banner span { flex: 1; }
+  .voice-banner button {
+    min-width: 44px; min-height: 44px; border: none; background: none; border-radius: 50%;
+    font-size: 1.1rem; cursor: pointer; color: var(--text-dark);
+  }
 
   .hint { margin-top: 18px; font-size: 0.9rem; color: var(--dim); text-align: center; }
 
@@ -125,6 +159,34 @@
   footer a { color: var(--violet); }
 
   .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+  /* Phones: keep the bar and the help button on the first screen. */
+  @media (max-width: 600px) {
+    header { padding: 10px 16px 0; }
+    h1 { font-size: 1.5rem; margin: 0 0 6px; }
+    .tagline { display: none; }
+    .cta-row { gap: 8px; margin-bottom: 0; }
+    .cta-row .btn { padding: 6px 12px; font-size: 0.8rem; }
+    main { padding: 8px 16px 16px; }
+    .story-header { margin-bottom: 6px; }
+    .demo-card { min-height: 0; padding: 14px 12px 18px; border-radius: 24px; }
+    .sentence { margin-bottom: 4px; gap: 4px 8px; }
+    .active-area { margin: 0; padding-top: 4px; }
+    .picture { font-size: 2.4rem; height: 2.6rem; margin-bottom: 4px; }
+    .letters, .bar, .tricky-btn { width: min(86vw, 420px); }
+    .letters { margin-bottom: 10px; }
+    .letter { font-size: 3rem; }
+    .bar, .tricky-btn { height: 64px; border-radius: 32px; }
+    .bar-fill { border-radius: 32px; }
+    .help-btn { margin-top: 12px; width: 64px; height: 64px; }
+    .next-btn { margin-top: 12px; }
+    .hint { margin-top: 10px; }
+    footer { margin: 16px 0 16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -141,15 +203,33 @@
   </div>
 </header>
 
+<div class="voice-banner" id="voice-banner" hidden>
+  <span>No voice found on this device, the app will still work without sound.</span>
+  <button type="button" id="voice-banner-close" aria-label="Dismiss">✕</button>
+</div>
+
 <main>
   <div class="story-header">
     <span class="story-title" id="story-title"></span>
     <span class="page-indicator" id="page-indicator"></span>
   </div>
 
-  <div class="demo-card" id="demo-card">
+  <div class="sr-only" id="live" role="status" aria-live="polite"></div>
+
+  <div class="demo-card not-started" id="demo-card">
+    <div class="start-card" id="start-card">
+      <div class="big-star" aria-hidden="true">📖</div>
+      <h2>Ready to read?</h2>
+      <p>Tap to start the story.</p>
+      <button type="button" class="btn btn-primary" id="start-btn">▶ Start story</button>
+    </div>
+    <div class="end-screen" id="end-screen">
+      <div class="big-star" aria-hidden="true">⭐⭐⭐</div>
+      <h2>Great reading!</h2>
+      <p id="end-text"></p>
+      <button type="button" class="btn btn-primary" id="restart-btn">Read it again</button>
+    </div>
     <div class="reward" id="reward" aria-hidden="true">⭐</div>
-    <div class="sr-only" id="live" role="status" aria-live="polite"></div>
     <div class="sentence" id="sentence"></div>
 
     <div class="active-area" id="active-area">
@@ -168,7 +248,7 @@
     </div>
   </div>
 
-  <p class="hint" id="hint">Drag your finger (or mouse) across the bar to sound out the word.</p>
+  <p class="hint" id="hint">Drag your finger along the bar (arrow keys work too).</p>
 </main>
 
 <footer>
@@ -196,9 +276,15 @@
 
   // Same completion threshold as the Android app (SegmentedScrubBar.kt).
   const DONE = 0.92;
-  // A touch may only pick the bar up inside the first segment or this close (fraction of the bar) to
-  // where the last drag stopped, so a stray tap near the far end can't complete the word.
-  const RESUME_REACH = 0.15;
+  // A touch picks the bar up where it lands only inside the first segment or within this reach of
+  // where the last drag stopped: the larger of this fraction of the bar and START_REACH_PX. A touch
+  // further away is not ignored; it snaps to the nearest allowed point (the start or the current
+  // progress) and a "start here" pulse shows where. While dragging, progress can advance at most
+  // MAX_STEP per input event, so a stray touch near the far end can't complete the word in one jump.
+  const MIN_START_REACH = 0.35;
+  const START_REACH_PX = 100;
+  const MAX_STEP = 0.4;
+  const PREFERS_REDUCED_MOTION = !!window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const HELP_DEBOUNCE_MS = 400;
 
   // ---- speech ----
@@ -214,6 +300,16 @@
     if ("onvoiceschanged" in speechSynthesis) speechSynthesis.onvoiceschanged = pickVoice;
   } catch (e) { /* speech unavailable: the flows below fall back to timers */ }
 
+  // Small dismissible notice when the browser reports no voice at all (checked after a moment, since
+  // voices load asynchronously). The app works without sound either way.
+  const voiceBannerEl = document.getElementById("voice-banner");
+  document.getElementById("voice-banner-close").addEventListener("click", () => { voiceBannerEl.hidden = true; });
+  setTimeout(() => {
+    let none = true;
+    try { none = speechSynthesis.getVoices().length === 0; } catch (e) {}
+    if (none) voiceBannerEl.hidden = false;
+  }, 1500);
+
   // Every utterance gets a monotonically increasing token. A cancelled utterance fires onerror
   // ("interrupted"), not onend, in Chromium, and some engines never fire either, so `onDone` runs
   // exactly once from whichever of onend / onerror / a length-based fallback timer happens first.
@@ -221,7 +317,10 @@
   // callbacks set it, and guard themselves with the `flow` token instead, so progress never
   // depends on one particular utterance happening to finish.
   let speakToken = 0;
-  function speakCore(text, rate, onDone, survive) {
+  // Kept in a module-level variable: browsers can garbage-collect a playing utterance and then
+  // never fire its onend, which would stall the story.
+  let currentUtterance = null;
+  function speakCore(text, rate, onDone, survive, fallbackMs) {
     const token = ++speakToken;
     let fired = false;
     let timer = null;
@@ -232,7 +331,7 @@
       if (token !== speakToken && !survive) return;
       if (onDone) onDone();
     };
-    timer = setTimeout(finish, text.length * 120 + 1500);
+    timer = setTimeout(finish, fallbackMs || text.length * 120 + 1500);
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
@@ -241,11 +340,23 @@
       u.pitch = 1.0;
       u.onend = finish;
       u.onerror = finish;
+      currentUtterance = u;
       speechSynthesis.speak(u);
     } catch (e) {
       clearTimeout(timer);
       timer = setTimeout(finish, 300); // speech API unavailable: don't block progress
     }
+  }
+
+  // Speaks each text in order (one utterance at a time), then calls onDone. Without `survive`, a
+  // newer utterance elsewhere supersedes the sequence, which then just stops.
+  function speakSounds(texts, onDone, survive) {
+    let i = 0;
+    const next = () => {
+      if (i >= texts.length) { if (onDone) onDone(); return; }
+      speakCore(texts[i++], 0.7, next, survive);
+    };
+    next();
   }
 
   // Any speech that isn't part of the help sequence also stops that sequence.
@@ -293,6 +404,8 @@
   let helpRun = 0;
   let helpTimers = [];
   let lastHelpAt = -Infinity;
+  let started = false;        // the Start card has been tapped (this click also unlocks speech)
+  let pendingHelp = false;    // one help tap that arrived during the completion / reading lock
 
   const sentenceEl = document.getElementById("sentence");
   const picEl = document.getElementById("picture");
@@ -311,6 +424,9 @@
   const storyTitleEl = document.getElementById("story-title");
   const pageIndicatorEl = document.getElementById("page-indicator");
   const demoCard = document.getElementById("demo-card");
+  const startBtn = document.getElementById("start-btn");
+  const restartBtn = document.getElementById("restart-btn");
+  const endTextEl = document.getElementById("end-text");
 
   storyTitleEl.textContent = STORY.title;
 
@@ -389,7 +505,7 @@
       lettersEl.style.display = "flex";
       trickyBtn.style.display = "none";
       trickyLabel.style.display = "none";
-      hintEl.textContent = "Drag your finger (or mouse) across the bar to sound out the word.";
+      hintEl.textContent = "Drag your finger along the bar (arrow keys work too).";
 
       // Letters and bar segments share the same flex weights (letter count), so a letter
       // always sits over its own segment and "filled" matches what the bar shows.
@@ -413,6 +529,12 @@
       });
       paintBar();
     }
+
+    // Keep keyboard / screen-reader focus on the thing to act on next.
+    if (started) {
+      try { (word.sight ? trickyBtn : barEl).focus({ preventScroll: true }); } catch (e) {}
+      runPendingHelp();
+    }
   }
 
   function renderPage() {
@@ -424,13 +546,13 @@
   }
 
   // ---- word / page completion: driven by state, never by one particular utterance ending ----
-  function wordCompleted() {
+  function wordCompleted(sounds) {
     if (wordDone) return;
     wordDone = true;
     phase = "completing";
     const word = currentWord();
     const myFlow = flow;
-    speakCore(spoken(word), 0.9, () => {
+    const advance = () => {
       if (flow !== myFlow) return; // already moved on
       if (activeWordIndex < currentPage().length - 1) {
         activeWordIndex++;
@@ -439,6 +561,12 @@
       } else {
         finishPage(myFlow);
       }
+    };
+    const sayWord = () => speakCore(spoken(word), 0.9, advance, true);
+    if (!sounds || !sounds.length) { sayWord(); return; }
+    // The last segment's sound is heard in full first, then the whole word after a short gap.
+    speakSounds(sounds, () => {
+      setTimeout(() => { if (flow === myFlow) sayWord(); }, 150);
     }, true);
   }
 
@@ -446,7 +574,8 @@
     // read the full sentence once, then show Next / Finish
     phase = "reading";
     renderSentence();
-    const fullSentence = currentPage().map(w => w.t).join(" ");
+    // each word as it is spoken on its own (e.g. "A" -> "uh"), with a closing full stop
+    const fullSentence = currentPage().map(spoken).join(" ") + ".";
     setTimeout(() => {
       if (flow !== myFlow) return;
       speakCore(fullSentence, 1.0, () => {
@@ -466,11 +595,24 @@
     }, 1400);
     nextBtn.textContent = (pageIndex === STORY.pages.length - 1) ? "Finish story ▸" : "Next ▸";
     nextBtn.style.display = "inline-flex";
+    runPendingHelp();
   }
 
-  // While the word / sentence is being read aloud for completion, help and picture taps are ignored
-  // (it is already speaking), so they can never interrupt or stall the advance.
+  // While the word / sentence is being read aloud for completion, help and picture taps can't speak
+  // (it is already speaking), so they can never interrupt or stall the advance. They get a visible
+  // pulse instead, and one help tap is remembered and run when the lock ends.
   function speechLocked() { return phase === "completing" || phase === "reading"; }
+  function acknowledge(el) {
+    el.classList.remove("ack");
+    void el.offsetWidth; // restart the animation if it is already running
+    el.classList.add("ack");
+    setTimeout(() => el.classList.remove("ack"), 450);
+  }
+  function runPendingHelp() {
+    if (!pendingHelp) return;
+    pendingHelp = false;
+    setTimeout(runHelp, 250);
+  }
 
   // ---- drag/scrub ----
   function fractionFromX(clientX) {
@@ -494,12 +636,32 @@
       if (word.img) setPicture(true);
     }
 
+    // Voice every segment reached since the last one, in order. A fast drag that jumps several
+    // segments voices the last two (more would just be noise).
+    let sounds = [];
     if (filledNow > maxSegmentPlayed) {
-      speak(segmentSound(segs[filledNow - 1]), 0.7);
+      sounds = segs.slice(maxSegmentPlayed, filledNow).slice(-2).map(segmentSound);
       maxSegmentPlayed = filledNow;
     }
 
-    if (complete) wordCompleted();
+    if (complete) {
+      wordCompleted(sounds);
+    } else if (sounds.length) {
+      cancelHelp();
+      speakSounds(sounds);
+    }
+  }
+
+  // Moves the thumb to the finger, but never more than MAX_STEP past the current progress.
+  function dragTo(fraction) {
+    setProgress(Math.min(fraction, progress + MAX_STEP));
+  }
+
+  function pulseThumb() {
+    thumbEl.classList.remove("pulse");
+    void thumbEl.offsetWidth;
+    thumbEl.classList.add("pulse");
+    setTimeout(() => thumbEl.classList.remove("pulse"), 700);
   }
 
   barEl.addEventListener("pointerdown", e => {
@@ -508,14 +670,21 @@
     const word = currentWord();
     if (!word || word.sight || wordDone) return;
     const f = fractionFromX(e.clientX);
-    if (!(f <= boundaries[0] || Math.abs(f - progress) <= RESUME_REACH)) return;
+    const reach = Math.max(MIN_START_REACH, START_REACH_PX / barEl.getBoundingClientRect().width);
     activePointerId = e.pointerId;
     try { barEl.setPointerCapture(e.pointerId); } catch (err) {}
-    setProgress(f);
+    if (f <= boundaries[0] || Math.abs(f - progress) <= reach) {
+      dragTo(f);
+    } else {
+      // Too far from anywhere a drag may begin: start from the nearest allowed point instead of
+      // ignoring the touch, and show where that is.
+      if (f <= progress / 2) setProgress(0);
+      pulseThumb();
+    }
   });
   barEl.addEventListener("pointermove", e => {
     if (e.pointerId !== activePointerId) return;
-    setProgress(fractionFromX(e.clientX));
+    dragTo(fractionFromX(e.clientX));
     e.preventDefault();
   });
   function endPointer(e) {
@@ -544,23 +713,35 @@
   trickyBtn.addEventListener("click", () => {
     const word = currentWord();
     if (!word.sight || wordDone) return;
-    trickyBtn.style.transform = "scale(1.05)";
-    setTimeout(() => (trickyBtn.style.transform = ""), 150);
-    wordCompleted();
+    if (!PREFERS_REDUCED_MOTION) {
+      trickyBtn.style.transform = "scale(1.05)";
+      setTimeout(() => (trickyBtn.style.transform = ""), 150);
+    }
+    wordCompleted([]);
   });
 
   // ---- picture tap speaks the word (help, not completion) ----
   picEl.addEventListener("click", () => {
-    if (speechLocked()) return;
+    if (speechLocked()) { acknowledge(picEl); return; }
     const word = currentWord();
     if (word && word.img) speak(spoken(word), 0.9);
   });
 
   // ---- help button: slow whole-word speech, then segment-by-segment sounded-out replay ----
   helpBtn.addEventListener("click", () => {
+    if (speechLocked()) {
+      // Visible feedback now; one tap is queued and runs when the word / sentence has been read.
+      acknowledge(helpBtn);
+      pendingHelp = true;
+      return;
+    }
     const now = performance.now();
     if (now - lastHelpAt < HELP_DEBOUNCE_MS) return; // mashing the button must not stack sequences
     lastHelpAt = now;
+    runHelp();
+  });
+
+  function runHelp() {
     if (speechLocked()) return;
     const word = currentWord();
     if (!word) return;
@@ -584,10 +765,11 @@
       };
       later(step, 200);
     });
-  });
+  }
 
   // ---- next page / end screen ----
   nextBtn.addEventListener("click", () => {
+    pendingHelp = false;
     if (pageIndex < STORY.pages.length - 1) {
       pageIndex++;
       renderPage();
@@ -598,14 +780,34 @@
 
   function showEndScreen() {
     flow++;
+    pendingHelp = false;
     cancelHelp();
-    demoCard.innerHTML = '<div class="end-screen"><div class="big-star">⭐⭐⭐</div>' +
-      "<h2>Great reading!</h2><p>You finished “" + STORY.title + "”.</p>" +
-      '<button class="btn btn-primary" id="restart-btn">Read it again</button></div>';
+    endTextEl.textContent = "You finished \u201C" + STORY.title + "\u201D.";
+    demoCard.classList.add("finished");
     pageIndicatorEl.textContent = "Done!";
     hintEl.textContent = "";
-    document.getElementById("restart-btn").addEventListener("click", () => location.reload());
+    liveEl.textContent = "Great reading! The story is finished.";
+    restartBtn.focus({ preventScroll: true });
   }
+
+  // "Read it again" resets the state and rebuilds the card instead of reloading the page.
+  restartBtn.addEventListener("click", () => {
+    flow++;
+    pageIndex = 0;
+    pendingHelp = false;
+    liveEl.textContent = "";
+    demoCard.classList.remove("finished");
+    renderPage();
+  });
+
+  // The Start card is the first real tap/click on the page, which browsers require before they let
+  // a page speak at all (a touch pointerdown doesn't count). It speaks the title to unlock speech.
+  startBtn.addEventListener("click", () => {
+    started = true;
+    demoCard.classList.remove("not-started");
+    renderPage();
+    speakCore(STORY.title, 0.9, null);
+  });
 
   renderPage();
 </script>
