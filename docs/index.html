@@ -277,14 +277,45 @@
   const STORY = {
     title: "The Red Hen",
     pages: [
-      [ {t:"A", sight:true, say:"uh"}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"sat", seg:["s","a","t"]} ],
-      [ {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"is", sight:true}, {t:"red", seg:["r","e","d"]} ],
-      [ {t:"A", sight:true, say:"uh"}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"ran", img:"🏃", seg:["r","a","n"]} ],
-      [ {t:"The", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"is", sight:true}, {t:"big", seg:["b","i","g"]} ],
-      [ {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"got", seg:["g","o","t"]}, {t:"in", seg:["i","n"]}, {t:"a", sight:true, say:"uh"}, {t:"box", img:"📦", seg:["b","o","x"]} ],
-      [ {t:"The", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"did", seg:["d","i","d"]}, {t:"not", seg:["n","o","t"]}, {t:"get", seg:["g","e","t"]}, {t:"the", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]} ],
-      // "won" is not decodable (w-o-n does not sound out), so it is a tricky word.
-      [ {t:"Yes!", seg:["Y","e","s"]}, {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"won", sight:true} ],
+      [
+        {t:"A", sight:true, say:"uh"},
+        {t:"hen", img:"🐔", seg:["h","e","n"]},
+        {t:"sat.", seg:["s","a","t"], say:"sat"},
+        {t:"The", sight:true},
+        {t:"hen", img:"🐔", seg:["h","e","n"]},
+        {t:"is", sight:true},
+        {t:"red.", seg:["r","e","d"], say:"red"}
+      ],
+      [
+        {t:"A", sight:true, say:"uh"},
+        {t:"fox", img:"🦊", seg:["f","o","x"]},
+        {t:"ran.", img:"🏃", seg:["r","a","n"], say:"ran"},
+        {t:"The", sight:true},
+        {t:"fox", img:"🦊", seg:["f","o","x"]},
+        {t:"is", sight:true},
+        {t:"big.", seg:["b","i","g"], say:"big"}
+      ],
+      [
+        {t:"The", sight:true},
+        {t:"hen", img:"🐔", seg:["h","e","n"]},
+        {t:"got", seg:["g","o","t"]},
+        {t:"in", seg:["i","n"]},
+        {t:"a", sight:true, say:"uh"},
+        {t:"box.", img:"📦", seg:["b","o","x"], say:"box"}
+      ],
+      [
+        {t:"The", sight:true},
+        {t:"fox", img:"🦊", seg:["f","o","x"]},
+        {t:"did", seg:["d","i","d"]},
+        {t:"not", seg:["n","o","t"]},
+        {t:"get", seg:["g","e","t"]},
+        {t:"the", sight:true},
+        {t:"hen.", img:"🐔", seg:["h","e","n"], say:"hen"},
+        {t:"Yes!", seg:["Y","e","s"], say:"Yes"},
+        {t:"The", sight:true},
+        {t:"hen", img:"🐔", seg:["h","e","n"]},
+        {t:"won.", sight:true, say:"won"}
+      ],
     ],
   };
 

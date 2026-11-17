@@ -6,7 +6,7 @@ object WordBank {
         WordData(text = "hen", segments = listOf("h", "e", "n"), img = "🐔"),
         WordData(text = "fox", segments = listOf("f", "o", "x"), img = "🦊"),
         WordData(text = "box", segments = listOf("b", "o", "x"), img = "📦"),
-        WordData(text = "big", segments = listOf("b", "i", "g")),
-        WordData(text = "red", segments = listOf("r", "e", "d")),
+        WordData(text = "big", segments = listOf("b", "i", "g"), img = "🐘"),
+        WordData(text = "red", segments = listOf("r", "e", "d"), img = "🎈"),
     )
 }

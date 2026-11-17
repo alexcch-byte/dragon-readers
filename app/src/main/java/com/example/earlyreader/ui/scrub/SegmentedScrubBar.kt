@@ -105,10 +105,12 @@ private const val LETTER_WIDTH_EM = 0.7f
 fun SegmentedScrubBar(
     segments: List<String>,
     modifier: Modifier = Modifier,
+    onDragStart: () -> Unit = {},
     onWordComplete: () -> Unit = {},
 ) {
     var progress by rememberSaveable(segments) { mutableStateOf(0f) }
     var completedFired by rememberSaveable(segments) { mutableStateOf(false) }
+    var dragStartedFired by rememberSaveable(segments) { mutableStateOf(false) }
     // Once the word is complete the bar is finished: no more dragging, no re-firing the reward.
     var locked by rememberSaveable(segments) { mutableStateOf(false) }
     var isDragging by remember { mutableStateOf(false) }
@@ -229,6 +231,10 @@ fun SegmentedScrubBar(
                         val nearCurrent = abs(touch - progress) <= reach
                         // False after a snapped start: moves are ignored until the finger reaches the thumb.
                         var following = insideFirstSegment || nearCurrent
+                        if (!dragStartedFired) {
+                            dragStartedFired = true
+                            onDragStart()
+                        }
                         if (following) {
                             progress = if (touch <= RESCRUB_RESET) 0f else touch.coerceAtMost(progress + MAX_STEP)
                         } else {

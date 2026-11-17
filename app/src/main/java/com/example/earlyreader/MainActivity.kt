@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -85,6 +86,7 @@ fun WordScreen(
     var wordIndex by rememberSaveable { mutableIntStateOf(0) }
     val currentWord = words[wordIndex % words.size]
 
+    var pictureRevealed by rememberSaveable { mutableStateOf(false) }
     var showReward by rememberSaveable { mutableStateOf(false) }
     var completed by rememberSaveable { mutableStateOf(false) }
     // The bar finishes for good once the word is complete (its progress and "locked" flag are saved).
@@ -99,12 +101,32 @@ fun WordScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            AnimatedVisibility(
+                visible = pictureRevealed && currentWord.img != null,
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut(),
+            ) {
+                IconButton(
+                    onClick = { onSpeakWord(currentWord.text) },
+                    modifier = Modifier
+                        .size(72.dp)
+                        .padding(bottom = 8.dp)
+                        .semantics {
+                            contentDescription = "Picture of ${currentWord.text}. Tap to hear it"
+                        },
+                ) {
+                    Text(text = currentWord.img ?: "", fontSize = 48.sp)
+                }
+            }
+
             key(wordIndex, attempt) {
                 SegmentedScrubBar(
                     segments = currentWord.segments,
+                    onDragStart = { pictureRevealed = true },
                     onWordComplete = {
                         showReward = true
                         completed = true
+                        pictureRevealed = true
                         onSpeakWord(currentWord.text)
                     },
                 )
@@ -137,6 +159,7 @@ fun WordScreen(
                             attempt++
                             completed = false
                             showReward = false
+                            pictureRevealed = false
                         },
                         modifier = Modifier
                             .height(56.dp)
@@ -153,6 +176,7 @@ fun WordScreen(
                             attempt = 0
                             completed = false
                             showReward = false
+                            pictureRevealed = false
                         },
                         modifier = Modifier
                             .height(56.dp)

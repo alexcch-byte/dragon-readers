@@ -69,4 +69,13 @@ class ScrubBarModelTest {
             }
         }
     }
+
+    @Test
+    fun testStarterWordBankPictures() {
+        val wordsWithPictures = WordBank.starterWords.filter { it.img != null }
+        assertTrue("Starter words should have pictures", wordsWithPictures.isNotEmpty())
+        for (word in wordsWithPictures) {
+            assertTrue("Word ${word.text} picture must not be blank", word.img!!.isNotBlank())
+        }
+    }
 }
