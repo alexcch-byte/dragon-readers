@@ -89,4 +89,16 @@ class ScrubBarModelTest {
             assertTrue("Sentence context for ${word.text} should contain target word", containsTarget)
         }
     }
+
+    @Test
+    fun testParentGateMathChallenge() {
+        for (i in 1..20) {
+            val challenge = generateMathChallenge()
+            assertTrue("Challenge question should not be empty", challenge.question.isNotBlank())
+            assertTrue("Challenge question should mention grown-ups", challenge.question.contains("grown-ups"))
+            assertEquals("Challenge should have 3 options", 3, challenge.options.size)
+            assertTrue("Challenge options must contain correct answer", challenge.options.contains(challenge.answer))
+            assertTrue("Challenge answer must be positive", challenge.answer > 0)
+        }
+    }
 }
