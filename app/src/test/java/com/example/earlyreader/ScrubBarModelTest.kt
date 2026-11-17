@@ -173,4 +173,21 @@ class ScrubBarModelTest {
         assertEquals(0, activeStoryIndex)
         assertEquals("WORDS", activeMode)
     }
+
+    @Test
+    fun testVoiceDetectionAndGuidanceLogic() {
+        data class VoiceInfo(val name: String, val isNetworkRequired: Boolean)
+
+        fun shouldShowOfflineGuidance(voice: VoiceInfo?): Boolean {
+            if (voice == null) return true
+            return voice.isNetworkRequired
+        }
+
+        val offlineVoice = VoiceInfo("en-us-x-sfg#female_1-local", isNetworkRequired = false)
+        val networkVoice = VoiceInfo("en-us-x-sfg#female_1-network", isNetworkRequired = true)
+
+        assertFalse("Offline voice should not trigger offline download guidance", shouldShowOfflineGuidance(offlineVoice))
+        assertTrue("Network voice should trigger offline download guidance", shouldShowOfflineGuidance(networkVoice))
+        assertTrue("Missing voice should trigger offline download guidance", shouldShowOfflineGuidance(null))
+    }
 }

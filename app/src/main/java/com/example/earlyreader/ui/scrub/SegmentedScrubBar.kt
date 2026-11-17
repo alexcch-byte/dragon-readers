@@ -47,9 +47,11 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
+import com.example.earlyreader.ui.theme.EarlyReaderTheme
 import com.example.earlyreader.ui.theme.SegmentEmpty
 import com.example.earlyreader.ui.theme.TextDark
 import com.example.earlyreader.ui.theme.VioletPrimary
@@ -362,5 +364,21 @@ fun SegmentedScrubBar(
                 onWordComplete()
             }
         }
+    }
+}
+
+@Preview(name = "Single Letter Word (cat)", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Composable
+fun PreviewSegmentedScrubBarCat() {
+    EarlyReaderTheme {
+        SegmentedScrubBar(segments = listOf("c", "a", "t"))
+    }
+}
+
+@Preview(name = "Digraph Word (ship)", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Composable
+fun PreviewSegmentedScrubBarShip() {
+    EarlyReaderTheme {
+        SegmentedScrubBar(segments = listOf("sh", "i", "p"))
     }
 }

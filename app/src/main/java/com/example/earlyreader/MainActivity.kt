@@ -1,5 +1,6 @@
 package com.example.earlyreader
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -49,11 +50,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.earlyreader.audio.SpeechManager
@@ -92,6 +95,7 @@ class MainActivity : ComponentActivity() {
                         words = WordBank.starterWords,
                         stories = StoryBank.allStories,
                         progressStorage = progressStorage,
+                        speechManager = speech,
                         onSpeakWord = { text -> speech.speakWord(text) },
                     )
                 }
@@ -143,6 +147,7 @@ fun EarlyReaderApp(
     words: List<WordData> = WordBank.starterWords,
     stories: List<StoryData> = StoryBank.allStories,
     progressStorage: ProgressStorage? = null,
+    speechManager: SpeechManager? = null,
     onSpeakWord: (String) -> Unit = {},
 ) {
     val initialMode = if (progressStorage?.lastAppMode == ProgressStorage.MODE_STORY) {
@@ -394,6 +399,11 @@ fun EarlyReaderApp(
 
         // Adult dashboard dialog
         if (showSettingsDialog) {
+            val context = LocalContext.current
+            val voiceName = speechManager?.voiceName ?: "Default US English"
+            val isOfflineVoice = speechManager?.isOfflineVoice ?: true
+            val isNetworkOnly = speechManager?.isNetworkVoiceOnly ?: false
+
             AlertDialog(
                 onDismissRequest = { showSettingsDialog = false },
                 title = { Text(text = "Settings & Session Progress", fontWeight = FontWeight.Bold) },
@@ -401,7 +411,33 @@ fun EarlyReaderApp(
                     Column {
                         Text(text = "Early Reader - Adult Dashboard", fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "• TTS Voice: English (US) 0.8x rate, offline preferred")
+                        Text(text = "• TTS Voice: $voiceName (${if (isOfflineVoice) "offline ready" else "network required"})")
+                        if (isNetworkOnly || !isOfflineVoice) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Tip: For reliable offline play, download an offline voice in Android Settings -> Accessibility -> Text-to-speech output.",
+                                color = WarmAccent,
+                                fontSize = 12.sp,
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                try {
+                                    context.startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+                                } catch (_: Exception) {
+                                    try {
+                                        context.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
+                                    } catch (_: Exception) {}
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                        ) {
+                            Text(text = "⚙️ System TTS Settings", fontSize = 14.sp)
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(text = "• Current Mode: ${if (appMode == AppMode.WORD_PRACTICE) "Word Practice" else "Story Mode (${currentStory.title})"}")
                         Text(text = "• Story Suite: ${stories.size} decodable stories available")
                         Text(text = "• Total words completed: $wordsCompletedCount")
@@ -862,5 +898,41 @@ fun StoryModeScreen(
                 showReward = false
             }
         }
+    }
+}
+
+@Preview(name = "Phone Portrait - Word Practice", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Composable
+fun PreviewWordPracticePhone() {
+    EarlyReaderTheme {
+        WordPracticeScreen(
+            words = WordBank.starterWords,
+        )
+    }
+}
+
+@Preview(
+    name = "Tablet Landscape - Story Mode",
+    device = "spec:width=1280dp,height=800dp,dpi=240",
+    showBackground = true,
+    backgroundColor = 0xFFFAF7F2,
+)
+@Composable
+fun PreviewStoryModeTablet() {
+    EarlyReaderTheme {
+        StoryModeScreen(
+            story = StoryBank.redHenStory,
+        )
+    }
+}
+
+@Preview(name = "Full App - Word Practice", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Composable
+fun PreviewEarlyReaderApp() {
+    EarlyReaderTheme {
+        EarlyReaderApp(
+            words = WordBank.starterWords,
+            stories = StoryBank.allStories,
+        )
     }
 }

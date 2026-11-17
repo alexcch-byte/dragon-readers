@@ -6,7 +6,17 @@ import java.util.Locale
 
 class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = TextToSpeech(context.applicationContext, this)
-    private var isInitialized = false
+    var isInitialized: Boolean = false
+        private set
+
+    var voiceName: String? = null
+        private set
+
+    var isOfflineVoice: Boolean = false
+        private set
+
+    var isNetworkVoiceOnly: Boolean = false
+        private set
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
@@ -22,10 +32,23 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
                     val chosen = offlineVoice ?: enVoices.firstOrNull()
                     if (chosen != null) {
                         engine.voice = chosen
+                        voiceName = chosen.name
+                        isOfflineVoice = !chosen.isNetworkConnectionRequired
+                        isNetworkVoiceOnly = chosen.isNetworkConnectionRequired
+                    } else {
+                        voiceName = "Default system voice (US English)"
+                        isOfflineVoice = true
+                        isNetworkVoiceOnly = false
                     }
+                } else {
+                    voiceName = "Default system voice (US English)"
+                    isOfflineVoice = true
+                    isNetworkVoiceOnly = false
                 }
             } catch (_: Exception) {
-                // Fall back to default Locale.US set above
+                voiceName = "Default system voice (US English)"
+                isOfflineVoice = true
+                isNetworkVoiceOnly = false
             }
             isInitialized = true
         }
