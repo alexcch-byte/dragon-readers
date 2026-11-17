@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -50,6 +52,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.earlyreader.ui.CenteredScrollColumn
+import com.example.earlyreader.ui.StopSpeechWhenChanged
 import com.example.earlyreader.ui.theme.EarlyReaderTheme
 import com.example.earlyreader.ui.theme.TextDark
 import com.example.earlyreader.ui.theme.VioletPrimary
@@ -73,8 +76,6 @@ data class SentenceCheckItem(
 data class SentenceBuildItem(
     val kind: String, // "telling", "asking", "exciting"
     val text: String,
-    // Other real sentences made of the same words, accepted as correct too.
-    val alts: List<String> = emptyList(),
     // Real but silly sentences (the nouns swapped): they get a friendly "try the other way" instead of a plain miss.
     val silly: List<String> = emptyList(),
 ) {
@@ -388,7 +389,11 @@ fun SentenceLabScreen(
     levels: List<SentenceLabLevel> = SentenceLabData.allLevels,
     initialLevelIndex: Int = 0,
     completedLevels: Set<String> = emptySet(),
+    // Reads a sentence (the "Hear it" buttons) slowly; prompts are the instruction lines, read at a normal pace.
     onSpeakSentence: (String) -> Unit = {},
+    onSpeakPrompt: (String) -> Unit = onSpeakSentence,
+    // Stops anything still being said; called whenever the sentence or level changes.
+    onStopSpeech: () -> Unit = {},
     onLevelSelected: (Int) -> Unit = {},
     onLevelCompleted: (String) -> Unit = {},
 ) {
@@ -451,6 +456,9 @@ fun SentenceLabScreen(
         SentenceLabType.SORT_ROLES -> roleSuccess
         else -> foundCount == totalTargets
     }
+
+    // A new sentence or level never opens with the last one still being read.
+    StopSpeechWhenChanged("$levelIndex-$itemIndex-$levelFinished", onStopSpeech)
 
     val switchLevel: (Int) -> Unit = { newIdx ->
         levelIndex = newIdx
@@ -536,10 +544,6 @@ fun SentenceLabScreen(
                 }
                 buildFeedback = "Almost! $markHint"
                 buildSuccess = false
-            } else if (placedWords != targetWords && curBuildItem.alts.any { buildTokens(it) == placedTokens }) {
-                buildFeedback = "Yes! That is a real sentence too. The way I had in mind is: ${curBuildItem.text}"
-                buildSuccess = true
-                showReward = true
             } else if (curBuildItem.silly.any { buildTokens(it) == placedTokens }) {
                 buildFeedback = "That is a real sentence, but a silly one! Try the other way: think about who or what is doing the thing."
                 buildSuccess = false
@@ -710,7 +714,7 @@ fun SentenceLabScreen(
 
                 if (isJudgeLevel && curCheckItem != null) {
                     // --- JUDGE SENTENCE UI ---
-                    SpokenPrompt(text = currentLevel.prompt, color = VioletPrimary, onSpeak = onSpeakSentence)
+                    SpokenPrompt(text = currentLevel.prompt, color = VioletPrimary, onSpeak = onSpeakPrompt)
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -887,7 +891,7 @@ fun SentenceLabScreen(
                         "exciting" -> "Build an exciting sentence (it shows a big feeling). Tap the words in order, then add the ending mark."
                         else -> "Build a telling sentence. Tap the words in order, then add the ending mark."
                     }
-                    SpokenPrompt(text = buildPrompt, color = VioletPrimary, onSpeak = onSpeakSentence)
+                    SpokenPrompt(text = buildPrompt, color = VioletPrimary, onSpeak = onSpeakPrompt)
 
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -1121,7 +1125,7 @@ fun SentenceLabScreen(
                     }
                 } else if (isRoleLevel && curRoleItem != null) {
                     // --- SORT ROLES UI (Level 6: Who and What) ---
-                    SpokenPrompt(text = currentLevel.prompt, color = VioletPrimary, onSpeak = onSpeakSentence)
+                    SpokenPrompt(text = currentLevel.prompt, color = VioletPrimary, onSpeak = onSpeakPrompt)
 
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -1371,7 +1375,7 @@ fun SentenceLabScreen(
                     SpokenPrompt(
                         text = promptText,
                         color = if (isComplete) VioletPrimary else TextDark,
-                        onSpeak = onSpeakSentence,
+                        onSpeak = onSpeakPrompt,
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -1546,13 +1550,20 @@ private fun SpokenPrompt(text: String, color: Color, onSpeak: (String) -> Unit) 
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = "$text \uD83D\uDD0A",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = color,
-            textAlign = TextAlign.Center,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = color,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            // Only a visual hint that the line can be heard: screen readers get the "Hear the instructions" action
+            // instead of the emoji's name ("speaker high volume").
+            Text(text = "\uD83D\uDD0A", style = MaterialTheme.typography.titleMedium, modifier = Modifier.clearAndSetSemantics { })
+        }
     }
 }
 

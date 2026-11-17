@@ -1270,7 +1270,6 @@
   // Fraction of the bar below which a drag counts as "back at the start" (sounds can play again).
   const RESCRUB_RESET = 0.03;
   // Rate for the isolated segment sounds (a little quicker than the word, so they finish promptly).
-  const SENTENCE_RATE = 0.5;     // a whole sentence is read half as fast as before (was about 1.0)
   const SOUND_RATE = 0.9;
   const HELP_SOUND_RATE = 0.8;   // the help button says each sound a little more slowly
   // After a cancel the engine can take a while to start speaking. This much waiting is allowed
@@ -1282,6 +1281,17 @@
 
   // ---- speech ----
   let voice = null;
+  // A whole sentence takes about TWICE as long as it did at normal speed. Most voices (Android, macOS, iOS, the Edge
+  // "Natural" voices) speak twice as slowly at rate 0.5. The Windows desktop voices ("Microsoft Zira - English (United
+  // States)") do not: measured in Chrome on Windows for a 50-character sentence, rate 1.0 took 3.7 s (Zira) and
+  // 3.6 s (David), rate 0.5 only 5.1 s / 4.9 s (1.4 times), 0.3 gave 6.4 s, 0.2 gave 7.2 s / 6.8 s (1.9 times) and 0.1 gave
+  // 9.9 s; everything between 0.5 and 0.4 was identical. So those voices get 0.2.
+  const SENTENCE_RATE = 0.5;
+  const SENTENCE_RATE_WINDOWS_VOICE = 0.2;
+  function sentenceRate() {
+    const windowsDesktop = voice && voice.localService && /^Microsoft .+ - /.test(voice.name || "") && !/Online|Natural/i.test(voice.name);
+    return windowsDesktop ? SENTENCE_RATE_WINDOWS_VOICE : SENTENCE_RATE;
+  }
   const voiceBannerEl = document.getElementById("voice-banner");
   const FEMALE_VOICE_HINTS = /female|zira|hazel|susan|samantha|karen|victoria|moira|tessa|fiona|salli|joanna|kendra|kimberly|ivy|aria|jenny|libby|sonia|google us english|google uk english female/i;
   function pickVoice() {
@@ -1318,6 +1328,15 @@
   // themselves with the `flow` token instead, so progress never depends on one particular
   // utterance happening to finish.
   let speakToken = 0;
+  // The short wait before Track to Read reads a finished page aloud; stopSpeech() cancels it, so moving on to the
+  // next page in that moment never lets the old sentence start over the new page.
+  let trackSentenceTimer = null;
+  // How long an utterance that has started may go on before the fallback gives up on its onend: about 150 ms a
+  // character at normal speed, and proportionally longer for a slower rate, so a slow sentence is never cut off
+  // early (which would show the next page, or the Next button, while the voice is still talking).
+  function speechAllowanceMs(text, rate) {
+    return text.length * 150 / Math.min(rate || 0.9, 1) + 1500;
+  }
   // Kept in a module-level variable: browsers can garbage-collect a playing utterance and then
   // never fire its onend, which would stall the story.
   let currentUtterance = null;
@@ -1345,7 +1364,7 @@
       u.onstart = () => {
         if (fired) return;
         clearTimeout(timer);
-        timer = setTimeout(finish, text.length * 150 + 1500);
+        timer = setTimeout(finish, speechAllowanceMs(text, rate));
       };
       u.onend = finish;
       u.onerror = finish;
@@ -1397,6 +1416,7 @@
   // when the page changes so a slow word can't talk over the next page.
   function stopSpeech() {
     speakToken++;
+    clearTimeout(trackSentenceTimer);
     laneReset();
     cancelHelp();
     try { speechSynthesis.cancel(); } catch (e) {}
@@ -1678,7 +1698,7 @@
     const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
     setTimeout(() => {
       if (flow !== myFlow) return;
-      speakCore(fullSentence, SENTENCE_RATE, () => {
+      speakCore(fullSentence, sentenceRate(), () => {
         if (flow !== myFlow) return;
         showNext();
       }, true);
@@ -1945,7 +1965,7 @@
     const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
     sentenceEl.classList.add("speaking-full");
     [...sentenceEl.children].forEach(c => c.classList.add("sentence-highlight"));
-    speakCore(fullSentence, SENTENCE_RATE, () => {
+    speakCore(fullSentence, sentenceRate(), () => {
       sentenceEl.classList.remove("speaking-full");
       [...sentenceEl.children].forEach(c => c.classList.remove("sentence-highlight"));
     }, true);
@@ -1981,9 +2001,22 @@
   let trackReached = 0;
   // Repeated taps must not run through the sentence either: a tap (or the first touch of a gesture) may only step
   // on to a NEW word if the last advance was at least TRACK_MIN_ADVANCE_MS ago. A real drag (the finger moved more
-  // than TRACK_DRAG_SLOP px) is never limited, so sliding stays smooth. Keys and chips are not limited.
+  // than TRACK_DRAG_SLOP px) is faster but still reaches at most one NEW word per TRACK_MIN_DRAG_ADVANCE_MS, so a
+  // flick or a wobble past the slop cannot finish a page in a blink, while an ordinary slide is not slowed.
+  // Keys and chips are not limited. (Mirrors trackMayAdvance / trackNextIndex in MainActivity.kt.)
   const TRACK_MIN_ADVANCE_MS = 300;
+  const TRACK_MIN_DRAG_ADVANCE_MS = 80;
   const TRACK_DRAG_SLOP = 8;
+  function trackMayAdvance(isFirstTouch, dragged, now, lastAdvance) {
+    return dragged ? now - lastAdvance >= TRACK_MIN_DRAG_ADVANCE_MS
+                   : isFirstTouch && now - lastAdvance >= TRACK_MIN_ADVANCE_MS;
+  }
+  // The word the tracker moves to for a finger over word `desired`: at most one past the furthest word reached,
+  // and not past it at all when `mayAdvance` is false. Moving back is always allowed.
+  function trackNextIndex(desired, reached, mayAdvance) {
+    const limited = Math.min(desired, reached + 1);
+    return mayAdvance === false ? Math.min(limited, reached) : limited;
+  }
   let trackLastAdvance = -1e9;
   let trackDownX = 0;
   let trackDragged = false;
@@ -2131,9 +2164,7 @@
     const n = pageWords.length;
     const clamped = Math.max(0, Math.min(1, nextProgress));
     const prevIndex = trackedIndex;
-    let idx = calculateTrackedIndex(clamped, n);
-    idx = Math.min(idx, trackReached + 1);   // at most one word past the furthest one reached
-    if (mayAdvance === false) idx = Math.min(idx, trackReached);   // a quick repeat tap stays within the words reached
+    const idx = trackNextIndex(calculateTrackedIndex(clamped, n), trackReached, mayAdvance);
     trackedIndex = idx;
     trackProgress = calculateSnappedTrackProgress(idx, n);   // the thumb steps from word to word
     if (idx > trackReached) { trackReached = idx; trackLastAdvance = performance.now(); }
@@ -2157,8 +2188,9 @@
       if (trackSpeakWords) {
         const text = pageWords.map(w => w.t).join(" ");
         const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
-        setTimeout(() => {
-          speakCore(fullSentence, SENTENCE_RATE, null, true);
+        clearTimeout(trackSentenceTimer);
+        trackSentenceTimer = setTimeout(() => {
+          speakCore(fullSentence, sentenceRate(), null, true);
         }, 400);
       }
 
@@ -2174,7 +2206,7 @@
     const rect = trackBar.getBoundingClientRect();
     if (rect.width <= 0) return;
     const ratio = (e.clientX - rect.left) / rect.width;
-    const mayAdvance = trackDragged || (isFirstTouch && performance.now() - trackLastAdvance >= TRACK_MIN_ADVANCE_MS);
+    const mayAdvance = trackMayAdvance(isFirstTouch, trackDragged, performance.now(), trackLastAdvance);
     setTrackProgress(ratio, "bar", mayAdvance);
   }
 
@@ -2239,7 +2271,7 @@
     trackReadSentenceBtn.addEventListener("click", () => {
       const text = currentPage().map(w => w.t).join(" ");
       const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
-      speakCore(fullSentence, SENTENCE_RATE, null, true);
+      speakCore(fullSentence, sentenceRate(), null, true);
     });
   }
 

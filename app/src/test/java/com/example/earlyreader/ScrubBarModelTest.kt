@@ -822,8 +822,19 @@ class ScrubBarModelTest {
         assertTrue(trackMayAdvance(isFirstTouch = true, dragged = false, nowMs = 1_000, lastAdvanceMs = 1_000 - min))
         // Wobbling on a tap (no real drag, not the first touch) never steps on.
         assertFalse(trackMayAdvance(isFirstTouch = false, dragged = false, nowMs = 10_000, lastAdvanceMs = 0))
-        // A real drag always may, however quickly the last advance was.
-        assertTrue(trackMayAdvance(isFirstTouch = false, dragged = true, nowMs = 1_001, lastAdvanceMs = 1_000))
+        // A real drag is faster, but still only one new word per drag interval.
+        val drag = TRACK_MIN_DRAG_ADVANCE_INTERVAL_MS
+        assertFalse(trackMayAdvance(isFirstTouch = false, dragged = true, nowMs = 1_001, lastAdvanceMs = 1_000))
+        assertFalse(trackMayAdvance(isFirstTouch = false, dragged = true, nowMs = 1_000, lastAdvanceMs = 1_000 - (drag - 1)))
+        assertTrue(trackMayAdvance(isFirstTouch = false, dragged = true, nowMs = 1_000, lastAdvanceMs = 1_000 - drag))
+        assertTrue(drag < min)
+
+        // trackNextIndex: one past the furthest word reached at most, none when not allowed, back is free.
+        assertEquals(1, trackNextIndex(desiredIndex = 9, reachedIndex = 0, mayAdvance = true))
+        assertEquals(0, trackNextIndex(desiredIndex = 9, reachedIndex = 0, mayAdvance = false))
+        assertEquals(3, trackNextIndex(desiredIndex = 9, reachedIndex = 3, mayAdvance = false))
+        assertEquals(1, trackNextIndex(desiredIndex = 1, reachedIndex = 5, mayAdvance = false))
+        assertEquals(0, trackNextIndex(desiredIndex = 0, reachedIndex = 5, mayAdvance = true))
 
         // Simulate mashing the right end of the bar every 100 ms on an 8-word page: it steps on at most once per 300 ms.
         val words = 8
@@ -832,8 +843,7 @@ class ScrubBarModelTest {
         var now = 0L
         repeat(10) {
             val may = trackMayAdvance(isFirstTouch = true, dragged = false, nowMs = now, lastAdvanceMs = last)
-            val limited = limitTrackedWordIndex(words - 1, reached)
-            val next = if (may) limited else limited.coerceAtMost(reached)
+            val next = trackNextIndex(words - 1, reached, may)
             if (next > reached) { reached = next; last = now }
             now += 100
         }
@@ -842,16 +852,64 @@ class ScrubBarModelTest {
     }
 
     @Test
-    fun testBuildSentenceSillyAndAlternativeSentences() {
+    fun testAPokeOrWobbleThatPassesTheTouchSlopCannotFinishAPageInAFewMilliseconds() {
+        // The finger lands, passes the touch slop at once and then sits at the far right end of a 7-word bar while
+        // events arrive every 8 ms (a 120 Hz screen). It must still take at least 6 drag intervals to reach the end.
+        val words = 7
+        var reached = 0
+        var last = -10_000L
+        var now = 0L
+        var finishedAt = -1L
+        while (now < 2_000 && finishedAt < 0) {
+            val may = trackMayAdvance(isFirstTouch = now == 0L, dragged = now > 0L, nowMs = now, lastAdvanceMs = last)
+            val next = trackNextIndex(words - 1, reached, may)
+            if (next > reached) { reached = next; last = now }
+            if (reached == words - 1) finishedAt = now
+            now += 8
+        }
+        assertTrue("finished at $finishedAt ms", finishedAt >= (words - 2) * TRACK_MIN_DRAG_ADVANCE_INTERVAL_MS)
+
+        // A steady slide along the page (one new word every 150 ms) is never held back.
+        var slideReached = 0
+        var slideLast = -10_000L
+        for (step in 1 until words) {
+            val t = step * 150L
+            val may = trackMayAdvance(isFirstTouch = false, dragged = true, nowMs = t, lastAdvanceMs = slideLast)
+            val next = trackNextIndex(step, slideReached, may)
+            assertEquals(step, next)
+            slideReached = next
+            slideLast = t
+        }
+    }
+
+    @Test
+    fun testSpeechTimeoutsGrowWithTheLengthOfASlowSentence() {
+        // Words keep the old fixed limits...
+        val word = SpeechManager.estimatedSpeechMs("hat", 0.8f)
+        assertTrue(word < 1_000)
+        assertEquals(8_000L, SpeechManager.staleAfterMs(word))
+        assertEquals(4_000L, SpeechManager.awaitTimeoutMs(word))
+        // ...but a 14-word sentence at half the sentence speed (0.4) takes well over the old 8 s / 4 s limits.
+        val sentence = "The big red hen sat on the old wet log by the little hut."
+        val ms = SpeechManager.estimatedSpeechMs(sentence, 0.4f)
+        assertTrue("estimate $ms ms", ms > 8_000)
+        assertTrue(SpeechManager.staleAfterMs(ms) > ms)
+        assertTrue(SpeechManager.awaitTimeoutMs(ms) > ms)
+        // Slower speech never estimates shorter than faster speech.
+        assertTrue(SpeechManager.estimatedSpeechMs(sentence, 0.4f) > SpeechManager.estimatedSpeechMs(sentence, 0.8f))
+    }
+
+    @Test
+    fun testBuildSentenceSillySentences() {
         assertEquals(listOf("The", "cat", "sat", "."), buildTokens("The cat sat."))
         assertEquals(listOf("Do", "you", "like", "soup", "?"), buildTokens("Do you like soup?"))
         val items = SentenceLabData.level6.buildItems
         val bus = items.first { it.text == "The bus stops at our school." }
         assertTrue("The bus sentence has silly alternatives, like the web Sentence Lab", bus.silly.isNotEmpty())
-        // Every alternative is made of exactly the same words and mark as the answer, so it can be built from the same tiles.
+        // Every silly alternative is made of exactly the same words and mark as the answer, so it can be built from the same tiles.
         for (item in items) {
             val answer = buildTokens(item.text).sorted()
-            for (other in item.alts + item.silly) {
+            for (other in item.silly) {
                 assertEquals("'$other' must use the same words as '${item.text}'", answer, buildTokens(other).sorted())
                 assertNotEquals("An alternative must differ from the answer", buildTokens(item.text), buildTokens(other))
             }

@@ -39,8 +39,11 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
     var isNetworkVoiceOnly: Boolean = false
         private set
 
-    /** Ids of utterances handed to the engine that have not finished, with the time they were queued. */
-    private val active = ConcurrentHashMap<String, Long>()
+    /** An utterance handed to the engine that has not finished: when it was queued and about how long it should take. */
+    private data class Active(val queuedAt: Long, val expectedMs: Long)
+
+    /** Ids of utterances handed to the engine that have not finished. */
+    private val active = ConcurrentHashMap<String, Active>()
 
     private data class Pending(val text: String, val flush: Boolean, val isPhoneme: Boolean, val rate: Float)
 
@@ -116,12 +119,21 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
     }
 
     /**
-     * Says a whole word or sentence. With [queue] false (the default, for a help or sentence tap) whatever is
+     * Says one word at the normal word speed. With [queue] false (the default, for a help tap) whatever is
      * playing is cut off; with [queue] true (the word that completes a scrub) it waits for the sounds before it.
      */
     fun speakWord(text: String, queue: Boolean = false) {
-        val rate = if (text.trim().contains(' ')) SENTENCE_RATE else WORD_RATE   // a whole sentence is read slowly
-        enqueue(spokenForm(text), flush = !queue, isPhoneme = false, rate = rate)
+        enqueue(spokenForm(text), flush = !queue, isPhoneme = false, rate = WORD_RATE)
+    }
+
+    /** Reads a whole story or practice sentence slowly (half the word speed), cutting off whatever is playing. */
+    fun speakSentence(text: String) {
+        enqueue(spokenForm(text), flush = true, isPhoneme = false, rate = SENTENCE_RATE)
+    }
+
+    /** Reads an instruction line (Sentence Lab) at a comfortable speed, a little slower than a word, cutting off what is playing. */
+    fun speakPrompt(text: String) {
+        enqueue(spokenForm(text), flush = true, isPhoneme = false, rate = PROMPT_RATE)
     }
 
     /**
@@ -154,7 +166,7 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
         if (isPhoneme && !flush && queuedPhonemes() >= MAX_QUEUED_PHONEMES) return
         if (flush) active.clear()
         val id = (if (isPhoneme) "p" else "w") + (++counter)
-        active[id] = System.currentTimeMillis()
+        active[id] = Active(System.currentTimeMillis(), estimatedSpeechMs(text, rate))
         val mode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
         engine.setSpeechRate(rate)   // applies to this utterance; words and sentences use different speeds
         if (engine.speak(text, mode, null, id) == TextToSpeech.ERROR) active.remove(id)
@@ -162,9 +174,11 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
 
     private fun queuedPhonemes(): Int = active.keys.count { it.startsWith("p") }
 
+    // An utterance whose "done" callback never arrived is dropped after a while, but a long slow sentence that is
+    // still being said is never dropped early: its cutoff grows with its estimated length.
     private fun pruneStale() {
-        val cutoff = System.currentTimeMillis() - STALE_AFTER_MS
-        active.entries.removeIf { it.value < cutoff }
+        val now = System.currentTimeMillis()
+        active.entries.removeIf { now - it.value.queuedAt > staleAfterMs(it.value.expectedMs) }
     }
 
     /** True when nothing is playing or waiting (or speech can never happen), so there is nothing to wait for. */
@@ -178,11 +192,14 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
     /**
      * Suspends until what was just asked for has been said (plus a short pause so it doesn't feel rushed), but never
      * longer than [timeoutMs]: a story advances when this returns, so a muted, broken or slow engine can't stall it.
+     * Without an explicit [timeoutMs] a word waits at most [AWAIT_TIMEOUT_MS] and a long slow sentence waits long
+     * enough for its estimated length (see [awaitTimeoutMs]).
      */
-    suspend fun awaitIdle(timeoutMs: Long = AWAIT_TIMEOUT_MS) {
+    suspend fun awaitIdle(timeoutMs: Long? = null) {
         val start = System.currentTimeMillis()
+        val limit = timeoutMs ?: awaitTimeoutMs(active.values.maxOfOrNull { it.expectedMs } ?: 0L)
         delay(MIN_WAIT_MS)
-        while (!isIdle() && System.currentTimeMillis() - start < timeoutMs) delay(POLL_MS)
+        while (!isIdle() && System.currentTimeMillis() - start < limit) delay(POLL_MS)
         delay(AFTER_SPEECH_GAP_MS)
     }
 
@@ -206,8 +223,22 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
         private const val MAX_QUEUED_PHONEMES = 2
         private const val WORD_RATE = 0.8f
         private const val SENTENCE_RATE = 0.4f   // half the word speed
+        private const val PROMPT_RATE = 0.6f     // instructions: a bit slower than a word, not as slow as a story sentence
         private const val STALE_AFTER_MS = 8_000L
-        private const val AWAIT_TIMEOUT_MS = 4_000L
+        const val AWAIT_TIMEOUT_MS = 4_000L
+        // Rough speaking time per character at rate 1.0 (a typical voice says about 11 characters a second);
+        // speech at a lower rate takes proportionally longer. Only used to size the time-outs below, never to pace speech.
+        private const val MS_PER_CHAR_AT_FULL_RATE = 90L
+
+        /** About how long [text] takes to say at the engine speech [rate] (1.0 = normal), in milliseconds. */
+        fun estimatedSpeechMs(text: String, rate: Float): Long =
+            (text.length * MS_PER_CHAR_AT_FULL_RATE / rate.coerceAtLeast(0.1f)).toLong()
+
+        /** How long a queued utterance of [expectedMs] may go without finishing before it is assumed lost. */
+        fun staleAfterMs(expectedMs: Long): Long = maxOf(STALE_AFTER_MS, expectedMs * 2 + 4_000L)
+
+        /** How long [awaitIdle] waits for speech of [expectedMs]: at least [AWAIT_TIMEOUT_MS], longer for a long sentence. */
+        fun awaitTimeoutMs(expectedMs: Long): Long = maxOf(AWAIT_TIMEOUT_MS, expectedMs * 3 / 2 + 1_000L)
         private const val MIN_WAIT_MS = 250L
         private const val POLL_MS = 50L
         private const val AFTER_SPEECH_GAP_MS = 200L

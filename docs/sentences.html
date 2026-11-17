@@ -308,10 +308,9 @@
   // "label" (roles): item = { chunks: [{ t, role }] } where role is subject | verb | object.
   // "judge" (sentence-check): item = { text, sentence: true | false, why, hint }. `why` is said after
   //   the right answer; `hint` is added to the kind nudge after a wrong one.
-  // "build": item = { kind: telling | asking | exciting, text, alts?, silly? }. The text is the answer.
+  // "build": item = { kind: telling | asking | exciting, text, silly? }. The text is the answer.
   //   Words are scrambled at runtime; the end mark is chosen from . ? !
-  //   `alts` are other real sentences made of the same words that are accepted too. `silly` are
-  //   real but silly sentences (the nouns swapped) that get a friendly "try the other way".
+  //   `silly` are real but silly sentences (the nouns swapped) that get a friendly "try the other way".
   // `prompt` uses {n} for the number of targets.
   // ---------------------------------------------------------------------------
   const CONTENT = {
@@ -508,6 +507,24 @@
   // a length-based timer fires first. Nothing important ever waits on it: it only resets the
   // speaker button's look, so a missing voice, a cancel or a muted engine can never stall the page.
   let speakToken = 0;
+  // Until the voice starts, wait at most START_WAIT_MS (after a cancel the engine can take a while to start); once
+  // it has started, allow about 150 ms a character at normal speed and proportionally longer for a slower rate, so
+  // the speaker button stays lit for as long as a slow sentence is really being said.
+  const START_WAIT_MS = 3000;
+  function speechAllowanceMs(text, rate) {
+    return text.length * 150 / Math.min(rate || 0.9, 1) + 1500;
+  }
+  // A whole sentence takes about TWICE as long as at normal speed. Most voices (Android, macOS, iOS, the Edge
+  // "Natural" voices) speak twice as slowly at rate 0.5. The Windows desktop voices ("Microsoft Zira - English (United
+  // States)") do not: measured in Chrome on Windows for a 50-character sentence, rate 1.0 took 3.7 s (Zira) and
+  // 3.6 s (David), rate 0.5 only 5.1 s / 4.9 s (1.4 times), 0.2 gave 7.2 s / 6.8 s (1.9 times) and 0.1 gave 9.9 s; the
+  // speeds between 0.5 and 0.4 were identical. So those voices get 0.2.
+  const SENTENCE_RATE = 0.5;
+  const SENTENCE_RATE_WINDOWS_VOICE = 0.2;
+  function sentenceRate() {
+    const windowsDesktop = voice && voice.localService && /^Microsoft .+ - /.test(voice.name || "") && !/Online|Natural/i.test(voice.name);
+    return windowsDesktop ? SENTENCE_RATE_WINDOWS_VOICE : SENTENCE_RATE;
+  }
   function speakCore(text, rate, onDone, survive) {
     const token = ++speakToken;
     let fired = false;
@@ -520,7 +537,7 @@
       if (onDone) onDone();
     };
     if (!voice) { try { pickVoice(); } catch (e) {} }
-    timer = setTimeout(finish, text.length * 120 + 1500);
+    timer = setTimeout(finish, START_WAIT_MS);
     try {
       if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
@@ -528,6 +545,11 @@
       u.lang = voice ? voice.lang : "en-US";
       u.rate = rate || 0.9;
       u.pitch = 1.0;
+      u.onstart = () => {
+        if (fired) return;
+        clearTimeout(timer);
+        timer = setTimeout(finish, speechAllowanceMs(text, rate));
+      };
       u.onend = finish;
       u.onerror = finish;
       speechSynthesis.speak(u);
@@ -545,7 +567,7 @@
     if (speakingBtn) setSpeaking(speakingBtn, false);
     speakingBtn = btn || null;
     setSpeaking(btn, true);
-    speakCore(text, 0.425, () => setSpeaking(btn, false), true);  // half the old speed
+    speakCore(text, sentenceRate(), () => setSpeaking(btn, false), true);  // about twice as long as at normal speed
   }
   function stopSpeech() {
     speakToken++;
@@ -1124,11 +1146,6 @@
       const right = tx.filter((t, i) => t === answer[i]).length - 1; // words in the right place (end mark counted separately)
       const builtKey = tx.join(" ");
       const asKey = t => { const q = t.match(/^(.*?)([.?!])$/); return q[1].split(" ").concat([q[2]]).join(" "); };
-      if (builtKey !== answer.join(" ") && (item.alts || []).some(a => asKey(a) === builtKey)) {
-        finishItem("solved", "Yes! That is a real sentence too. The way I had in mind is: " + item.text, builtText());
-        paint();
-        return;
-      }
       if ((item.silly || []).some(a => asKey(a) === builtKey)) {
         return say("That is a real sentence, but a silly one! Try the other way: think about who or what is doing the thing.", "nudge");
       }
@@ -1206,7 +1223,7 @@
           if (typeof it.sentence !== "boolean" || !it.why || !it.hint) console.error("Judge item needs sentence, why and hint:", L.id, n);
         } else if (L.type === "build") {
           const key = t => t.split(/[ .?!]+/).filter(Boolean).sort().join(" ");
-          (it.alts || []).concat(it.silly || []).forEach(a => { if (key(a) !== key(it.text)) console.error("Alternative uses different words:", L.id, n, a); });
+          (it.silly || []).forEach(a => { if (key(a) !== key(it.text)) console.error("Silly sentence uses different words:", L.id, n, a); });
         }
       });
     });
