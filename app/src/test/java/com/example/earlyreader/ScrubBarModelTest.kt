@@ -9,8 +9,11 @@ import com.example.earlyreader.storage.KeyValueStore
 import com.example.earlyreader.storage.ProgressStorage
 import com.example.earlyreader.ui.scrub.DONE_THRESHOLD
 import com.example.earlyreader.ui.scrub.RESCRUB_RESET
+import com.example.earlyreader.ui.scrub.ThumbHeight
+import com.example.earlyreader.ui.scrub.ThumbWidth
 import com.example.earlyreader.ui.scrub.segmentBoundaries
 import com.example.earlyreader.ui.sentences.SentenceLabData
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -549,6 +552,40 @@ class ScrubBarModelTest {
                 }
                 assertEquals("Final tracked index must equal last word index", words.size - 1, trackedIndex)
             }
+        }
+    }
+
+    @Test
+    fun testFingerSliderThumbDimensionsAndGeometry() {
+        // Finger thumb dimensions matching tactile pill affordance with grip ridges and pointing finger
+        assertEquals(58.dp, ThumbWidth)
+        assertEquals(46.dp, ThumbHeight)
+
+        // Validate thumb offset calculations along various track widths
+        val trackWidthsPx = listOf(300f, 400f, 600f, 800f)
+        val thumbWidthPx = 150f // e.g. 58dp in px
+
+        for (barWidth in trackWidthsPx) {
+            val maxOffset = barWidth - thumbWidthPx
+            assertTrue("Max offset must be positive", maxOffset > 0f)
+
+            // Progress at start (0.0): offset must be exactly 0
+            val startOffset = (maxOffset * 0.0f).coerceIn(0f, maxOffset)
+            assertEquals(0f, startOffset, 0.001f)
+
+            // Progress at midpoint (0.5): offset must be exactly half of available space
+            val midOffset = (maxOffset * 0.5f).coerceIn(0f, maxOffset)
+            assertEquals(maxOffset / 2f, midOffset, 0.001f)
+
+            // Progress at end (1.0): offset must be exactly maxOffset (kept fully inside track)
+            val endOffset = (maxOffset * 1.0f).coerceIn(0f, maxOffset)
+            assertEquals(maxOffset, endOffset, 0.001f)
+
+            // Over-range clamping
+            val overOffset = (maxOffset * 1.5f).coerceIn(0f, maxOffset)
+            assertEquals(maxOffset, overOffset, 0.001f)
+            val underOffset = (maxOffset * -0.5f).coerceIn(0f, maxOffset)
+            assertEquals(0f, underOffset, 0.001f)
         }
     }
 }

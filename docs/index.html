@@ -143,7 +143,7 @@
   }
   .track-chips {
     display: flex; flex-wrap: wrap; gap: 10px 12px; justify-content: center;
-    width: 100%; user-select: none; margin-bottom: 18px;
+    width: 100%; user-select: none; margin-bottom: 8px;
   }
   /* Fixed dimensions, padding, font-size, font-weight, and bottom underline across all states for zero layout shift */
   .track-chip {
@@ -181,10 +181,27 @@
   .track-bar-ticks { position: absolute; inset: 0; display: flex; pointer-events: none; }
   .track-bar-ticks .tick { flex: 1 1 0; border-right: 2px solid rgba(255,255,255,0.5); }
   .track-bar-ticks .tick:last-child { border-right: none; }
+  .finger-slider-thumb,
+  .track-bar-thumb,
+  .thumb {
+    position: absolute; top: 50%; width: 58px; height: 46px; margin-top: -23px; left: 0;
+    border-radius: 12px; background: white; border: 2px solid var(--violet);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18); pointer-events: none;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    user-select: none; box-sizing: border-box;
+    transition: left 0.08s linear;
+  }
   .track-bar-thumb {
-    position: absolute; top: 50%; width: 40px; height: 40px; margin-top: -20px; left: 0;
-    border-radius: 50%; background: white; border: 4px solid var(--accent);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25); pointer-events: none; transition: left 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: left 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .finger-grip {
+    display: inline-flex; gap: 3px; align-items: center; justify-content: center;
+  }
+  .finger-grip span {
+    width: 3px; height: 16px; background: #C4B5FD; border-radius: 2px;
+  }
+  .finger-icon {
+    font-size: 1.6rem; line-height: 1; transform: translateY(-2px); display: inline-block;
   }
 
   .active-area { display: flex; flex-direction: column; align-items: center; margin: auto 0; padding-top: 12px; }
@@ -197,7 +214,7 @@
   .picture:disabled { cursor: default; }
 
   /* Same width as .bar, so each letter (flex weight = letter count) sits centred above its own segment. */
-  .letters { display: flex; width: 260px; margin-bottom: 20px; user-select: none; }
+  .letters { display: flex; width: 260px; margin-bottom: 10px; user-select: none; }
   .letter { flex: 1 1 0; min-width: 0; text-align: center; font-size: 3.6rem; font-weight: 700; color: var(--text-dark); transition: color 0.15s ease; }
   .letter.filled { color: var(--accent); }
   .letter.hinting { color: var(--violet); transform: scale(1.15); transition: transform 0.15s; }
@@ -213,13 +230,8 @@
   .bar-dividers { position: absolute; inset: 0; display: flex; }
   .bar-dividers .seg { flex: 1 1 0; border-right: 2px solid rgba(255,255,255,0.5); }
   .bar-dividers .seg:last-child { border-right: none; }
-  .thumb {
-    position: absolute; top: 50%; width: 44px; height: 44px; margin-top: -22px; left: 0;
-    border-radius: 50%; background: white; border: 4px solid var(--text-dark);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25); pointer-events: none; transition: left 0.08s linear;
-  }
   /* "start here": a touch far from where a drag may begin is snapped to the start / current spot */
-  .thumb.pulse { box-shadow: 0 0 0 8px rgba(80, 49, 245, 0.35); animation: pulse 0.7s ease-out; }
+  .thumb.pulse { box-shadow: 0 0 0 8px rgba(80, 49, 245, 0.35), 0 4px 12px rgba(0,0,0,0.18); animation: pulse 0.7s ease-out; }
   @keyframes pulse { 0% { transform: scale(0.8); } 40% { transform: scale(1.3); } 100% { transform: scale(1); } }
   /* a help / picture tap that arrives while the word is being read aloud */
   .ack { box-shadow: 0 0 0 8px rgba(80, 49, 245, 0.35); animation: ack 0.45s ease-out; }
@@ -378,7 +390,10 @@
            aria-label="Sound out the word" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div class="bar-fill" id="bar-fill"></div>
         <div class="bar-dividers" id="bar-dividers"></div>
-        <div class="thumb" id="thumb" aria-hidden="true"></div>
+        <div class="thumb" id="thumb" aria-hidden="true">
+          <div class="finger-grip"><span></span><span></span><span></span></div>
+          <span class="finger-icon">👆</span>
+        </div>
       </div>
       <button type="button" class="tricky-btn" id="tricky-btn" style="display:none"></button>
       <div class="tricky-label" id="tricky-label" style="display:none">tricky word</div>
@@ -401,7 +416,10 @@
            aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div class="track-bar-fill" id="track-bar-fill"></div>
         <div class="track-bar-ticks" id="track-bar-ticks"></div>
-        <div class="track-bar-thumb" id="track-bar-thumb" aria-hidden="true"></div>
+        <div class="track-bar-thumb" id="track-bar-thumb" aria-hidden="true">
+          <div class="finger-grip"><span></span><span></span><span></span></div>
+          <span class="finger-icon">👆</span>
+        </div>
       </div>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px">
         <button type="button" class="btn btn-secondary btn-small" id="track-again-btn" style="display:none">↺ Track again</button>
@@ -1176,8 +1194,8 @@
 
   function paintBar() {
     fillEl.style.width = (progress * 100) + "%";
-    // centre the 44px thumb on the fill edge, kept fully inside the bar at both ends
-    thumbEl.style.left = "clamp(0px, calc(" + (progress * 100) + "% - 22px), calc(100% - 44px))";
+    // centre the 58px finger thumb on the fill edge, kept fully inside the bar at both ends
+    thumbEl.style.left = "clamp(0px, calc(" + (progress * 100) + "% - 29px), calc(100% - 58px))";
     const word = currentWord();
     const n = word && word.seg ? word.seg.length : 0;
     barEl.setAttribute("aria-valuenow", String(Math.round(progress * 100)));
@@ -1725,7 +1743,7 @@
 
     const pct = Math.round(trackProgress * 100);
     trackBarFill.style.width = (trackProgress * 100) + "%";
-    trackBarThumb.style.left = "clamp(0px, calc(" + (trackProgress * 100) + "% - 20px), calc(100% - 40px))";
+    trackBarThumb.style.left = "clamp(0px, calc(" + (trackProgress * 100) + "% - 29px), calc(100% - 58px))";
     trackBar.setAttribute("aria-valuenow", String(pct));
     trackBar.setAttribute("aria-valuetext", "Word " + (trackedIndex + 1) + " of " + pageWords.length + ": " + pageWords[trackedIndex].t);
   }

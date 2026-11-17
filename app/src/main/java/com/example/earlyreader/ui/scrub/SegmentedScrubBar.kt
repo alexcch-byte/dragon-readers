@@ -4,10 +4,12 @@ import android.os.SystemClock
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -25,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +58,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.earlyreader.ui.theme.EarlyReaderTheme
 import com.example.earlyreader.ui.theme.SegmentEmpty
 import com.example.earlyreader.ui.theme.TextDark
@@ -96,6 +100,8 @@ internal const val RESCRUB_RESET = 0.03f
 // Keeps the bar's start clear of the system back-gesture edge (plan section 10).
 private val BarHorizontalPadding = 32.dp
 
+internal val ThumbWidth = 58.dp
+internal val ThumbHeight = 46.dp
 private val ThumbSize = 44.dp
 private val MaxLetterSize = 88.dp
 
@@ -112,6 +118,77 @@ internal fun segmentBoundaries(segments: List<String>): List<Float> {
     val total = weights.sum().toFloat()
     var running = 0
     return weights.map { running += it; running / total }
+}
+
+/**
+ * Tactile finger-slider thumb handle matching the pointing-finger affordance.
+ * Contains 3 vertical grip ridges (|||) and an upward pointing finger (👆)
+ * resting directly underneath the word / phoneme segment.
+ */
+@Composable
+fun FingerSliderThumb(
+    modifier: Modifier = Modifier,
+    isPulsing: Boolean = false,
+) {
+    val scale = if (isPulsing) 1.25f else 1f
+    val animatedScale by animateFloatAsState(targetValue = scale, label = "thumbScale")
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = animatedScale
+                scaleY = animatedScale
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (isPulsing) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding((-6).dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(VioletPrimary.copy(alpha = 0.35f)),
+            )
+        }
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = RoundedCornerShape(12.dp),
+            color = Color.White,
+            border = BorderStroke(1.5.dp, VioletPrimary),
+            shadowElevation = 4.dp,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                // Tactile grip lines: 3 vertical grip ridges (|||) indicating draggable affordance
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(end = 4.dp),
+                ) {
+                    repeat(3) {
+                        Box(
+                            modifier = Modifier
+                                .width(2.5.dp)
+                                .height(14.dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(Color(0xFFC4B5FD)),
+                        )
+                    }
+                }
+                // Upward pointing finger pointing directly at the word / phoneme segment above
+                Text(
+                    text = "👆",
+                    fontSize = 24.sp,
+                    lineHeight = 24.sp,
+                )
+            }
+        }
+    }
 }
 
 /**
@@ -219,7 +296,7 @@ fun SegmentedScrubBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = BarHorizontalPadding)
-                .padding(bottom = 16.dp),
+                .padding(bottom = 8.dp),
         ) {
             segments.forEachIndexed { index, letters ->
                 BoxWithConstraints(
@@ -377,40 +454,17 @@ fun SegmentedScrubBar(
                 }
             }
 
-            // The thumb always rests at the fill edge (at the start before the first drag), so there is a
-            // visible handle to grab (plan section 8). A snapped start makes it pulse with a halo.
-            val thumbPx = with(LocalDensity.current) { ThumbSize.roundToPx() }
-            val thumbX = (fillFraction * barWidthPx - thumbPx / 2f)
-                .coerceIn(0f, (barWidthPx - thumbPx).coerceAtLeast(0).toFloat())
-            Box(
+            // The finger-shaped thumb rests at the fill edge pointing directly up at the active sound segment.
+            val thumbWidthPx = with(LocalDensity.current) { ThumbWidth.roundToPx() }
+            val thumbX = (fillFraction * barWidthPx - thumbWidthPx / 2f)
+                .coerceIn(0f, (barWidthPx - thumbWidthPx).coerceAtLeast(0).toFloat())
+            FingerSliderThumb(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .offset { IntOffset(thumbX.roundToInt(), 0) }
-                    .size(ThumbSize)
-                    .graphicsLayer {
-                        val pulse = 1f + 0.3f * hintAlpha
-                        scaleX = pulse
-                        scaleY = pulse
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                if (hintAlpha > 0.01f) {
-                    Box(
-                        modifier = Modifier
-                            .requiredSize(ThumbSize + 16.dp)
-                            .graphicsLayer { alpha = hintAlpha }
-                            .clip(CircleShape)
-                            .background(VioletPrimary.copy(alpha = 0.35f)),
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .border(width = 4.dp, color = TextDark, shape = CircleShape),
-                )
-            }
+                    .size(width = ThumbWidth, height = ThumbHeight),
+                isPulsing = hintAlpha > 0.01f,
+            )
         }
 
         // Clear the pulse shortly after it starts.

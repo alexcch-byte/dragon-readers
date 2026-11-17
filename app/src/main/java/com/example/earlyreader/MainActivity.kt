@@ -83,7 +83,10 @@ import com.example.earlyreader.model.StoryData
 import com.example.earlyreader.model.WordBank
 import com.example.earlyreader.model.WordData
 import com.example.earlyreader.storage.ProgressStorage
+import com.example.earlyreader.ui.scrub.FingerSliderThumb
 import com.example.earlyreader.ui.scrub.SegmentedScrubBar
+import com.example.earlyreader.ui.scrub.ThumbHeight
+import com.example.earlyreader.ui.scrub.ThumbWidth
 import com.example.earlyreader.ui.sentences.SentenceLabScreen
 import com.example.earlyreader.ui.theme.EarlyReaderTheme
 import com.example.earlyreader.ui.theme.SegmentEmpty
@@ -1390,14 +1393,15 @@ fun TrackToReadScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Stepped Word-to-Word Jumping Tracker Bar
             var barWidthPx by remember { mutableIntStateOf(0) }
             val animatedProgress by animateFloatAsState(targetValue = trackProgress.coerceIn(0f, 1f), label = "trackJump")
-            val thumbSize = 40.dp
-            val thumbSizePx = with(LocalDensity.current) { thumbSize.toPx() }
-            val thumbOffsetPx = ((barWidthPx - thumbSizePx).coerceAtLeast(0f) * animatedProgress).roundToInt()
+            val thumbWidth = ThumbWidth
+            val thumbHeight = ThumbHeight
+            val thumbWidthPx = with(LocalDensity.current) { thumbWidth.toPx() }
+            val thumbOffsetPx = ((barWidthPx - thumbWidthPx).coerceAtLeast(0f) * animatedProgress).roundToInt()
             val tickIntervals = (wordCount - 1).coerceAtLeast(1)
 
             Box(
@@ -1461,15 +1465,12 @@ fun TrackToReadScreen(
                     }
                 }
 
-                // Stepped thumb jumping from word stop to word stop
-                Box(
+                // Stepped finger thumb jumping from word stop to word stop pointing directly up at the word
+                FingerSliderThumb(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .offset { IntOffset(thumbOffsetPx, 0) }
-                        .size(thumbSize)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .border(4.dp, WarmAccent, CircleShape),
+                        .size(width = thumbWidth, height = thumbHeight),
                 )
             }
 
