@@ -1,6 +1,7 @@
 package com.example.earlyreader
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
@@ -121,12 +122,21 @@ enum class AppMode {
     SENTENCE_LAB,
 }
 
+/** Screens at least this wide (smallest side, in dp) count as tablets and may rotate to landscape. */
+internal const val TABLET_MIN_WIDTH_DP = 600
+
 class MainActivity : ComponentActivity() {
     private var speechManager: SpeechManager? = null
     private lateinit var progressStorage: ProgressStorage
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Phones stay portrait; tablets (smallest width 600dp or more, such as a Fire HD) may rotate to landscape.
+        requestedOrientation = if (resources.configuration.smallestScreenWidthDp >= TABLET_MIN_WIDTH_DP) {
+            ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
         val speech = SpeechManager(this)
         speechManager = speech
         progressStorage = ProgressStorage(this)

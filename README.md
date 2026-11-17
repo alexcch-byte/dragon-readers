@@ -173,6 +173,7 @@ Once a page has loaded, it keeps working without internet using the browser's bu
 
 ## Known Limitations
 
+- **Orientation.** Phones are locked to portrait. Tablets (smallest screen width 600dp or more, such as a Fire HD) may rotate to landscape; the screens scroll, but the landscape layout has not been checked on a real tablet.
 - **Phoneme sounds are respelled words.** Speech engines cannot say an isolated sound, so each sound is a short respelling spoken by the system voice. The short vowels are *a* "ah", *e* "eh", *i* "ih", *o* "aw", *u* "uh" (an engine cannot say the short *a* of "apple" on its own, so "ah" stands in for it and short *o* is "aw"; they are different from each other, but neither is a perfect phoneme). How good it sounds depends on the device voice.
 - **The APK on the GitHub releases page is the older one-word ("cat") prototype build.** It has not been rebuilt, so it does not include the stories, Track to Read or the Sentence Lab. Build from source to get the current app.
 - Sentence Lab progress on Android is remembered per level id, but the last-opened level is remembered by position, so after the level reorder in this version, an older saved level position may open a different level once.
