@@ -58,6 +58,7 @@ data class SentenceLabItem(
     val words: List<String> = text.split(" ")
     val nounIndices: Set<Int> get() = targetIndices("noun")
     val verbIndices: Set<Int> get() = targetIndices("verb")
+    val adjectiveIndices: Set<Int> get() = targetIndices("adj")
 
     fun targetIndices(targetTag: String): Set<Int> =
         tags.mapIndexedNotNull { idx, tag -> if (tag == targetTag) idx else null }.toSet()
@@ -70,6 +71,7 @@ data class SentenceLabLevel(
     val targetTag: String,
     val targetName: String,
     val badgeLabel: String,
+    val prompt: String,
     val nudgeText: String,
     val highlightBg: Color,
     val highlightBorder: Color,
@@ -85,6 +87,7 @@ object SentenceLabData {
         targetTag = "noun",
         targetName = "naming word",
         badgeLabel = "🏷️ noun",
+        prompt = "Tap all {n} naming words (nouns).",
         nudgeText = "Almost! Is that a word that names something? Try again!",
         highlightBg = Color(0xFFDBEAFE),
         highlightBorder = Color(0xFF2563EB),
@@ -124,6 +127,7 @@ object SentenceLabData {
         targetTag = "verb",
         targetName = "action word",
         badgeLabel = "⚡ verb",
+        prompt = "Tap the action word (verb).",
         nudgeText = "Almost! Does that word tell what someone or something is doing? Try again!",
         highlightBg = Color(0xFFFFEDD5),
         highlightBorder = Color(0xFFC2410C),
@@ -156,9 +160,50 @@ object SentenceLabData {
         ),
     )
 
-    val allLevels = listOf(level1, level2)
+    val level3 = SentenceLabLevel(
+        id = "adjectives",
+        title = "Level 3: Describing Words (Adjectives)",
+        shortName = "3. Adjectives",
+        targetTag = "adj",
+        targetName = "describing word",
+        badgeLabel = "🎨 adj",
+        prompt = "Tap all {n} describing words (adjectives).",
+        nudgeText = "Almost! Does that word tell us what something is like? Try again!",
+        highlightBg = Color(0xFFDCFCE7),
+        highlightBorder = Color(0xFF15803D),
+        highlightText = Color(0xFF14532D),
+        items = listOf(
+            SentenceLabItem(
+                text = "The soft kitten drank warm milk.",
+                tags = listOf("det", "adj", "noun", "verb", "adj", "noun"),
+            ),
+            SentenceLabItem(
+                text = "A yellow bus drove down the long road.",
+                tags = listOf("det", "adj", "noun", "verb", "prep", "det", "adj", "noun"),
+            ),
+            SentenceLabItem(
+                text = "The tired boy slept in a cozy bed.",
+                tags = listOf("det", "adj", "noun", "verb", "prep", "det", "adj", "noun"),
+            ),
+            SentenceLabItem(
+                text = "Grandma wore a long blue scarf.",
+                tags = listOf("noun", "verb", "det", "adj", "adj", "noun"),
+            ),
+            SentenceLabItem(
+                text = "The cold wind shook the tiny leaves.",
+                tags = listOf("det", "adj", "noun", "verb", "det", "adj", "noun"),
+            ),
+            SentenceLabItem(
+                text = "We ate crunchy apples on a sunny day.",
+                tags = listOf("pron", "verb", "adj", "noun", "prep", "det", "adj", "noun"),
+            ),
+        ),
+    )
+
+    val allLevels = listOf(level1, level2, level3)
     val level1Items: List<SentenceLabItem> get() = level1.items
     val level2Items: List<SentenceLabItem> get() = level2.items
+    val level3Items: List<SentenceLabItem> get() = level3.items
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -288,14 +333,14 @@ fun SentenceLabScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                val promptText = if (isComplete) {
+                    "All $totalTargets ${currentLevel.targetName}s found! Great job!"
+                } else {
+                    val basePrompt = currentLevel.prompt.replace("{n}", totalTargets.toString())
+                    if (totalTargets > 1) "$basePrompt ($foundCount of $totalTargets)" else basePrompt
+                }
                 Text(
-                    text = if (isComplete) {
-                        "All $totalTargets ${currentLevel.targetName}s found! Great job!"
-                    } else if (totalTargets == 1) {
-                        "Tap the ${currentLevel.targetName} (${currentLevel.targetTag})."
-                    } else {
-                        "Tap all $totalTargets ${currentLevel.targetName}s (${currentLevel.targetTag}s). ($foundCount of $totalTargets)"
-                    },
+                    text = promptText,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = if (isComplete) VioletPrimary else TextDark,
@@ -469,5 +514,13 @@ fun PreviewSentenceLabLevel1() {
 fun PreviewSentenceLabLevel2() {
     EarlyReaderTheme {
         SentenceLabScreen(initialLevelIndex = 1)
+    }
+}
+
+@Preview(name = "Sentence Lab Level 3 (Adjectives)", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Composable
+fun PreviewSentenceLabLevel3() {
+    EarlyReaderTheme {
+        SentenceLabScreen(initialLevelIndex = 2)
     }
 }

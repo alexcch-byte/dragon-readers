@@ -233,4 +233,36 @@ class ScrubBarModelTest {
         assertEquals("Level 2 metadata targetTag must be 'verb'", "verb", SentenceLabData.level2.targetTag)
         assertEquals("Level 2 metadata targetName must be 'action word'", "action word", SentenceLabData.level2.targetName)
     }
+
+    @Test
+    fun testSentenceLabLevel3Dataset() {
+        val items = SentenceLabData.level3Items
+        assertEquals("Sentence Lab Level 3 must have 6 items", 6, items.size)
+        val expectedAdjectives = listOf(
+            listOf("soft", "warm"),
+            listOf("yellow", "long"),
+            listOf("tired", "cozy"),
+            listOf("long", "blue"),
+            listOf("cold", "tiny"),
+            listOf("crunchy", "sunny"),
+        )
+        for ((idx, item) in items.withIndex()) {
+            assertTrue("Item $idx text must not be blank", item.text.isNotBlank())
+            assertEquals(
+                "Words count must match tags count for item $idx",
+                item.words.size,
+                item.tags.size,
+            )
+            val adjs = item.adjectiveIndices.map { item.words[it] }
+            assertEquals("Item $idx must have exactly 2 adjectives", 2, adjs.size)
+            assertEquals("Adjective words must match expected for item $idx", expectedAdjectives[idx], adjs)
+            for (adjIdx in item.adjectiveIndices) {
+                assertTrue("Adjective index $adjIdx must be valid", adjIdx in item.words.indices)
+                assertEquals("Tag at adjective index must be 'adj'", "adj", item.tags[adjIdx])
+            }
+        }
+        assertEquals("Level 3 metadata targetTag must be 'adj'", "adj", SentenceLabData.level3.targetTag)
+        assertEquals("Level 3 metadata targetName must be 'describing word'", "describing word", SentenceLabData.level3.targetName)
+        assertEquals("All levels list must have 3 levels", 3, SentenceLabData.allLevels.size)
+    }
 }
