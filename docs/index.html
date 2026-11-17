@@ -155,10 +155,13 @@
     box-shadow: 0 4px 14px rgba(80, 49, 245, 0.35); flex-shrink: 0;
     transition: transform 0.15s ease, background-color 0.15s ease;
   }
-  .floating-check-btn:hover {
+  .floating-check-btn:hover:not(:disabled) {
     transform: scale(1.08); background: #4324d6;
   }
-  .floating-check-btn:active {
+  .floating-check-btn:disabled {
+    background: #C9C1EE; cursor: default; box-shadow: none; transform: none; opacity: 0.7;
+  }
+  .floating-check-btn:active:not(:disabled) {
     transform: scale(0.96);
   }
   .track-chips {
@@ -2050,6 +2053,12 @@
   }
 
   function updateTrackVisuals() {
+    // The check button only works once the whole sentence has been tracked.
+    const checkBtn = document.getElementById("track-check-btn");
+    if (checkBtn) {
+      checkBtn.disabled = !trackPageCompleted;
+      checkBtn.setAttribute("aria-label", trackPageCompleted ? "Next page" : "Next page (track the whole sentence first)");
+    }
     const pageWords = currentPage();
     const chipEls = [...trackChips.children];
     chipEls.forEach((chip, i) => {
@@ -2198,6 +2207,7 @@
   const trackCheckBtn = document.getElementById("track-check-btn");
   if (trackCheckBtn) {
     trackCheckBtn.addEventListener("click", () => {
+      if (!trackPageCompleted) return;
       stopSpeech();
       if (pageIndex < currentStory().pages.length - 1) {
         pageIndex++;

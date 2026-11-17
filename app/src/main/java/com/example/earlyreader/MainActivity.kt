@@ -1569,27 +1569,28 @@ fun TrackToReadScreen(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Floating purple checkmark button (✓) to advance or complete sentence
+                // Checkmark (✓): only works once the whole sentence has been tracked, so it cannot skip reading.
+                // On the last page the story is already complete, so it stays dimmed.
+                val checkEnabled = pageCompleted && pageIndex < story.pages.size - 1
                 Surface(
                     onClick = {
-                        if (pageIndex < story.pages.size - 1) {
-                            pageIndex++
-                            trackProgress = 0f
-                            trackedWordIndex = 0
-                            reachedWordIndex = 0
-                            pageCompleted = false
-                        } else {
-                            pageCompleted = true
-                            showReward = true
-                            onStoryCompleted()
-                        }
+                        pageIndex++
+                        trackProgress = 0f
+                        trackedWordIndex = 0
+                        reachedWordIndex = 0
+                        pageCompleted = false
+                        showReward = false
                     },
+                    enabled = checkEnabled,
                     shape = RoundedCornerShape(16.dp),
-                    color = VioletPrimary,
-                    shadowElevation = 4.dp,
+                    color = if (checkEnabled) VioletPrimary else SegmentEmpty,
+                    shadowElevation = if (checkEnabled) 4.dp else 0.dp,
                     modifier = Modifier
                         .size(52.dp)
-                        .semantics { contentDescription = "Next page or complete sentence" },
+                        .semantics {
+                            contentDescription = if (checkEnabled) "Next page"
+                            else "Next page, available after you track the whole sentence"
+                        },
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         Text(

@@ -172,8 +172,7 @@ fun FingerSliderThumb(
         if (isPulsing) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding((-6).dp)
+                    .requiredSize(ThumbWidth + 12.dp, ThumbHeight + 12.dp)
                     .clip(PointedThumbShape)
                     .background(VioletPrimary.copy(alpha = 0.35f)),
             )
