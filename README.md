@@ -21,7 +21,7 @@ A calm phonics app for pre-readers (built for a 4-year-old, used together with a
   Finished levels are remembered on the device (in the browser's local storage) and nothing else is stored.
 - **Android app** (Kotlin + Compose): Milestone 1 only. A single hard-coded word ("cat") with the segmented scrub bar, a completion reward and an "Again" button, and accessibility semantics. It has no audio, story player, help button, or Sentence Lab yet (see the milestones in the plan).
 
-Per-letter sounds use short dictionary words ("hat" for h) because TTS reads a lone letter by its name. A real phoneme clip pack is planned.
+Per-letter sounds use short dictionary words ("ant" for a, "hat" for h) because TTS reads a lone letter by its name. Key words start with the letter sound and avoid story words. A real phoneme clip pack is planned.
 
 ## Try it in the browser
 
