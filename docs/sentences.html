@@ -545,7 +545,7 @@
     if (speakingBtn) setSpeaking(speakingBtn, false);
     speakingBtn = btn || null;
     setSpeaking(btn, true);
-    speakCore(text, 0.85, () => setSpeaking(btn, false), true);
+    speakCore(text, 0.425, () => setSpeaking(btn, false), true);  // half the old speed
   }
   function stopSpeech() {
     speakToken++;

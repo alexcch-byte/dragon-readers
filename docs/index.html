@@ -1235,6 +1235,7 @@
   // Fraction of the bar below which a drag counts as "back at the start" (sounds can play again).
   const RESCRUB_RESET = 0.03;
   // Rate for the isolated segment sounds (a little quicker than the word, so they finish promptly).
+  const SENTENCE_RATE = 0.5;     // a whole sentence is read half as fast as before (was about 1.0)
   const SOUND_RATE = 0.9;
   const HELP_SOUND_RATE = 0.8;   // the help button says each sound a little more slowly
   // After a cancel the engine can take a while to start speaking. This much waiting is allowed
@@ -1642,7 +1643,7 @@
     const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
     setTimeout(() => {
       if (flow !== myFlow) return;
-      speakCore(fullSentence, 1.0, () => {
+      speakCore(fullSentence, SENTENCE_RATE, () => {
         if (flow !== myFlow) return;
         showNext();
       }, true);
@@ -1909,7 +1910,7 @@
     const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
     sentenceEl.classList.add("speaking-full");
     [...sentenceEl.children].forEach(c => c.classList.add("sentence-highlight"));
-    speakCore(fullSentence, 0.95, () => {
+    speakCore(fullSentence, SENTENCE_RATE, () => {
       sentenceEl.classList.remove("speaking-full");
       [...sentenceEl.children].forEach(c => c.classList.remove("sentence-highlight"));
     }, true);
@@ -2113,7 +2114,7 @@
         const text = pageWords.map(w => w.t).join(" ");
         const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
         setTimeout(() => {
-          speakCore(fullSentence, 0.95, null, true);
+          speakCore(fullSentence, SENTENCE_RATE, null, true);
         }, 400);
       }
 
@@ -2190,7 +2191,7 @@
     trackReadSentenceBtn.addEventListener("click", () => {
       const text = currentPage().map(w => w.t).join(" ");
       const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
-      speakCore(fullSentence, 0.95, null, true);
+      speakCore(fullSentence, SENTENCE_RATE, null, true);
     });
   }
 

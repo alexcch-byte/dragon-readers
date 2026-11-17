@@ -37,7 +37,7 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
     /** Ids of utterances handed to the engine that have not finished, with the time they were queued. */
     private val active = ConcurrentHashMap<String, Long>()
 
-    private data class Pending(val text: String, val flush: Boolean, val isPhoneme: Boolean)
+    private data class Pending(val text: String, val flush: Boolean, val isPhoneme: Boolean, val rate: Float)
 
     /** The one utterance asked for before the engine finished starting up (the newest wins). */
     private var pending: Pending? = null
@@ -72,7 +72,7 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
             return
         }
         engine.language = Locale.US
-        engine.setSpeechRate(0.8f)
+        engine.setSpeechRate(WORD_RATE)
         engine.setOnUtteranceProgressListener(progressListener)
 
         val choice = try {
@@ -92,7 +92,7 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
 
         // Something was asked for while the engine was starting: say the newest request now instead of dropping it.
         val waiting = synchronized(this) { pending.also { pending = null } }
-        if (waiting != null) play(engine, waiting.text, waiting.flush, waiting.isPhoneme)
+        if (waiting != null) play(engine, waiting.text, waiting.flush, waiting.isPhoneme, waiting.rate)
     }
 
     /**
@@ -100,7 +100,8 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
      * playing is cut off; with [queue] true (the word that completes a scrub) it waits for the sounds before it.
      */
     fun speakWord(text: String, queue: Boolean = false) {
-        enqueue(spokenForm(text), flush = !queue, isPhoneme = false)
+        val rate = if (text.trim().contains(' ')) SENTENCE_RATE else WORD_RATE   // a whole sentence is read slowly
+        enqueue(spokenForm(text), flush = !queue, isPhoneme = false, rate = rate)
     }
 
     /**
@@ -111,22 +112,22 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
     fun speakPhoneme(segment: String, flush: Boolean = false) {
         if (segment.isBlank()) return
         val sound = phonemeSounds[segment.lowercase()] ?: segment
-        enqueue(sound, flush = flush, isPhoneme = true)
+        enqueue(sound, flush = flush, isPhoneme = true, rate = WORD_RATE)
     }
 
-    private fun enqueue(text: String, flush: Boolean, isPhoneme: Boolean) {
+    private fun enqueue(text: String, flush: Boolean, isPhoneme: Boolean, rate: Float) {
         if (text.isBlank()) return
         val engine = tts ?: return
         if (initFailed) return
         if (!isInitialized) {
             // Not ready yet: keep the newest request and say it as soon as the engine is up.
-            synchronized(this) { pending = Pending(text, flush, isPhoneme) }
+            synchronized(this) { pending = Pending(text, flush, isPhoneme, rate) }
             return
         }
-        play(engine, text, flush, isPhoneme)
+        play(engine, text, flush, isPhoneme, rate)
     }
 
-    private fun play(engine: TextToSpeech, text: String, flush: Boolean, isPhoneme: Boolean) {
+    private fun play(engine: TextToSpeech, text: String, flush: Boolean, isPhoneme: Boolean, rate: Float) {
         pruneStale()
         // A child dragging faster than the sounds can be said: one sound plays and one waits; more are dropped
         // rather than piling up and being heard long after the finger has moved on.
@@ -135,6 +136,7 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
         val id = (if (isPhoneme) "p" else "w") + (++counter)
         active[id] = System.currentTimeMillis()
         val mode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+        engine.setSpeechRate(rate)   // applies to this utterance; words and sentences use different speeds
         if (engine.speak(text, mode, null, id) == TextToSpeech.ERROR) active.remove(id)
     }
 
@@ -182,6 +184,8 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
 
     companion object {
         private const val MAX_QUEUED_PHONEMES = 2
+        private const val WORD_RATE = 0.8f
+        private const val SENTENCE_RATE = 0.4f   // half the word speed
         private const val STALE_AFTER_MS = 8_000L
         private const val AWAIT_TIMEOUT_MS = 4_000L
         private const val MIN_WAIT_MS = 250L
