@@ -263,6 +263,21 @@ class ScrubBarModelTest {
         }
         assertEquals("Level 3 metadata targetTag must be 'adj'", "adj", SentenceLabData.level3.targetTag)
         assertEquals("Level 3 metadata targetName must be 'describing word'", "describing word", SentenceLabData.level3.targetName)
-        assertEquals("All levels list must have 3 levels", 3, SentenceLabData.allLevels.size)
+    }
+
+    @Test
+    fun testSentenceLabCompleteThoughtDataset() {
+        val items = SentenceLabData.level4Items
+        assertEquals("Sentence Lab Level 4 must have 6 items", 6, items.size)
+        val expectedBooleans = listOf(false, true, true, false, false, true)
+        for ((idx, item) in items.withIndex()) {
+            assertTrue("Item $idx text must not be blank", item.text.isNotBlank())
+            assertTrue("Item $idx why explanation must not be blank", item.why.isNotBlank())
+            assertTrue("Item $idx hint must not be blank", item.hint.isNotBlank())
+            assertEquals("Item $idx isSentence must match expected", expectedBooleans[idx], item.isSentence)
+        }
+        assertEquals("Level 4 id must be 'sentence-check'", "sentence-check", SentenceLabData.level4.id)
+        assertEquals("Level 4 type must be JUDGE_SENTENCE", com.example.earlyreader.ui.sentences.SentenceLabType.JUDGE_SENTENCE, SentenceLabData.level4.type)
+        assertEquals("All levels list must have 4 levels", 4, SentenceLabData.allLevels.size)
     }
 }

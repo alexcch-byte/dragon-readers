@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -42,6 +43,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,6 +52,18 @@ import com.example.earlyreader.ui.theme.TextDark
 import com.example.earlyreader.ui.theme.VioletPrimary
 import com.example.earlyreader.ui.theme.WarmAccent
 import kotlinx.coroutines.delay
+
+enum class SentenceLabType {
+    TAP_WORDS,
+    JUDGE_SENTENCE,
+}
+
+data class SentenceCheckItem(
+    val text: String,
+    val isSentence: Boolean,
+    val why: String,
+    val hint: String,
+)
 
 data class SentenceLabItem(
     val text: String,
@@ -68,15 +82,17 @@ data class SentenceLabLevel(
     val id: String,
     val title: String,
     val shortName: String,
-    val targetTag: String,
-    val targetName: String,
-    val badgeLabel: String,
-    val prompt: String,
-    val nudgeText: String,
-    val highlightBg: Color,
-    val highlightBorder: Color,
-    val highlightText: Color,
-    val items: List<SentenceLabItem>,
+    val type: SentenceLabType = SentenceLabType.TAP_WORDS,
+    val targetTag: String = "",
+    val targetName: String = "",
+    val badgeLabel: String = "",
+    val prompt: String = "",
+    val nudgeText: String = "",
+    val highlightBg: Color = Color.Transparent,
+    val highlightBorder: Color = Color.Transparent,
+    val highlightText: Color = Color.Black,
+    val items: List<SentenceLabItem> = emptyList(),
+    val checkItems: List<SentenceCheckItem> = emptyList(),
 )
 
 object SentenceLabData {
@@ -200,10 +216,58 @@ object SentenceLabData {
         ),
     )
 
-    val allLevels = listOf(level1, level2, level3)
+    val level4 = SentenceLabLevel(
+        id = "sentence-check",
+        title = "Level 4: Is it a Sentence?",
+        shortName = "4. Sentence?",
+        type = SentenceLabType.JUDGE_SENTENCE,
+        targetName = "complete thought",
+        prompt = "Read it aloud. Is it a whole sentence?",
+        checkItems = listOf(
+            SentenceCheckItem(
+                text = "The big dog.",
+                isSentence = false,
+                why = "“The big dog” tells who it is about, but not what happens. Add a word like “ran” and it becomes a sentence.",
+                hint = "Who is it about? A big dog. But what happens? It does not say yet.",
+            ),
+            SentenceCheckItem(
+                text = "We played in the park.",
+                isSentence = true,
+                why = "“We” is who it is about and “played” is what happens. That is a whole thought.",
+                hint = "Who is it about? We. What happens? We played. Does the thought feel finished?",
+            ),
+            SentenceCheckItem(
+                text = "The baby sleeps.",
+                isSentence = true,
+                why = "“The baby” is who it is about and “sleeps” is what happens. That is a whole thought.",
+                hint = "Who is it about? The baby. What happens? The baby sleeps.",
+            ),
+            SentenceCheckItem(
+                text = "Ran down the hill.",
+                isSentence = false,
+                why = "It tells what happened, but not who ran. Add “We” at the start and it becomes a sentence.",
+                hint = "What happens? Someone ran down the hill. But who or what is it about?",
+            ),
+            SentenceCheckItem(
+                text = "In the park.",
+                isSentence = false,
+                why = "It tells where, but not who or what it is about, and not what happens.",
+                hint = "Who or what is it about? It does not say. What happens? It does not say either.",
+            ),
+            SentenceCheckItem(
+                text = "My sister reads a book.",
+                isSentence = true,
+                why = "“My sister” is who it is about and “reads a book” is what she does. That is a whole thought.",
+                hint = "Who is it about? My sister. What does she do? She reads a book.",
+            ),
+        ),
+    )
+
+    val allLevels = listOf(level1, level2, level3, level4)
     val level1Items: List<SentenceLabItem> get() = level1.items
     val level2Items: List<SentenceLabItem> get() = level2.items
     val level3Items: List<SentenceLabItem> get() = level3.items
+    val level4Items: List<SentenceCheckItem> get() = level4.checkItems
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -223,13 +287,25 @@ fun SentenceLabScreen(
     var showReward by rememberSaveable { mutableStateOf(false) }
     var levelFinished by rememberSaveable { mutableStateOf(false) }
 
+    var judgeAnswer by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var judgeFeedback by rememberSaveable { mutableStateOf<String?>(null) }
+    var judgeCorrect by rememberSaveable { mutableStateOf<Boolean?>(null) }
+
     val currentLevel = levels[levelIndex % levels.size]
-    val items = currentLevel.items
-    val curItem = items[itemIndex % items.size]
-    val targetIndices = curItem.targetIndices(currentLevel.targetTag)
+    val isJudgeLevel = currentLevel.type == SentenceLabType.JUDGE_SENTENCE
+    val totalItems = if (isJudgeLevel) currentLevel.checkItems.size else currentLevel.items.size
+
+    val curTapItem = if (!isJudgeLevel && currentLevel.items.isNotEmpty()) {
+        currentLevel.items[itemIndex % currentLevel.items.size]
+    } else null
+    val curCheckItem = if (isJudgeLevel && currentLevel.checkItems.isNotEmpty()) {
+        currentLevel.checkItems[itemIndex % currentLevel.checkItems.size]
+    } else null
+
+    val targetIndices = curTapItem?.targetIndices(currentLevel.targetTag) ?: emptySet()
     val totalTargets = targetIndices.size
     val foundCount = selectedIndices.intersect(targetIndices).size
-    val isComplete = foundCount == totalTargets
+    val isComplete = if (isJudgeLevel) judgeCorrect == true else foundCount == totalTargets
 
     val switchLevel: (Int) -> Unit = { newIdx ->
         levelIndex = newIdx
@@ -237,6 +313,9 @@ fun SentenceLabScreen(
         selectedIndices = emptySet()
         nudgeMessage = null
         isShowingSolution = false
+        judgeAnswer = null
+        judgeFeedback = null
+        judgeCorrect = null
         levelFinished = false
         onLevelSelected(newIdx)
     }
@@ -296,7 +375,11 @@ fun SentenceLabScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "You found all the ${currentLevel.targetName}s in 6 sentences!",
+                    text = if (isJudgeLevel) {
+                        "You checked all 6 complete thoughts vs fragments!"
+                    } else {
+                        "You found all the ${currentLevel.targetName}s in 6 sentences!"
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     color = TextDark,
                 )
@@ -308,6 +391,9 @@ fun SentenceLabScreen(
                             selectedIndices = emptySet()
                             nudgeMessage = null
                             isShowingSolution = false
+                            judgeAnswer = null
+                            judgeFeedback = null
+                            judgeCorrect = null
                             levelFinished = false
                         },
                         modifier = Modifier.height(52.dp),
@@ -326,150 +412,315 @@ fun SentenceLabScreen(
                 }
             } else {
                 Text(
-                    text = "Sentence ${itemIndex + 1} of ${items.size}",
+                    text = "Sentence ${itemIndex + 1} of $totalItems",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                val promptText = if (isComplete) {
-                    "All $totalTargets ${currentLevel.targetName}s found! Great job!"
-                } else {
-                    val basePrompt = currentLevel.prompt.replace("{n}", totalTargets.toString())
-                    if (totalTargets > 1) "$basePrompt ($foundCount of $totalTargets)" else basePrompt
-                }
-                Text(
-                    text = promptText,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isComplete) VioletPrimary else TextDark,
-                )
+                if (isJudgeLevel && curCheckItem != null) {
+                    // --- JUDGE SENTENCE UI ---
+                    Text(
+                        text = currentLevel.prompt,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = VioletPrimary,
+                    )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                // Words FlowRow
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    curItem.words.forEachIndexed { idx, word ->
-                        val isTarget = targetIndices.contains(idx)
-                        val isSelected = selectedIndices.contains(idx) || (isShowingSolution && isTarget)
+                    // Quotation card
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, VioletPrimary.copy(alpha = 0.2f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(24.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "“${curCheckItem.text}”",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
 
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected && isTarget) currentLevel.highlightBg else MaterialTheme.colorScheme.surfaceVariant,
-                            border = if (isSelected && isTarget) BorderStroke(2.dp, currentLevel.highlightBorder) else null,
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Two choice buttons
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                    ) {
+                        val greenColor = Color(0xFF15803D)
+                        val redColor = Color(0xFFC2410C)
+
+                        Button(
+                            onClick = {
+                                val isCorrect = curCheckItem.isSentence
+                                judgeAnswer = true
+                                judgeCorrect = isCorrect
+                                judgeFeedback = if (isCorrect) curCheckItem.why else curCheckItem.hint
+                                if (isCorrect) showReward = true
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (judgeAnswer == true) {
+                                    if (judgeCorrect == true) greenColor else redColor
+                                } else VioletPrimary,
+                            ),
                             modifier = Modifier
-                                .padding(horizontal = 4.dp, vertical = 6.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    if (isTarget) {
-                                        selectedIndices = selectedIndices + idx
-                                        nudgeMessage = null
-                                        if (selectedIndices.intersect(targetIndices).size == totalTargets) {
-                                            showReward = true
-                                        }
-                                    } else {
-                                        nudgeMessage = currentLevel.nudgeText
-                                    }
-                                }
+                                .weight(1f)
+                                .height(56.dp)
                                 .semantics {
-                                    contentDescription = if (isSelected && isTarget) {
-                                        "$word, ${currentLevel.targetName}, found"
-                                    } else {
-                                        "$word, tap to choose"
-                                    }
+                                    contentDescription = "Complete sentence"
                                 },
                         ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
+                            Text(
+                                text = "✅ Complete sentence",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                val isCorrect = !curCheckItem.isSentence
+                                judgeAnswer = false
+                                judgeCorrect = isCorrect
+                                judgeFeedback = if (isCorrect) curCheckItem.why else curCheckItem.hint
+                                if (isCorrect) showReward = true
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (judgeAnswer == false) {
+                                    if (judgeCorrect == true) greenColor else redColor
+                                } else VioletPrimary,
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .semantics {
+                                    contentDescription = "Only a piece"
+                                },
+                        ) {
+                            Text(
+                                text = "🧩 Only a piece",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Feedback explanation or hint
+                    if (judgeFeedback != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (judgeCorrect == true) Color(0xFFDCFCE7) else Color(0xFFFFF7ED),
+                            border = BorderStroke(1.dp, if (judgeCorrect == true) Color(0xFF15803D) else Color(0xFFC2410C)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                                .semantics { liveRegion = LiveRegionMode.Polite },
+                        ) {
+                            Text(
+                                text = judgeFeedback ?: "",
+                                color = if (judgeCorrect == true) Color(0xFF14532D) else Color(0xFF7C2D12),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(12.dp),
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
+
+                    // Controls for Judge Level
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedButton(
+                            onClick = { onSpeakSentence(curCheckItem.text) },
+                            modifier = Modifier.height(48.dp),
+                        ) {
+                            Text(text = "🔊 Hear it", fontSize = 15.sp)
+                        }
+
+                        if (judgeCorrect == true) {
+                            Button(
+                                onClick = {
+                                    if (itemIndex < totalItems - 1) {
+                                        itemIndex++
+                                        judgeAnswer = null
+                                        judgeFeedback = null
+                                        judgeCorrect = null
+                                    } else {
+                                        levelFinished = true
+                                        onLevelCompleted()
+                                    }
+                                },
+                                modifier = Modifier.height(48.dp),
                             ) {
                                 Text(
-                                    text = word,
-                                    fontSize = 24.sp,
-                                    fontWeight = if (isSelected && isTarget) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected && isTarget) currentLevel.highlightText else TextDark,
+                                    text = if (itemIndex < totalItems - 1) "Next sentence ▸" else "Finish Level 🎉",
+                                    fontSize = 15.sp,
                                 )
-                                if (isSelected && isTarget) {
+                            }
+                        }
+                    }
+                } else if (curTapItem != null) {
+                    // --- TAP WORDS UI (Levels 1-3) ---
+                    val promptText = if (isComplete) {
+                        "All $totalTargets ${currentLevel.targetName}s found! Great job!"
+                    } else {
+                        val basePrompt = currentLevel.prompt.replace("{n}", totalTargets.toString())
+                        if (totalTargets > 1) "$basePrompt ($foundCount of $totalTargets)" else basePrompt
+                    }
+                    Text(
+                        text = promptText,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isComplete) VioletPrimary else TextDark,
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Words FlowRow
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        curTapItem.words.forEachIndexed { idx, word ->
+                            val isTarget = targetIndices.contains(idx)
+                            val isSelected = selectedIndices.contains(idx) || (isShowingSolution && isTarget)
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected && isTarget) currentLevel.highlightBg else MaterialTheme.colorScheme.surfaceVariant,
+                                border = if (isSelected && isTarget) BorderStroke(2.dp, currentLevel.highlightBorder) else null,
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp, vertical = 6.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        if (isTarget) {
+                                            selectedIndices = selectedIndices + idx
+                                            nudgeMessage = null
+                                            if (selectedIndices.intersect(targetIndices).size == totalTargets) {
+                                                showReward = true
+                                            }
+                                        } else {
+                                            nudgeMessage = currentLevel.nudgeText
+                                        }
+                                    }
+                                    .semantics {
+                                        contentDescription = if (isSelected && isTarget) {
+                                            "$word, ${currentLevel.targetName}, found"
+                                        } else {
+                                            "$word, tap to choose"
+                                        }
+                                    },
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
                                     Text(
-                                        text = currentLevel.badgeLabel,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = currentLevel.highlightBorder,
+                                        text = word,
+                                        fontSize = 24.sp,
+                                        fontWeight = if (isSelected && isTarget) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected && isTarget) currentLevel.highlightText else TextDark,
                                     )
+                                    if (isSelected && isTarget) {
+                                        Text(
+                                            text = currentLevel.badgeLabel,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = currentLevel.highlightBorder,
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                // Feedback/nudge banner with TalkBack live region
-                if (nudgeMessage != null) {
-                    Text(
-                        text = nudgeMessage ?: "",
-                        color = WarmAccent,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .semantics { liveRegion = LiveRegionMode.Polite },
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
+                    // Feedback/nudge banner with TalkBack live region
+                    if (nudgeMessage != null) {
+                        Text(
+                            text = nudgeMessage ?: "",
+                            color = WarmAccent,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
-                // Controls
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedButton(
-                        onClick = { onSpeakSentence(curItem.text) },
-                        modifier = Modifier.height(48.dp),
+                    // Controls for Tap Level
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(text = "🔊 Hear it", fontSize = 15.sp)
-                    }
-
-                    if (!isComplete) {
                         OutlinedButton(
-                            onClick = {
-                                isShowingSolution = true
-                                selectedIndices = selectedIndices + targetIndices
-                                showReward = true
-                            },
+                            onClick = { onSpeakSentence(curTapItem.text) },
                             modifier = Modifier.height(48.dp),
                         ) {
-                            Text(text = "👀 Show me", fontSize = 15.sp)
+                            Text(text = "🔊 Hear it", fontSize = 15.sp)
                         }
-                    }
 
-                    if (isComplete) {
-                        Button(
-                            onClick = {
-                                if (itemIndex < items.size - 1) {
-                                    itemIndex++
-                                    selectedIndices = emptySet()
-                                    nudgeMessage = null
-                                    isShowingSolution = false
-                                    showReward = false
-                                } else {
-                                    levelFinished = true
-                                    onLevelCompleted()
-                                }
-                            },
-                            modifier = Modifier.height(48.dp),
-                        ) {
-                            Text(
-                                text = if (itemIndex < items.size - 1) "Next sentence ▸" else "Finish Level 🎉",
-                                fontSize = 15.sp,
-                            )
+                        if (!isComplete) {
+                            OutlinedButton(
+                                onClick = {
+                                    isShowingSolution = true
+                                    selectedIndices = selectedIndices + targetIndices
+                                    showReward = true
+                                },
+                                modifier = Modifier.height(48.dp),
+                            ) {
+                                Text(text = "👀 Show me", fontSize = 15.sp)
+                            }
+                        }
+
+                        if (isComplete) {
+                            Button(
+                                onClick = {
+                                    if (itemIndex < totalItems - 1) {
+                                        itemIndex++
+                                        selectedIndices = emptySet()
+                                        nudgeMessage = null
+                                        isShowingSolution = false
+                                        showReward = false
+                                    } else {
+                                        levelFinished = true
+                                        onLevelCompleted()
+                                    }
+                                },
+                                modifier = Modifier.height(48.dp),
+                            ) {
+                                Text(
+                                    text = if (itemIndex < totalItems - 1) "Next sentence ▸" else "Finish Level 🎉",
+                                    fontSize = 15.sp,
+                                )
+                            }
                         }
                     }
                 }
@@ -522,5 +773,13 @@ fun PreviewSentenceLabLevel2() {
 fun PreviewSentenceLabLevel3() {
     EarlyReaderTheme {
         SentenceLabScreen(initialLevelIndex = 2)
+    }
+}
+
+@Preview(name = "Sentence Lab Level 4 (Sentence Check)", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Composable
+fun PreviewSentenceLabLevel4() {
+    EarlyReaderTheme {
+        SentenceLabScreen(initialLevelIndex = 3)
     }
 }
