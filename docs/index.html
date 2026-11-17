@@ -224,13 +224,17 @@
       <div class="big-star" aria-hidden="true">📖</div>
       <h2>Ready to read?</h2>
       <p id="start-text">Tap to start the story.</p>
+      <div class="story-tabs" id="story-tabs" style="display:flex;gap:8px;margin-bottom:12px;justify-content:center;flex-wrap:wrap"></div>
       <button type="button" class="btn btn-primary" id="start-btn">▶ Start story</button>
     </div>
     <div class="end-screen" id="end-screen">
       <div class="big-star" aria-hidden="true">⭐⭐⭐</div>
       <h2>Great reading!</h2>
       <p id="end-text"></p>
-      <button type="button" class="btn btn-primary" id="restart-btn">Read it again</button>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px">
+        <button type="button" class="btn btn-secondary" id="restart-btn">↺ Read it again</button>
+        <button type="button" class="btn btn-primary" id="next-story-btn" style="display:none">Next story ▸</button>
+      </div>
     </div>
     <div class="reward" id="reward" aria-hidden="true">⭐</div>
     <div class="sentence" id="sentence"></div>
@@ -274,50 +278,100 @@
   // the letter name ("ay"), so the article is spoken as "uh". (The full sentence read at the end of
   // a page uses each word's real text instead, where "A" is read correctly in context.)
   // Words that sound out (did, not, in, Yes) have `seg`; only a, the, is and won are tricky words.
-  const STORY = {
-    title: "The Red Hen",
-    pages: [
-      [
-        {t:"A", sight:true, say:"uh"},
-        {t:"hen", img:"🐔", seg:["h","e","n"]},
-        {t:"sat.", seg:["s","a","t"], say:"sat"},
-        {t:"The", sight:true},
-        {t:"hen", img:"🐔", seg:["h","e","n"]},
-        {t:"is", sight:true},
-        {t:"red.", seg:["r","e","d"], say:"red"}
+  const STORIES = [
+    {
+      id: "hen",
+      title: "The Red Hen",
+      pages: [
+        [
+          {t:"A", sight:true, say:"uh"},
+          {t:"hen", img:"🐔", seg:["h","e","n"]},
+          {t:"sat.", seg:["s","a","t"], say:"sat"},
+          {t:"The", sight:true},
+          {t:"hen", img:"🐔", seg:["h","e","n"]},
+          {t:"is", sight:true},
+          {t:"red.", seg:["r","e","d"], say:"red"}
+        ],
+        [
+          {t:"A", sight:true, say:"uh"},
+          {t:"fox", img:"🦊", seg:["f","o","x"]},
+          {t:"ran.", img:"🏃", seg:["r","a","n"], say:"ran"},
+          {t:"The", sight:true},
+          {t:"fox", img:"🦊", seg:["f","o","x"]},
+          {t:"is", sight:true},
+          {t:"big.", seg:["b","i","g"], say:"big"}
+        ],
+        [
+          {t:"The", sight:true},
+          {t:"hen", img:"🐔", seg:["h","e","n"]},
+          {t:"got", seg:["g","o","t"]},
+          {t:"in", seg:["i","n"]},
+          {t:"a", sight:true, say:"uh"},
+          {t:"box.", img:"📦", seg:["b","o","x"], say:"box"}
+        ],
+        [
+          {t:"The", sight:true},
+          {t:"fox", img:"🦊", seg:["f","o","x"]},
+          {t:"did", seg:["d","i","d"]},
+          {t:"not", seg:["n","o","t"]},
+          {t:"get", seg:["g","e","t"]},
+          {t:"the", sight:true},
+          {t:"hen.", img:"🐔", seg:["h","e","n"], say:"hen"},
+          {t:"Yes!", seg:["Y","e","s"], say:"Yes"},
+          {t:"The", sight:true},
+          {t:"hen", img:"🐔", seg:["h","e","n"]},
+          {t:"won.", sight:true, say:"won"}
+        ],
       ],
-      [
-        {t:"A", sight:true, say:"uh"},
-        {t:"fox", img:"🦊", seg:["f","o","x"]},
-        {t:"ran.", img:"🏃", seg:["r","a","n"], say:"ran"},
-        {t:"The", sight:true},
-        {t:"fox", img:"🦊", seg:["f","o","x"]},
-        {t:"is", sight:true},
-        {t:"big.", seg:["b","i","g"], say:"big"}
-      ],
-      [
-        {t:"The", sight:true},
-        {t:"hen", img:"🐔", seg:["h","e","n"]},
-        {t:"got", seg:["g","o","t"]},
-        {t:"in", seg:["i","n"]},
-        {t:"a", sight:true, say:"uh"},
-        {t:"box.", img:"📦", seg:["b","o","x"], say:"box"}
-      ],
-      [
-        {t:"The", sight:true},
-        {t:"fox", img:"🦊", seg:["f","o","x"]},
-        {t:"did", seg:["d","i","d"]},
-        {t:"not", seg:["n","o","t"]},
-        {t:"get", seg:["g","e","t"]},
-        {t:"the", sight:true},
-        {t:"hen.", img:"🐔", seg:["h","e","n"], say:"hen"},
-        {t:"Yes!", seg:["Y","e","s"], say:"Yes"},
-        {t:"The", sight:true},
-        {t:"hen", img:"🐔", seg:["h","e","n"]},
-        {t:"won.", sight:true, say:"won"}
-      ],
-    ],
-  };
+    },
+    {
+      id: "pig",
+      title: "The Big Pig",
+      pages: [
+        [
+          {t:"A", sight:true, say:"uh"},
+          {t:"big", seg:["b","i","g"]},
+          {t:"pig", img:"🐷", seg:["p","i","g"]},
+          {t:"sat.", seg:["s","a","t"], say:"sat"},
+          {t:"The", sight:true},
+          {t:"pig", img:"🐷", seg:["p","i","g"]},
+          {t:"is", sight:true},
+          {t:"in", seg:["i","n"]},
+          {t:"mud.", img:"🟫", seg:["m","u","d"], say:"mud"}
+        ],
+        [
+          {t:"The", sight:true},
+          {t:"pig", img:"🐷", seg:["p","i","g"]},
+          {t:"can", seg:["c","a","n"]},
+          {t:"dig.", seg:["d","i","g"], say:"dig"},
+          {t:"Dig,", seg:["d","i","g"], say:"dig"},
+          {t:"pig,", img:"🐷", seg:["p","i","g"], say:"pig"},
+          {t:"dig!", seg:["d","i","g"], say:"dig"}
+        ],
+        [
+          {t:"A", sight:true, say:"uh"},
+          {t:"dog", img:"🐶", seg:["d","o","g"]},
+          {t:"ran", img:"🏃", seg:["r","a","n"]},
+          {t:"to", sight:true},
+          {t:"the", sight:true},
+          {t:"pig.", img:"🐷", seg:["p","i","g"], say:"pig"}
+        ],
+        [
+          {t:"The", sight:true},
+          {t:"pig", img:"🐷", seg:["p","i","g"]},
+          {t:"and", seg:["a","n","d"]},
+          {t:"the", sight:true},
+          {t:"dog", img:"🐶", seg:["d","o","g"]},
+          {t:"sat", seg:["s","a","t"]},
+          {t:"in", seg:["i","n"]},
+          {t:"the", sight:true},
+          {t:"sun.", img:"☀️", seg:["s","u","n"], say:"sun"}
+        ]
+      ]
+    }
+  ];
+  let storyIndex = 0;
+  function currentStory() { return STORIES[storyIndex]; }
 
   // Same completion threshold as the Android app (SegmentedScrubBar.kt).
   const DONE = 0.92;
@@ -531,11 +585,16 @@
   let started = false;        // the Start card has been tapped (this click also unlocks speech)
   // The page the child had reached (kept for this tab session only, so a reload picks up where
   // they were). Read once at load; written only once the story has been started.
+  const STORY_KEY = "earlyReader.story.index";
   const PAGE_KEY = "earlyReader.story.page";
+  try {
+    const s = parseInt(sessionStorage.getItem(STORY_KEY), 10);
+    if (Number.isInteger(s) && s >= 0 && s < STORIES.length) storyIndex = s;
+  } catch (e) {}
   let savedPage = 0;
   try {
     const n = parseInt(sessionStorage.getItem(PAGE_KEY), 10);
-    if (Number.isInteger(n) && n > 0 && n < STORY.pages.length) savedPage = n;
+    if (Number.isInteger(n) && n > 0 && n < currentStory().pages.length) savedPage = n;
   } catch (e) { /* storage blocked: start from the first page */ }
   function savePage() { try { sessionStorage.setItem(PAGE_KEY, String(pageIndex)); } catch (e) {} }
   function clearSavedPage() { try { sessionStorage.removeItem(PAGE_KEY); } catch (e) {} savedPage = 0; }
@@ -551,6 +610,7 @@
   const trickyLabel = document.getElementById("tricky-label");
   const helpBtn = document.getElementById("help-btn");
   const nextBtn = document.getElementById("next-btn");
+  const nextStoryBtn = document.getElementById("next-story-btn");
   const rewardEl = document.getElementById("reward");
   const liveEl = document.getElementById("live");
   const hintEl = document.getElementById("hint");
@@ -562,7 +622,7 @@
   const endTextEl = document.getElementById("end-text");
   const startTextEl = document.getElementById("start-text");
 
-  storyTitleEl.textContent = STORY.title;
+  storyTitleEl.textContent = currentStory().title;
 
   function cancelHelp() {
     helpRun++;
@@ -674,7 +734,8 @@
   }
 
   function renderPage() {
-    pageIndicatorEl.textContent = "Page " + (pageIndex + 1) + " of " + STORY.pages.length;
+    storyTitleEl.textContent = currentStory().title;
+    pageIndicatorEl.textContent = "Page " + (pageIndex + 1) + " of " + currentStory().pages.length;
     if (started) savePage();
     activeWordIndex = 0;
     phase = "active";
@@ -740,7 +801,7 @@
       rewardEl.classList.remove("show");
       liveEl.textContent = "";
     }, 1400);
-    nextBtn.textContent = (pageIndex === STORY.pages.length - 1) ? "Finish story ▸" : "Next ▸";
+    nextBtn.textContent = (pageIndex === currentStory().pages.length - 1) ? "Finish story ▸" : "Next ▸";
     nextBtn.style.display = "inline-flex";
     // Keyboard / screen-reader focus follows the thing to do next.
     try { nextBtn.focus({ preventScroll: true }); } catch (e) {}
@@ -983,7 +1044,7 @@
   // ---- next page / end screen ----
   nextBtn.addEventListener("click", () => {
     stopSpeech();
-    if (pageIndex < STORY.pages.length - 1) {
+    if (pageIndex < currentStory().pages.length - 1) {
       pageIndex++;
       renderPage();
     } else {
@@ -995,11 +1056,29 @@
     flow++;
     stopSpeech();
     clearSavedPage();
-    endTextEl.textContent = "You finished “" + STORY.title + "”.";
+    endTextEl.textContent = "You finished “" + currentStory().title + "”.";
     demoCard.classList.add("finished");
     pageIndicatorEl.textContent = "Done!";
     hintEl.textContent = "";
     liveEl.textContent = "Great reading! The story is finished.";
+    const nextStory = STORIES[storyIndex + 1];
+    if (nextStory && nextStoryBtn) {
+      nextStoryBtn.style.display = "inline-flex";
+      nextStoryBtn.textContent = "Next story: " + nextStory.title + " ▸";
+      nextStoryBtn.onclick = () => {
+        storyIndex++;
+        try { sessionStorage.setItem(STORY_KEY, String(storyIndex)); } catch (e) {}
+        clearSavedPage();
+        pageIndex = 0;
+        demoCard.classList.remove("finished");
+        demoCard.classList.remove("not-started");
+        renderStoryTabs();
+        renderPage();
+        speakCore(currentStory().title, 0.9, null);
+      };
+    } else if (nextStoryBtn) {
+      nextStoryBtn.style.display = "none";
+    }
     try { restartBtn.focus({ preventScroll: true }); } catch (e) {}
   }
 
@@ -1013,19 +1092,45 @@
     renderPage();
   });
 
+  function renderStoryTabs() {
+    const tabsEl = document.getElementById("story-tabs");
+    if (!tabsEl) return;
+    tabsEl.innerHTML = "";
+    STORIES.forEach((s, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-small " + (idx === storyIndex ? "btn-primary" : "btn-secondary");
+      btn.textContent = (idx + 1) + ". " + s.title;
+      btn.onclick = () => {
+        storyIndex = idx;
+        try { sessionStorage.setItem(STORY_KEY, String(storyIndex)); } catch (e) {}
+        clearSavedPage();
+        pageIndex = 0;
+        startBtn.textContent = "▶ Start story";
+        startTextEl.textContent = "Story " + (idx + 1) + " of " + STORIES.length + ": " + s.title;
+        renderStoryTabs();
+        renderPage();
+      };
+      tabsEl.appendChild(btn);
+    });
+  }
+  renderStoryTabs();
+
   // The Start card is the first real tap/click on the page, which browsers require before they let
   // a page speak at all (a touch pointerdown doesn't count). It speaks the title to unlock speech.
   // After a reload in the same tab it carries on from the page the child had reached.
   if (savedPage > 0) {
     startBtn.textContent = "▶ Continue story";
-    startTextEl.textContent = "Pick up at page " + (savedPage + 1) + " of " + STORY.pages.length + ".";
+    startTextEl.textContent = "Pick up at page " + (savedPage + 1) + " of " + currentStory().pages.length + ".";
+  } else {
+    startTextEl.textContent = "Story " + (storyIndex + 1) + " of " + STORIES.length + ": " + currentStory().title;
   }
   startBtn.addEventListener("click", () => {
     started = true;
     pageIndex = savedPage;
     demoCard.classList.remove("not-started");
     renderPage();
-    speakCore(STORY.title, 0.9, null);
+    speakCore(currentStory().title, 0.9, null);
   });
 
   renderPage();

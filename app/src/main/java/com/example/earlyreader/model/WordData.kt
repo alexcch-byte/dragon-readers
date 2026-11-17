@@ -6,4 +6,5 @@ data class WordData(
     val segments: List<String>,
     val sight: Boolean = false,
     val img: String? = null,
+    val sentenceContext: List<String> = emptyList(),
 )

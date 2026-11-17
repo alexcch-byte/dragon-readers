@@ -78,4 +78,15 @@ class ScrubBarModelTest {
             assertTrue("Word ${word.text} picture must not be blank", word.img!!.isNotBlank())
         }
     }
+
+    @Test
+    fun testSentenceContextModel() {
+        for (word in WordBank.starterWords) {
+            assertTrue("Sentence context should not be empty for ${word.text}", word.sentenceContext.isNotEmpty())
+            val containsTarget = word.sentenceContext.any { token ->
+                token.trimEnd('.', '!', '?', ',').equals(word.text, ignoreCase = true)
+            }
+            assertTrue("Sentence context for ${word.text} should contain target word", containsTarget)
+        }
+    }
 }

@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.earlyreader.audio.SpeechManager
@@ -49,6 +50,7 @@ import com.example.earlyreader.model.WordData
 import com.example.earlyreader.ui.scrub.SegmentedScrubBar
 import com.example.earlyreader.ui.theme.EarlyReaderTheme
 import com.example.earlyreader.ui.theme.VioletPrimary
+import com.example.earlyreader.ui.theme.WarmAccent
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -101,6 +103,29 @@ fun WordScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            // Sentence context across the top with active word emphasized (Milestone 3 parity)
+            if (currentWord.sentenceContext.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    currentWord.sentenceContext.forEachIndexed { idx, token ->
+                        val cleanToken = token.trimEnd('.', '!', '?', ',')
+                        val isActive = cleanToken.equals(currentWord.text, ignoreCase = true)
+                        Text(
+                            text = if (idx == currentWord.sentenceContext.size - 1) token else "$token ",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontSize = if (isActive) 28.sp else 22.sp,
+                            color = if (isActive) WarmAccent else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    }
+                }
+            }
+
             AnimatedVisibility(
                 visible = pictureRevealed && currentWord.img != null,
                 enter = fadeIn() + scaleIn(),
