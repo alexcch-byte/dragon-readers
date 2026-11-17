@@ -1,6 +1,7 @@
 package com.example.earlyreader.model
 
-// Mirrors the word shape from section 5 of reading-app-plan.md's content model.
+// One word for Word Practice or a story page: its letter segments (one per sound), whether it is a tricky sight
+// word, an optional picture (an emoji) and the sentence it appears in.
 data class WordData(
     val text: String,
     val segments: List<String>,

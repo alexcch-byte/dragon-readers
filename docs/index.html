@@ -32,6 +32,7 @@
     text-align: center;
   }
   .head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+  .head-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   h1 { color: var(--violet); font-size: 2.2rem; margin: 0; }
   .tagline { font-size: 1.05rem; opacity: 0.8; margin: 6px 0 4px; text-align: left; }
   .btn {
@@ -387,6 +388,40 @@
     .next-btn { margin-top: 12px; }
     .hint { margin-top: 10px; }
     footer { margin: 16px 0 16px; }
+
+    /* Track to Read: the chips use the whole card width and the check button sits beside the bar instead of
+       beside the chips, so a long sentence takes fewer lines and the bar stays near the top of the screen. */
+    .track-interactive-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; }
+    .track-content-col { display: contents; }
+    .track-chips { grid-column: 1 / -1; gap: 0 8px; margin-bottom: 2px; }
+    .track-bar { margin-bottom: 0; justify-self: center; }
+    .track-chip { padding: 2px 4px; gap: 3px; }
+    .track-chip-text { line-height: 1.15; }
+  }
+
+  /* Short phones (about 640px tall): a tighter header and card so the tracker bar is on the first screen for
+     almost every page, with the words still big. */
+  @media (max-width: 600px) and (max-height: 700px) {
+    header { padding-top: 4px; }
+    .head-left { flex-wrap: nowrap; }
+    h1 { font-size: 1.3rem; }
+    .mode-bar { margin-bottom: 6px; }
+    .demo-card { padding: 8px 10px 12px; }
+    .track-header-controls { margin-bottom: 4px; gap: 4px 8px; }
+    .track-prompt { margin: 0 0 2px; font-size: 0.85rem; }
+    .track-area { padding: 2px 0; }
+  }
+
+  /* Very short phones (568px tall, e.g. 320x568): the words step down a little, to 1.75rem. */
+  @media (max-width: 600px) and (max-height: 600px) {
+    .track-chip-text { font-size: 1.75rem; border-bottom-width: 3px; }
+    .track-chip .pic { font-size: 1.2rem; }
+    .word-pill { height: 12px; min-width: 36px; }
+    .track-chip { gap: 2px; padding: 1px 3px; }
+    .track-audio-btn { padding: 2px 10px; font-size: 0.8rem; }
+    .track-header-controls .read-sentence-btn { min-height: 44px; }
+    .story-header { margin-bottom: 2px; }
+    .mode-bar { margin-bottom: 4px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -398,7 +433,7 @@
 
 <header>
   <div class="head-row">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div class="head-left">
       <button type="button" class="btn btn-secondary btn-small" id="home-btn" aria-label="Home: return to start" title="Return to start of Early Reader">🏠 Home</button>
       <h1>Early Reader</h1>
     </div>
@@ -1944,6 +1979,14 @@
   // The tracker may only move ONE word past the furthest word reached so far, so a single tap on the right
   // end of the bar (or on the last chip) cannot finish the sentence; the child has to move along it.
   let trackReached = 0;
+  // Repeated taps must not run through the sentence either: a tap (or the first touch of a gesture) may only step
+  // on to a NEW word if the last advance was at least TRACK_MIN_ADVANCE_MS ago. A real drag (the finger moved more
+  // than TRACK_DRAG_SLOP px) is never limited, so sliding stays smooth. Keys and chips are not limited.
+  const TRACK_MIN_ADVANCE_MS = 300;
+  const TRACK_DRAG_SLOP = 8;
+  let trackLastAdvance = -1e9;
+  let trackDownX = 0;
+  let trackDragged = false;
 
   const btnModeScrub = document.getElementById("btn-mode-scrub");
   const btnModeTrack = document.getElementById("btn-mode-track");
@@ -2082,7 +2125,7 @@
   // `source` is "bar" (a finger on the tracker bar), "key" (arrow keys) or "chip" (a tap on a word). The
   // tracked word never moves more than one word past the furthest one reached; only the bar (at its far end)
   // or the keyboard can finish the page, never a chip.
-  function setTrackProgress(nextProgress, source) {
+  function setTrackProgress(nextProgress, source, mayAdvance) {
     const pageWords = currentPage();
     if (!pageWords.length) return;
     const n = pageWords.length;
@@ -2090,9 +2133,10 @@
     const prevIndex = trackedIndex;
     let idx = calculateTrackedIndex(clamped, n);
     idx = Math.min(idx, trackReached + 1);   // at most one word past the furthest one reached
+    if (mayAdvance === false) idx = Math.min(idx, trackReached);   // a quick repeat tap stays within the words reached
     trackedIndex = idx;
     trackProgress = calculateSnappedTrackProgress(idx, n);   // the thumb steps from word to word
-    if (idx > trackReached) trackReached = idx;
+    if (idx > trackReached) { trackReached = idx; trackLastAdvance = performance.now(); }
 
     const wordChanged = trackedIndex !== prevIndex || source === "key" || source === "chip";
     if (wordChanged && trackSpeakWords) {
@@ -2126,21 +2170,25 @@
     updateTrackVisuals();
   }
 
-  function updateTrackBarFromEvent(e) {
+  function updateTrackBarFromEvent(e, isFirstTouch) {
     const rect = trackBar.getBoundingClientRect();
     if (rect.width <= 0) return;
     const ratio = (e.clientX - rect.left) / rect.width;
-    setTrackProgress(ratio, "bar");
+    const mayAdvance = trackDragged || (isFirstTouch && performance.now() - trackLastAdvance >= TRACK_MIN_ADVANCE_MS);
+    setTrackProgress(ratio, "bar", mayAdvance);
   }
 
   trackBar.addEventListener("pointerdown", (e) => {
     trackPointerId = e.pointerId;
+    trackDownX = e.clientX;
+    trackDragged = false;
     try { trackBar.setPointerCapture(e.pointerId); } catch (_) {}
-    updateTrackBarFromEvent(e);
+    updateTrackBarFromEvent(e, true);
   });
   trackBar.addEventListener("pointermove", (e) => {
     if (trackPointerId === e.pointerId || e.buttons > 0) {
-      updateTrackBarFromEvent(e);
+      if (Math.abs(e.clientX - trackDownX) > TRACK_DRAG_SLOP) trackDragged = true;
+      updateTrackBarFromEvent(e, false);
     }
   });
   function releaseTrackPointer() {

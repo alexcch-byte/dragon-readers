@@ -2,6 +2,7 @@ package com.example.earlyreader
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -19,8 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -54,6 +53,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,11 +83,11 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.earlyreader.audio.SpeechManager
+import com.example.earlyreader.audio.SpeechStatus
 import com.example.earlyreader.audio.VoiceSelection
 import com.example.earlyreader.model.PageData
 import com.example.earlyreader.model.StoryBank
@@ -95,6 +95,7 @@ import com.example.earlyreader.model.StoryData
 import com.example.earlyreader.model.WordBank
 import com.example.earlyreader.model.WordData
 import com.example.earlyreader.storage.ProgressStorage
+import com.example.earlyreader.ui.CenteredScrollColumn
 import com.example.earlyreader.ui.scrub.FingerSliderThumb
 import com.example.earlyreader.ui.scrub.SegmentedScrubBar
 import com.example.earlyreader.ui.scrub.ThumbHeight
@@ -107,6 +108,7 @@ import com.example.earlyreader.ui.theme.VioletPrimary
 import com.example.earlyreader.ui.theme.WarmAccent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 enum class AppMode {
@@ -346,7 +348,7 @@ fun EarlyReaderApp(
                     ModeChip("Words", appMode == AppMode.WORD_PRACTICE) { handleModeChange(AppMode.WORD_PRACTICE) }
                     ModeChip("Stories", appMode == AppMode.STORY_MODE) { handleModeChange(AppMode.STORY_MODE) }
                     ModeChip("Track", appMode == AppMode.TRACK_TO_READ) { handleModeChange(AppMode.TRACK_TO_READ) }
-                    ModeChip("Lab", appMode == AppMode.SENTENCE_LAB, description = "Sentence Lab") {
+                    ModeChip("Lab", appMode == AppMode.SENTENCE_LAB, description = "Sentence Lab, for older readers about 6 to 8") {
                         handleModeChange(AppMode.SENTENCE_LAB)
                     }
                 }
@@ -434,19 +436,17 @@ fun EarlyReaderApp(
                 onDismissRequest = { showHomeConfirm = false },
                 title = { Text(text = "Go home?", fontWeight = FontWeight.Bold) },
                 text = {
-                    Text(
-                        text = "This goes back to the start of Track to Read (${stories.first().title}, page 1) and " +
-                            "forgets where you were in the stories. Stars and progress are kept.",
-                    )
+                    Text(text = "Back to page 1 of Track to Read. Stars are kept.")
                 },
+                // The safe choice is the big filled button; the one that loses the place is the quiet text button.
                 confirmButton = {
-                    Button(onClick = performHome, modifier = Modifier.height(48.dp)) {
-                        Text(text = "Yes, go home")
+                    Button(onClick = { showHomeConfirm = false }, modifier = Modifier.height(48.dp)) {
+                        Text(text = "Stay here")
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showHomeConfirm = false }, modifier = Modifier.height(48.dp)) {
-                        Text(text = "Stay here")
+                    TextButton(onClick = performHome, modifier = Modifier.height(48.dp)) {
+                        Text(text = "Yes, go home")
                     }
                 },
             )
@@ -554,6 +554,8 @@ fun EarlyReaderApp(
             val voiceName = speechManager?.voiceName ?: "Default US English"
             val isOfflineVoice = speechManager?.isOfflineVoice ?: true
             val isNetworkOnly = speechManager?.isNetworkVoiceOnly ?: false
+            // Without a speech manager (previews) there is nothing to report on, so assume it works.
+            val speechStatus = speechManager?.speechStatus ?: SpeechStatus.READY
 
             AlertDialog(
                 onDismissRequest = { showSettingsDialog = false },
@@ -566,8 +568,8 @@ fun EarlyReaderApp(
                     ) {
                         Text(text = "Early Reader - Adult Dashboard", fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "• TTS Voice: $voiceName (${if (isOfflineVoice) "offline ready" else "network required"})")
-                        if (VoiceSelection.needsOfflineGuidance(isOfflineVoice, isNetworkOnly)) {
+                        Text(text = "• TTS Voice: ${VoiceSelection.describe(speechStatus, voiceName, isOfflineVoice)}")
+                        if (speechStatus == SpeechStatus.READY && VoiceSelection.needsOfflineGuidance(isOfflineVoice, isNetworkOnly)) {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Tip: For reliable offline play, download an offline voice in Android Settings -> Accessibility -> Text-to-speech output.",
@@ -600,7 +602,7 @@ fun EarlyReaderApp(
                             AppMode.SENTENCE_LAB -> "Sentence Lab"
                         }}")
                         Text(text = "• Story Suite: ${stories.size} decodable stories available")
-                        Text(text = "• Total words completed: $wordsCompletedCount")
+                        Text(text = "• Words practised (repeats count): $wordsCompletedCount")
                         Text(text = "• Completed stories: ${completedStories.size} of ${stories.size}")
                         if (completedStories.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(4.dp))
@@ -672,31 +674,6 @@ private fun ModeChip(label: String, selected: Boolean, description: String = lab
     }
 }
 
-/**
- * A centred column that scrolls when its content is taller than the screen (a long page, a small phone, big text).
- * When the content fits it is centred exactly as before. The bars inside consume their own drags, so a horizontal
- * scrub is never turned into a scroll.
- */
-@Composable
-private fun CenteredScrollColumn(
-    contentPadding: PaddingValues,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val viewportHeight: Dp = maxHeight
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .heightIn(min = viewportHeight)
-                .padding(contentPadding),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            content = content,
-        )
-    }
-}
-
 @Composable
 fun WordPracticeScreen(
     words: List<WordData> = WordBank.starterWords,
@@ -714,7 +691,11 @@ fun WordPracticeScreen(
     var attempt by rememberSaveable { mutableIntStateOf(0) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        CenteredScrollColumn(contentPadding = PaddingValues(vertical = 16.dp)) {
+        CenteredScrollColumn(
+            contentPadding = PaddingValues(vertical = 16.dp),
+            resetKey = "$wordIndex-$attempt",
+            revealEnd = completed,
+        ) {
             // Sentence context across the top
             if (currentWord.sentenceContext.isNotEmpty()) {
                 val fullSentenceText = currentWord.sentenceContext.joinToString(" ")
@@ -953,7 +934,11 @@ fun StoryModeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        CenteredScrollColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)) {
+        CenteredScrollColumn(
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+            resetKey = "$pageIndex-$activeWordIndex",
+            revealEnd = pageCompleted,
+        ) {
             // Interactive Story & Page Indicator (tapping opens story picker)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1252,6 +1237,24 @@ fun calculateSnappedTrackProgress(wordIndex: Int, wordCount: Int): Float {
 fun limitTrackedWordIndex(desiredIndex: Int, reachedIndex: Int): Int =
     desiredIndex.coerceAtMost(reachedIndex + 1)
 
+/** The shortest time between two taps that each move the tracker on to a new word. */
+const val TRACK_MIN_ADVANCE_INTERVAL_MS = 300L
+
+/**
+ * Whether a touch on the tracker bar may move it on to a word it has not reached yet. A real drag (the finger has
+ * travelled past the touch slop) always may, so sliding stays smooth. A tap, or the first touch of a gesture, may
+ * only do so when at least [minIntervalMs] has passed since the last advance, so mashing the bar cannot run through
+ * the whole sentence (and finish the page) in a few quick taps. Going back, or moving within the words already
+ * reached, is never restricted. Screen-reader steps and chip taps do not use this.
+ */
+fun trackMayAdvance(
+    isFirstTouch: Boolean,
+    dragged: Boolean,
+    nowMs: Long,
+    lastAdvanceMs: Long,
+    minIntervalMs: Long = TRACK_MIN_ADVANCE_INTERVAL_MS,
+): Boolean = dragged || (isFirstTouch && nowMs - lastAdvanceMs >= minIntervalMs)
+
 /**
  * Where the tracker goes when a screen reader or switch user asks the bar to move to [target] (0..1): exactly one
  * word forward or back, never a jump, so the page can only be finished by stepping along it.
@@ -1297,14 +1300,23 @@ fun TrackToReadScreen(
     val currentPage = story.pages[pageIndex % story.pages.size]
     val wordCount = currentPage.words.size
 
-    val updateTrackProgress: (Float, TrackSource) -> Unit = { rawProgress, source ->
+    // When the tracker last moved on to a new word (SystemClock.uptimeMillis, the clock touch events use).
+    var lastAdvanceMs by remember { mutableLongStateOf(0L) }
+
+    // mayAdvance is false for a quick repeat tap (see trackMayAdvance): the tracker then stays within the words
+    // already reached instead of stepping on to a new one.
+    val updateTrackProgress: (Float, TrackSource, Boolean) -> Unit = { rawProgress, source, mayAdvance ->
         if (wordCount > 0) {
             val clamped = rawProgress.coerceIn(0f, 1f)
             val prevIdx = trackedWordIndex
-            val nextIdx = limitTrackedWordIndex(calculateTrackedWordIndex(clamped, wordCount), reachedWordIndex)
+            val limitedIdx = limitTrackedWordIndex(calculateTrackedWordIndex(clamped, wordCount), reachedWordIndex)
+            val nextIdx = if (mayAdvance) limitedIdx else limitedIdx.coerceAtMost(reachedWordIndex)
             trackedWordIndex = nextIdx
             trackProgress = calculateSnappedTrackProgress(nextIdx, wordCount)
-            if (nextIdx > reachedWordIndex) reachedWordIndex = nextIdx
+            if (nextIdx > reachedWordIndex) {
+                reachedWordIndex = nextIdx
+                lastAdvanceMs = SystemClock.uptimeMillis()
+            }
 
             val wordChanged = nextIdx != prevIdx || source == TrackSource.CHIP
             if (wordChanged && speakWhenTracked) {
@@ -1334,7 +1346,11 @@ fun TrackToReadScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        CenteredScrollColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)) {
+        CenteredScrollColumn(
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+            resetKey = pageIndex,
+            revealEnd = pageCompleted,
+        ) {
             // Interactive Story & Page Indicator
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1485,7 +1501,7 @@ fun TrackToReadScreen(
                                 modifier = Modifier
                                     .padding(horizontal = 5.dp, vertical = 2.dp)
                                     .clickable {
-                                        updateTrackProgress((idx + 0.5f) / wordCount.toFloat(), TrackSource.CHIP)
+                                        updateTrackProgress((idx + 0.5f) / wordCount.toFloat(), TrackSource.CHIP, true)
                                     }
                                     .padding(horizontal = 2.dp, vertical = 2.dp)
                                     .semantics {
@@ -1583,15 +1599,32 @@ fun TrackToReadScreen(
                                     // The bar owns the gesture, so a parent that scrolls vertically never takes it over.
                                     down.consume()
                                     if (barWidthPx > 0) {
-                                        updateTrackProgress(down.position.x / barWidthPx.toFloat(), TrackSource.BAR)
+                                        // The first touch may only step on to a new word if the last advance was a
+                                        // moment ago (so repeated taps cannot finish the page); see trackMayAdvance.
+                                        val mayStep = trackMayAdvance(
+                                            isFirstTouch = true,
+                                            dragged = false,
+                                            nowMs = down.uptimeMillis,
+                                            lastAdvanceMs = lastAdvanceMs,
+                                        )
+                                        updateTrackProgress(down.position.x / barWidthPx.toFloat(), TrackSource.BAR, mayStep)
                                     }
+                                    var dragged = false
                                     while (true) {
                                         val event = awaitPointerEvent()
                                         val change = event.changes.firstOrNull { it.id == pointerId } ?: break
                                         if (!change.pressed) break
                                         change.consume()
+                                        if (abs(change.position.x - down.position.x) > viewConfiguration.touchSlop) dragged = true
                                         if (barWidthPx > 0) {
-                                            updateTrackProgress(change.position.x / barWidthPx.toFloat(), TrackSource.BAR)
+                                            // Only a real drag keeps moving on; a wobbling finger on a tap does not.
+                                            val mayStep = trackMayAdvance(
+                                                isFirstTouch = false,
+                                                dragged = dragged,
+                                                nowMs = change.uptimeMillis,
+                                                lastAdvanceMs = lastAdvanceMs,
+                                            )
+                                            updateTrackProgress(change.position.x / barWidthPx.toFloat(), TrackSource.BAR, mayStep)
                                         }
                                     }
                                 }
@@ -1608,7 +1641,7 @@ fun TrackToReadScreen(
                                 )
                                 setProgress(action = { target ->
                                     val stepTo = accessibilityStepIndex(trackedWordIndex, wordCount, target)
-                                    updateTrackProgress((stepTo + 0.5f) / wordCount.toFloat(), TrackSource.BAR)
+                                    updateTrackProgress((stepTo + 0.5f) / wordCount.toFloat(), TrackSource.BAR, true)
                                     true
                                 })
                             },

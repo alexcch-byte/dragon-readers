@@ -26,15 +26,17 @@ dragon-readers/
 │   └── src/
 │       ├── main/java/com/example/earlyreader/
 │       │   ├── audio/
-│       │   │   ├── SpeechManager.kt    # Android TextToSpeech: queued sounds, offline voice detection
+│       │   │   ├── SpeechManager.kt    # Android TextToSpeech: queued sounds, voice choice, ready / no engine / no language status
 │       │   │   ├── SpokenForm.kt       # What is said for a word on its own (the article "a" is "uh")
-│       │   │   └── VoiceSelection.kt   # Pure voice-choice / offline-guidance logic (unit tested)
+│       │   │   └── VoiceSelection.kt   # Pure voice-choice, speech-status and offline-guidance logic (unit tested)
 │       │   ├── model/
-│       │   │   ├── WordData.kt         # Starter words & CVC phoneme definitions
+│       │   │   ├── WordData.kt         # The word data class (letter segments, tricky flag, picture, sentence)
+│       │   │   ├── WordBank.kt         # The six starter CVC words for Word Practice
 │       │   │   └── StoryData.kt        # 14-story suite with multi-sentence pages
 │       │   ├── storage/
 │       │   │   └── ProgressStorage.kt  # Offline progress (SharedPreferences behind a small interface)
 │       │   ├── ui/
+│       │   │   ├── CenteredScrollColumn.kt  # Centred column that scrolls on small phones and returns to the top per page
 │       │   │   ├── scrub/              # Segmented drag-to-sound scrub bar
 │       │   │   ├── sentences/          # 6-Level Sentence Lab with Master Celebration
 │       │   │   └── theme/              # Color palette, Material 3 typography & theme
@@ -89,12 +91,12 @@ Digraphs, double letters, and glued sounds are ONE segment (*d-u-ck*, *b-e-ll*, 
 Switch seamlessly between learning modes from the top bar:
 - **Word Practice (Ages 4–5):** Starter word bank cycling with decodable letter segments, short synthetic phonics sounds ("ah", "aw", "buh", "kuh"), sentence-in-context highlight, and tap-to-read full sentence audio.
 - **Story Mode (Ages 4–6):** Full multi-page decodable reader with segmented scrub bar, tricky word flashcard assistance, dedicated "🔊 Read full sentence" audio button, and celebratory rewards. The page and word position in each story is kept when switching tabs or stories; it is forgotten when a story is finished or when Home is used.
-- **Track to Read (Ages 4–6):** Stepped sentence tracker with a draggable slider bar that jumps discretely from word to word and zero-shift word chips. The tracker moves at most one word past the furthest word reached, so one tap cannot finish a sentence; tapping a word chip only highlights it (and speaks it in Speak Words mode). Defaults to **🔇 Highlight Only** (silent tracking so the child can read each word aloud without the app speaking over them), with an optional **🔊 Speak Words** toggle and on-demand full sentence playback.
-- **Sentence Lab (Ages 6–8):** Comprehensive 6-level interactive grammar suite.
+- **Track to Read (Ages 4–6):** Stepped sentence tracker with a draggable slider bar that jumps discretely from word to word and zero-shift word chips. The tracker moves at most one word past the furthest word reached, so one tap cannot finish a sentence, and repeated taps on the bar can only step on to a new word about every 300 ms (a real drag, a screen-reader step and a keyboard step are not slowed), so mashing the bar cannot finish a page either; tapping a word chip only highlights it (and speaks it in Speak Words mode). Defaults to **🔇 Highlight Only** (silent tracking so the child can read each word aloud without the app speaking over them), with an optional **🔊 Speak Words** toggle and on-demand full sentence playback.
+- **Sentence Lab (Ages 6–8):** Comprehensive 6-level interactive grammar suite, meant for older readers (the "Lab" chip is described as such to screen readers). It is not for the 4-year-old; the reading modes are. Tapping a level's instruction line reads it aloud on Android. Its level pills wrap onto a second line on a narrow phone and the screen scrolls when a level is taller than the screen.
 
-**Home button (🏠, top left):** on Android it asks "Go home?" first. If confirmed, it returns to the start of Track to Read (The Red Hen, page 1) and forgets the place in the other stories. Word Practice and Sentence Lab keep their place, and stars and progress are never cleared (that is only done by "Reset all progress" in the grown-ups' settings). The web reader's Home button (no confirmation) does the same and also clears the saved page, so "Start story" opens story 1, page 1 even after a reload.
+**Home button (🏠, top left):** on Android it asks "Go home?" first. "Stay here" is the large filled button and "Yes, go home" the quiet text one. If confirmed, it returns to the start of Track to Read (The Red Hen, page 1) and forgets the place in the other stories. Word Practice and Sentence Lab keep their place, and stars and progress are never cleared (that is only done by "Reset all progress" in the grown-ups' settings). The web reader's Home button (no confirmation) does the same and also clears the saved page, so "Start story" opens story 1, page 1 even after a reload.
 
-The top bar wraps onto a second line on narrow phones or with large text, so the grown-ups' settings gear is always reachable. The story picker and settings dialogs scroll. A bare "a" is spoken as "uh" (not the letter name "ay"), and the app's launcher icon is a dragon reading a book.
+The top bar wraps onto a second line on narrow phones or with large text, so the grown-ups' settings gear is always reachable. The story picker and settings dialogs scroll, and so do the reading screens and the Sentence Lab, which return to the top for each new page, word or sentence and scroll the Next buttons into view when a page is finished. A bare "a" is spoken as "uh" (not the letter name "ay"), and the app's launcher icon is a dragon reading a book.
 
 ### 3. Complete 6-Level Sentence Lab
 Ported from the web prototype to native Jetpack Compose with accessibility semantics. The levels are in the same order on the web and on Android:
@@ -111,7 +113,7 @@ Ported from the web prototype to native Jetpack Compose with accessibility seman
 
 ### 4. Accessibility & Offline Voice Guidance
 - **Screen Reader Support:** Full TalkBack compatibility with descriptive semantics and polite live regions (`LiveRegionMode.Polite`).
-- **Offline TTS Detection:** Detects local vs network voices in `SpeechManager`. If only network voices are available, provides guidance and a safe shortcut to the Android Text-to-speech system settings.
+- **Offline TTS Detection:** Detects local vs network voices in `SpeechManager`, preferring an installed US English voice, then any installed English one. If only network voices are available, provides guidance and a safe shortcut to the Android Text-to-speech system settings. The grown-ups' settings say plainly when there is no speech engine ("No speech engine found") or no English language data ("Language data missing: install an English voice"), instead of reporting a network problem.
 - **Adult Parent Gate:** Mathematical challenge gate (e.g. `4 + 5 = ?`) protecting settings, voice status, and progress reset. A wrong answer closes the gate and the next try is a new question; "Reset all progress" asks for a second confirmation.
 
 ---
@@ -132,9 +134,9 @@ Inspect UI composables directly inside Android Studio without deploying:
 
 Every push and pull request to `master` triggers a GitHub Actions workflow (`.github/workflows/ci.yml`):
 - Configures Eclipse Temurin JDK 17.
-- Executes the JUnit unit test suite (`ScrubBarModelTest.kt`): story and sound-map data (every segment has a sound, no `ck`/`ll`/`ng`/`qu` split in two, the short vowels sound different), scrub-bar boundary maths and thresholds, the voice-choice and offline-guidance logic, progress bookkeeping, the Track to Read word limit, and the Sentence Lab datasets. The scrub gesture, text-to-speech playback and the Compose screens themselves are not unit tested; they were checked by hand and in the browser.
+- Executes the JUnit unit test suite (`ScrubBarModelTest.kt`): story and sound-map data (every segment has a sound, no `ck`/`ll`/`ng`/`qu` split in two, the short vowels sound different), scrub-bar boundary maths and thresholds, the voice-choice, speech-status and offline-guidance logic, progress bookkeeping, the Track to Read word limit and its tap-interval rule, and the Sentence Lab datasets (including the alternative and silly Build sentences). The web/Android story parity test fails (it is not skipped) if `docs/index.html` cannot be found. The scrub gesture, text-to-speech playback and the Compose screens themselves are not unit tested; they were checked by hand and in the browser.
 - Runs `./gradlew test assembleDebug`.
-- Archives and uploads the release APK artifact (`dragon-readers-debug.apk`).
+- Archives and uploads the debug APK artifact (`dragon-readers-debug.apk`); no release build is made.
 
 ---
 

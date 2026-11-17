@@ -1,6 +1,7 @@
 package com.example.earlyreader
 
 import com.example.earlyreader.audio.SpeechManager
+import com.example.earlyreader.audio.SpeechStatus
 import com.example.earlyreader.audio.VoiceCandidate
 import com.example.earlyreader.audio.VoiceSelection
 import com.example.earlyreader.audio.spokenForm
@@ -14,13 +15,13 @@ import com.example.earlyreader.ui.scrub.ThumbHeight
 import com.example.earlyreader.ui.scrub.ThumbWidth
 import com.example.earlyreader.ui.scrub.segmentBoundaries
 import com.example.earlyreader.ui.sentences.SentenceLabData
+import com.example.earlyreader.ui.sentences.buildTokens
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Assume
 import org.junit.Test
 import java.io.File
 import kotlin.math.roundToInt
@@ -547,7 +548,8 @@ class ScrubBarModelTest {
     fun testStoriesAreTheSameOnWebAndAndroid() {
         // Reads the real web reader (docs/index.html). Unit tests run in app/, so the web page is one level up.
         val webFile = listOf(File("../docs/index.html"), File("docs/index.html")).firstOrNull { it.isFile }
-        Assume.assumeTrue("docs/index.html is not reachable from the test working directory", webFile != null)
+        // A hard failure, not a skip: a parity check that silently does not run is worse than none.
+        assertNotNull("docs/index.html must be reachable from the test working directory (app/ or the repo root)", webFile)
         val web = readWebStories(webFile!!.readText(Charsets.UTF_8))
 
         assertEquals("Same story ids", StoryBank.allStories.map { it.id }, web.map { it.id })
@@ -746,5 +748,113 @@ class ScrubBarModelTest {
         }
         assertTrue("Stories must have tricky sight words (e.g. 'the')", trickyWords.isNotEmpty())
         assertTrue("Tricky words should include 'the'", trickyWords.any { it.contains("the") })
+    }
+
+    @Test
+    fun testVoiceSelectionPrefersUsThenAnyEnglishAndSkipsNotInstalled() {
+        // A US voice beats a British one, in both orders.
+        val gbFirst = listOf(
+            VoiceCandidate("en-gb-x-local", "en", networkRequired = false, country = "GB"),
+            VoiceCandidate("en-us-x-local", "en", networkRequired = false, country = "US"),
+        )
+        assertEquals(1, VoiceSelection.choose(gbFirst).index)
+        assertEquals(0, VoiceSelection.choose(gbFirst.reversed()).index)
+
+        // No US voice: any English one will do.
+        val onlyAu = listOf(
+            VoiceCandidate("fr-fr-x-local", "fr", networkRequired = false, country = "FR"),
+            VoiceCandidate("en-au-x-local", "en", networkRequired = false, country = "AU"),
+        )
+        assertEquals(1, VoiceSelection.choose(onlyAu).index)
+
+        // Offline still beats network, even when the network voice is US and the offline one is not.
+        val offlineGb = VoiceSelection.choose(
+            listOf(
+                VoiceCandidate("en-us-x-network", "en", networkRequired = true, country = "US"),
+                VoiceCandidate("en-gb-x-local", "en", networkRequired = false, country = "GB"),
+            ),
+        )
+        assertEquals(1, offlineGb.index)
+        assertTrue(offlineGb.isOffline)
+
+        // A voice that is listed but not downloaded ("notInstalled") is never picked.
+        val notInstalled = VoiceSelection.choose(
+            listOf(
+                VoiceCandidate("en-us-x-missing", "en", networkRequired = false, country = "US", installed = false),
+                VoiceCandidate("en-gb-x-local", "en", networkRequired = false, country = "GB"),
+            ),
+        )
+        assertEquals(1, notInstalled.index)
+
+        // Only a not-installed voice: fall back to the engine default instead.
+        val onlyMissing = VoiceSelection.choose(
+            listOf(VoiceCandidate("en-us-x-missing", "en", networkRequired = false, country = "US", installed = false)),
+        )
+        assertEquals(null, onlyMissing.index)
+        assertEquals(VoiceSelection.DEFAULT_VOICE_NAME, onlyMissing.name)
+    }
+
+    @Test
+    fun testSpeechStatusMessagesAreHonest() {
+        // Android's TextToSpeech.LANG_MISSING_DATA = -1, LANG_NOT_SUPPORTED = -2; 0, 1, 2 mean the language works.
+        assertEquals(SpeechStatus.NO_LANGUAGE, VoiceSelection.statusForLanguageResult(-1))
+        assertEquals(SpeechStatus.NO_LANGUAGE, VoiceSelection.statusForLanguageResult(-2))
+        assertEquals(SpeechStatus.READY, VoiceSelection.statusForLanguageResult(0))
+        assertEquals(SpeechStatus.READY, VoiceSelection.statusForLanguageResult(1))
+        assertEquals(SpeechStatus.READY, VoiceSelection.statusForLanguageResult(2))
+
+        val failed = VoiceSelection.describe(SpeechStatus.FAILED, "x", isOffline = false)
+        assertTrue(failed, failed.contains("No speech engine found"))
+        assertFalse("A missing engine must not be described as a network problem", failed.contains("network"))
+        val noLanguage = VoiceSelection.describe(SpeechStatus.NO_LANGUAGE, "x", isOffline = true)
+        assertTrue(noLanguage, noLanguage.contains("Language data missing") && noLanguage.contains("English voice"))
+        val starting = VoiceSelection.describe(SpeechStatus.STARTING, "x", isOffline = false)
+        assertFalse("A starting engine must not be reported as needing the network", starting.contains("network"))
+        assertEquals("Voice A (offline ready)", VoiceSelection.describe(SpeechStatus.READY, "Voice A", isOffline = true))
+        assertTrue(VoiceSelection.describe(SpeechStatus.READY, "Voice A", isOffline = false).contains("network"))
+    }
+
+    @Test
+    fun testRepeatedTapsCannotRunThroughTheTrackerButDraggingCan() {
+        val min = TRACK_MIN_ADVANCE_INTERVAL_MS
+        // A first touch right after an advance is held back; after the interval it may step on.
+        assertFalse(trackMayAdvance(isFirstTouch = true, dragged = false, nowMs = 1_000, lastAdvanceMs = 1_000 - (min - 1)))
+        assertTrue(trackMayAdvance(isFirstTouch = true, dragged = false, nowMs = 1_000, lastAdvanceMs = 1_000 - min))
+        // Wobbling on a tap (no real drag, not the first touch) never steps on.
+        assertFalse(trackMayAdvance(isFirstTouch = false, dragged = false, nowMs = 10_000, lastAdvanceMs = 0))
+        // A real drag always may, however quickly the last advance was.
+        assertTrue(trackMayAdvance(isFirstTouch = false, dragged = true, nowMs = 1_001, lastAdvanceMs = 1_000))
+
+        // Simulate mashing the right end of the bar every 100 ms on an 8-word page: it steps on at most once per 300 ms.
+        val words = 8
+        var reached = 0
+        var last = -10_000L
+        var now = 0L
+        repeat(10) {
+            val may = trackMayAdvance(isFirstTouch = true, dragged = false, nowMs = now, lastAdvanceMs = last)
+            val limited = limitTrackedWordIndex(words - 1, reached)
+            val next = if (may) limited else limited.coerceAtMost(reached)
+            if (next > reached) { reached = next; last = now }
+            now += 100
+        }
+        assertTrue("10 quick taps (1 second) must not finish an 8-word page, reached $reached", reached < words - 1)
+        assertEquals(4, reached)   // taps at 0, 300, 600 and 900 ms each step on one word
+    }
+
+    @Test
+    fun testBuildSentenceSillyAndAlternativeSentences() {
+        assertEquals(listOf("The", "cat", "sat", "."), buildTokens("The cat sat."))
+        assertEquals(listOf("Do", "you", "like", "soup", "?"), buildTokens("Do you like soup?"))
+        val items = SentenceLabData.level6.buildItems
+        val bus = items.first { it.text == "The bus stops at our school." }
+        assertTrue("The bus sentence has silly alternatives, like the web Sentence Lab", bus.silly.isNotEmpty())
+        // Every alternative is made of exactly the same words and mark as the answer, so it can be built from the same tiles.
+        for (item in items) {
+            val answer = buildTokens(item.text).sorted()
+            for (other in item.alts + item.silly) {
+                assertEquals("'$other' must use the same words as '${item.text}'", answer, buildTokens(other).sorted())
+                assertNotEquals("An alternative must differ from the answer", buildTokens(item.text), buildTokens(other))
+            }
+        }
     }
 }

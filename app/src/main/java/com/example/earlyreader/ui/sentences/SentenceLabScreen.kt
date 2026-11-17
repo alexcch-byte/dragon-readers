@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -47,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.earlyreader.ui.CenteredScrollColumn
 import com.example.earlyreader.ui.theme.EarlyReaderTheme
 import com.example.earlyreader.ui.theme.TextDark
 import com.example.earlyreader.ui.theme.VioletPrimary
@@ -70,6 +73,10 @@ data class SentenceCheckItem(
 data class SentenceBuildItem(
     val kind: String, // "telling", "asking", "exciting"
     val text: String,
+    // Other real sentences made of the same words, accepted as correct too.
+    val alts: List<String> = emptyList(),
+    // Real but silly sentences (the nouns swapped): they get a friendly "try the other way" instead of a plain miss.
+    val silly: List<String> = emptyList(),
 ) {
     val endMark: String = text.takeLast(1)
     val rawWords: List<String> = text.dropLast(1).split(" ")
@@ -119,6 +126,9 @@ data class SentenceLabLevel(
     val buildItems: List<SentenceBuildItem> = emptyList(),
     val roleItems: List<SentenceRoleItem> = emptyList(),
 )
+
+/** The tokens a child places for [sentence]: its words, then its ending mark on its own ("The cat sat." -> The, cat, sat, "."). */
+fun buildTokens(sentence: String): List<String> = sentence.dropLast(1).split(" ") + sentence.takeLast(1)
 
 object SentenceLabData {
     val level1 = SentenceLabLevel(
@@ -354,7 +364,11 @@ object SentenceLabData {
             SentenceBuildItem(kind = "telling", text = "We planted seeds in the garden."),
             SentenceBuildItem(kind = "asking", text = "Where did the dog go?"),
             SentenceBuildItem(kind = "exciting", text = "I see a big rainbow!"),
-            SentenceBuildItem(kind = "telling", text = "The bus stops at our school."),
+            SentenceBuildItem(
+                kind = "telling",
+                text = "The bus stops at our school.",
+                silly = listOf("The school stops at our bus.", "The school at our bus stops."),
+            ),
         ),
     )
 
@@ -522,6 +536,13 @@ fun SentenceLabScreen(
                 }
                 buildFeedback = "Almost! $markHint"
                 buildSuccess = false
+            } else if (placedWords != targetWords && curBuildItem.alts.any { buildTokens(it) == placedTokens }) {
+                buildFeedback = "Yes! That is a real sentence too. The way I had in mind is: ${curBuildItem.text}"
+                buildSuccess = true
+                showReward = true
+            } else if (curBuildItem.silly.any { buildTokens(it) == placedTokens }) {
+                buildFeedback = "That is a real sentence, but a silly one! Try the other way: think about who or what is doing the thing."
+                buildSuccess = false
             } else if (placedWords != targetWords) {
                 buildFeedback = "Nearly! Read your sentence aloud: does it sound right? Tap a word to take it out and try again."
                 buildSuccess = false
@@ -534,21 +555,21 @@ fun SentenceLabScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+        // Scrolls when a level is taller than the screen (the Build level on a small phone), and returns to the top
+        // for every new sentence or level, with the Check / Next buttons brought into view once they matter.
+        CenteredScrollColumn(
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+            resetKey = "$levelIndex-$itemIndex-$levelFinished",
+            revealEnd = isComplete || levelFinished,
         ) {
-            // Level Selector Pills
-            Row(
+            // Level Selector Pills: they wrap onto a second line on a narrow phone, so every level is reachable.
+            FlowRow(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(3.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 levels.forEachIndexed { idx, lvl ->
                     val isSelected = idx == levelIndex
@@ -689,12 +710,7 @@ fun SentenceLabScreen(
 
                 if (isJudgeLevel && curCheckItem != null) {
                     // --- JUDGE SENTENCE UI ---
-                    Text(
-                        text = currentLevel.prompt,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = VioletPrimary,
-                    )
+                    SpokenPrompt(text = currentLevel.prompt, color = VioletPrimary, onSpeak = onSpeakSentence)
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -831,9 +847,9 @@ fun SentenceLabScreen(
                     }
 
                     // Controls for Judge Level
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         OutlinedButton(
                             onClick = { onSpeakSentence(curCheckItem.text) },
@@ -871,14 +887,7 @@ fun SentenceLabScreen(
                         "exciting" -> "Build an exciting sentence (it shows a big feeling). Tap the words in order, then add the ending mark."
                         else -> "Build a telling sentence. Tap the words in order, then add the ending mark."
                     }
-                    Text(
-                        text = buildPrompt,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = VioletPrimary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                    )
+                    SpokenPrompt(text = buildPrompt, color = VioletPrimary, onSpeak = onSpeakSentence)
 
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -1045,9 +1054,9 @@ fun SentenceLabScreen(
                     }
 
                     // Controls for Build Level
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         OutlinedButton(
                             onClick = {
@@ -1112,14 +1121,7 @@ fun SentenceLabScreen(
                     }
                 } else if (isRoleLevel && curRoleItem != null) {
                     // --- SORT ROLES UI (Level 6: Who and What) ---
-                    Text(
-                        text = currentLevel.prompt,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = VioletPrimary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                    )
+                    SpokenPrompt(text = currentLevel.prompt, color = VioletPrimary, onSpeak = onSpeakSentence)
 
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -1312,9 +1314,9 @@ fun SentenceLabScreen(
                     }
 
                     // Controls for Roles Level
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         OutlinedButton(
                             onClick = { onSpeakSentence(curRoleItem.fullSentence) },
@@ -1366,11 +1368,10 @@ fun SentenceLabScreen(
                         val basePrompt = currentLevel.prompt.replace("{n}", totalTargets.toString())
                         if (totalTargets > 1) "$basePrompt ($foundCount of $totalTargets)" else basePrompt
                     }
-                    Text(
+                    SpokenPrompt(
                         text = promptText,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
                         color = if (isComplete) VioletPrimary else TextDark,
+                        onSpeak = onSpeakSentence,
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -1453,9 +1454,9 @@ fun SentenceLabScreen(
                     }
 
                     // Controls for Tap Level
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         OutlinedButton(
                             onClick = { onSpeakSentence(curTapItem.text) },
@@ -1526,6 +1527,32 @@ fun SentenceLabScreen(
                 showReward = false
             }
         }
+    }
+}
+
+/**
+ * The instruction line of a level. Tapping it reads it aloud (the little speaker marks that), so a reader who is
+ * still learning to read the instructions can hear them. Brackets are dropped so the voice does not stumble.
+ */
+@Composable
+private fun SpokenPrompt(text: String, color: Color, onSpeak: (String) -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .heightIn(min = 48.dp)
+            .clickable(role = Role.Button, onClickLabel = "Hear the instructions") {
+                onSpeak(text.replace("(", "").replace(")", ""))
+            }
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "$text \uD83D\uDD0A",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

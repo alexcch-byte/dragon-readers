@@ -25,6 +25,11 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
     @Volatile
     private var initFailed = false
 
+    /** Whether speech can work: still starting, ready, no engine, or no English language data. */
+    @Volatile
+    var speechStatus: SpeechStatus = SpeechStatus.STARTING
+        private set
+
     var voiceName: String? = null
         private set
 
@@ -68,17 +73,30 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
         val engine = tts ?: return
         if (status != TextToSpeech.SUCCESS) {
             initFailed = true
+            speechStatus = SpeechStatus.FAILED
             synchronized(this) { pending = null }
             return
         }
-        engine.language = Locale.US
+        val languageStatus = try {
+            VoiceSelection.statusForLanguageResult(engine.setLanguage(Locale.US))
+        } catch (_: Exception) {
+            SpeechStatus.NO_LANGUAGE
+        }
         engine.setSpeechRate(WORD_RATE)
         engine.setOnUtteranceProgressListener(progressListener)
 
         val choice = try {
             val voices = engine.voices?.toList()
             val choice = VoiceSelection.choose(
-                voices?.map { VoiceCandidate(it.name, it.locale?.language, it.isNetworkConnectionRequired) },
+                voices?.map {
+                    VoiceCandidate(
+                        name = it.name,
+                        language = it.locale?.language,
+                        networkRequired = it.isNetworkConnectionRequired,
+                        country = it.locale?.country,
+                        installed = !it.features.orEmpty().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED),
+                    )
+                },
             )
             choice.index?.let { engine.voice = voices!![it] }
             choice
@@ -88,6 +106,8 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
         voiceName = choice.name
         isOfflineVoice = choice.isOffline
         isNetworkVoiceOnly = choice.isNetworkOnly
+        // An installed English voice was found and selected, so English works whatever the language call said.
+        speechStatus = if (choice.index != null) SpeechStatus.READY else languageStatus
         isInitialized = true
 
         // Something was asked for while the engine was starting: say the newest request now instead of dropping it.
