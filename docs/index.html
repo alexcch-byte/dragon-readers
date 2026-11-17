@@ -244,9 +244,9 @@
         <div class="bar-dividers" id="bar-dividers"></div>
         <div class="thumb" id="thumb" aria-hidden="true"></div>
       </div>
-      <button class="tricky-btn" id="tricky-btn" style="display:none"></button>
+      <button type="button" class="tricky-btn" id="tricky-btn" style="display:none"></button>
       <div class="tricky-label" id="tricky-label" style="display:none">tricky word</div>
-      <button class="help-btn" id="help-btn" title="Hear this word" aria-label="Hear this word">🔊</button>
+      <button type="button" class="help-btn" id="help-btn" title="Hear this word" aria-label="Hear this word">🔊</button>
       <button class="btn btn-primary next-btn" id="next-btn" style="display:none">Next ▸</button>
     </div>
   </div>
@@ -603,9 +603,11 @@
       trickyBtn.style.display = "flex";
       trickyLabel.style.display = "block";
       trickyBtn.textContent = word.t;
+      trickyBtn.setAttribute("aria-label", "Tricky word: " + word.t + ". Tap to hear it");
       hintEl.textContent = "This one's tricky — tap it to hear it.";
     } else {
       barEl.style.display = "block";
+      barEl.setAttribute("aria-label", "Sound out the word " + word.t);
       lettersEl.style.display = "flex";
       trickyBtn.style.display = "none";
       trickyLabel.style.display = "none";
@@ -967,7 +969,7 @@
     pageIndicatorEl.textContent = "Done!";
     hintEl.textContent = "";
     liveEl.textContent = "Great reading! The story is finished.";
-    restartBtn.focus({ preventScroll: true });
+    try { restartBtn.focus({ preventScroll: true }); } catch (e) {}
   }
 
   // "Read it again" resets the state and rebuilds the card instead of reloading the page.

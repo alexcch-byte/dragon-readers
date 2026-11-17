@@ -1,6 +1,8 @@
 package com.example.earlyreader.ui.scrub
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -78,6 +80,9 @@ private const val MAX_STEP = 0.4f
 // ...and at most this many bar-lengths per second (the same cap as MAX_SPEED in docs/index.html).
 private const val MAX_SPEED = 3.0f
 
+// Fraction of the bar below which a drag counts as "back at the start" (word can be scrubbed again).
+private const val RESCRUB_RESET = 0.03f
+
 // Keeps the bar's start clear of the system back-gesture edge (plan section 10).
 private val BarHorizontalPadding = 32.dp
 
@@ -104,6 +109,7 @@ fun SegmentedScrubBar(
     var completedFired by rememberSaveable(segments) { mutableStateOf(false) }
     // Once the word is complete the bar is finished: no more dragging, no re-firing the reward.
     var locked by rememberSaveable(segments) { mutableStateOf(false) }
+    var isDragging by remember { mutableStateOf(false) }
 
     // "Start here" pulse shown when a touch was snapped to an allowed start point.
     var startHint by remember { mutableStateOf(false) }
@@ -159,7 +165,12 @@ fun SegmentedScrubBar(
             }
         }
 
-        val fillFraction by animateFloatAsState(targetValue = displayProgress, label = "scrubFill")
+        val animatedProgress by animateFloatAsState(
+            targetValue = displayProgress,
+            animationSpec = if (isDragging) snap() else spring(),
+            label = "scrubFill",
+        )
+        val fillFraction = if (isDragging) displayProgress else animatedProgress
         val hintAlpha by animateFloatAsState(targetValue = if (startHint) 1f else 0f, label = "startHint")
         val wordText = segments.joinToString("")
 
@@ -217,7 +228,7 @@ fun SegmentedScrubBar(
                         // False after a snapped start: moves are ignored until the finger reaches the thumb.
                         var following = insideFirstSegment || nearCurrent
                         if (following) {
-                            progress = touch.coerceAtMost(progress + MAX_STEP)
+                            progress = if (touch <= RESCRUB_RESET) 0f else touch.coerceAtMost(progress + MAX_STEP)
                         } else {
                             // Too far from anywhere a drag may begin: start from the nearest
                             // allowed point (the start or the current progress) and show where.
@@ -231,31 +242,40 @@ fun SegmentedScrubBar(
                         var lastUptime = down.uptimeMillis
                         var lastX = touch
                         down.consume()
-                        while (true) {
-                            if (progress >= DONE_THRESHOLD) { locked = true; break }
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == pointerId } ?: break
-                            if (!change.pressed) {
-                                if (following && lastX > progress) {
-                                    progress = lastX
-                                    if (lastX >= DONE_THRESHOLD) {
-                                        progress = 1f
-                                        locked = true
+                        try {
+                            isDragging = true
+                            while (true) {
+                                if (progress >= DONE_THRESHOLD) { locked = true; break }
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                                if (!change.pressed) {
+                                    if (following && lastX > progress) {
+                                        progress = lastX
+                                        if (lastX >= DONE_THRESHOLD) {
+                                            progress = 1f
+                                            locked = true
+                                        }
+                                    }
+                                    break
+                                }
+                                val x = (change.position.x / width).coerceIn(0f, 1f)
+                                lastX = x
+                                val dt = (change.uptimeMillis - lastUptime).coerceAtLeast(0L) / 1000f
+                                lastUptime = change.uptimeMillis
+                                if (!following) {
+                                    following = x <= firstBoundary || abs(x - progress) <= reach
+                                }
+                                if (following) {
+                                    if (x <= RESCRUB_RESET) {
+                                        progress = 0f
+                                    } else {
+                                        progress = x.coerceAtMost(progress + minOf(MAX_STEP, dt * MAX_SPEED))
                                     }
                                 }
-                                break
+                                change.consume()
                             }
-                            val x = (change.position.x / width).coerceIn(0f, 1f)
-                            lastX = x
-                            val dt = (change.uptimeMillis - lastUptime).coerceAtLeast(0L) / 1000f
-                            lastUptime = change.uptimeMillis
-                            if (!following) {
-                                following = x <= firstBoundary || abs(x - progress) <= reach
-                            }
-                            if (following) {
-                                progress = x.coerceAtMost(progress + minOf(MAX_STEP, dt * MAX_SPEED))
-                            }
-                            change.consume()
+                        } finally {
+                            isDragging = false
                         }
                         if (progress >= DONE_THRESHOLD) locked = true
                     }
