@@ -19,13 +19,13 @@ A calm phonics app for pre-readers (built for a 4-year-old, used together with a
   6. **Build a sentence**: put scrambled words in order and choose the capital letter and end mark (. ? !).
 
   Finished levels are remembered on the device (in the browser's local storage) and nothing else is stored.
-- **Android app** (Kotlin + Compose): Milestones 1, 2, and 3. Includes the segmented scrub bar with 1:1 touch tracking and rescrub reset, starter word bank cycling ("cat", "hen", "fox", "box", "big", "red") with sentence-in-context display, TextToSpeech audio support, Help button, completion audio, picture/emoji reveal on decode attempt, parent gate settings with TTS engine info, and accessibility semantics. The story player and Sentence Lab exist in the web demo (see the milestones in the plan).
+- **Android app** (Kotlin + Compose): Milestones 1, 2, and 3+. Includes mode selection between Word Practice and Story Mode ("The Red Hen" 4-page sequence with tricky/sight words, segmented scrub bar, auto-advancing, and page read-aloud), starter word bank cycling ("cat", "hen", "fox", "box", "big", "red") with sentence-in-context display, TextToSpeech audio support, Help button, completion audio, picture/emoji reveal on decode attempt, parent gate settings with math challenge and TTS engine info, and accessibility semantics.
 
 Per-letter sounds use short dictionary words ("ant" for a, "hat" for h) because TTS reads a lone letter by its name. Key words start with the letter sound and avoid story words. A real phoneme clip pack is planned.
 
 ## Try it in the browser
 
-The demo is live at the GitHub Pages link in the repo "About" section. Features three multi-sentence stories ("The Red Hen", "The Big Pig", and "The Sun and the Bug") with an interactive story switcher, segmented sounding out, TTS audio, picture reveals, and tricky words. The Sentence Lab is at `sentences.html` next to it.
+The demo is live at the GitHub Pages link in the repo "About" section. Features four multi-sentence stories ("The Red Hen", "The Big Pig", "The Sun and the Bug", and "The Cat on the Mat") with an interactive story switcher, circular next-story navigation, segmented sounding out, TTS audio, picture reveals, and tricky words. The Sentence Lab is at `sentences.html` next to it.
 
 ## Download the Android prototype (one word)
 

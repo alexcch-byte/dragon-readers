@@ -423,6 +423,63 @@
           {t:"won!", sight:true, say:"won"}
         ]
       ]
+    },
+    {
+      id: "cat",
+      title: "The Cat on the Mat",
+      pages: [
+        [
+          {t:"A", sight:true, say:"uh"},
+          {t:"fat", seg:["f","a","t"]},
+          {t:"cat", img:"🐱", seg:["c","a","t"]},
+          {t:"sat.", seg:["s","a","t"], say:"sat"},
+          {t:"The", sight:true},
+          {t:"cat", img:"🐱", seg:["c","a","t"]},
+          {t:"is", sight:true},
+          {t:"on", sight:true},
+          {t:"a", sight:true, say:"uh"},
+          {t:"mat.", img:"🧶", seg:["m","a","t"], say:"mat"}
+        ],
+        [
+          {t:"A", sight:true, say:"uh"},
+          {t:"rat", img:"🐀", seg:["r","a","t"]},
+          {t:"ran", img:"🏃", seg:["r","a","n"]},
+          {t:"by.", sight:true, say:"by"},
+          {t:"The", sight:true},
+          {t:"cat", img:"🐱", seg:["c","a","t"]},
+          {t:"saw", sight:true, say:"saw"},
+          {t:"the", sight:true},
+          {t:"rat.", img:"🐀", seg:["r","a","t"], say:"rat"}
+        ],
+        [
+          {t:"The", sight:true},
+          {t:"cat", img:"🐱", seg:["c","a","t"]},
+          {t:"got", seg:["g","o","t"]},
+          {t:"a", sight:true, say:"uh"},
+          {t:"big", seg:["b","i","g"]},
+          {t:"hat.", img:"🎩", seg:["h","a","t"], say:"hat"},
+          {t:"The", sight:true},
+          {t:"hat", img:"🎩", seg:["h","a","t"]},
+          {t:"is", sight:true},
+          {t:"on", sight:true},
+          {t:"the", sight:true},
+          {t:"cat.", img:"🐱", seg:["c","a","t"], say:"cat"}
+        ],
+        [
+          {t:"Can", seg:["C","a","n"], say:"Can"},
+          {t:"the", sight:true},
+          {t:"cat", img:"🐱", seg:["c","a","t"]},
+          {t:"nap?", img:"💤", seg:["n","a","p"], say:"nap"},
+          {t:"Yes!", seg:["Y","e","s"], say:"Yes"},
+          {t:"The", sight:true},
+          {t:"cat", img:"🐱", seg:["c","a","t"]},
+          {t:"can", seg:["c","a","n"]},
+          {t:"nap", img:"💤", seg:["n","a","p"]},
+          {t:"on", sight:true},
+          {t:"the", sight:true},
+          {t:"mat.", img:"🧶", seg:["m","a","t"], say:"mat"}
+        ]
+      ]
     }
   ];
   let storyIndex = 0;
@@ -1116,12 +1173,13 @@
     pageIndicatorEl.textContent = "Done!";
     hintEl.textContent = "";
     liveEl.textContent = "Great reading! The story is finished.";
-    const nextStory = STORIES[storyIndex + 1];
-    if (nextStory && nextStoryBtn) {
+    const nextIndex = (storyIndex + 1) % STORIES.length;
+    const nextStory = STORIES[nextIndex];
+    if (nextStory && nextStoryBtn && STORIES.length > 1) {
       nextStoryBtn.style.display = "inline-flex";
       nextStoryBtn.textContent = "Next story: " + nextStory.title + " ▸";
       nextStoryBtn.onclick = () => {
-        storyIndex++;
+        storyIndex = nextIndex;
         try { sessionStorage.setItem(STORY_KEY, String(storyIndex)); } catch (e) {}
         clearSavedPage();
         pageIndex = 0;

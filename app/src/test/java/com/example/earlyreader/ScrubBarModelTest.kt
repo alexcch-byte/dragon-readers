@@ -1,5 +1,6 @@
 package com.example.earlyreader
 
+import com.example.earlyreader.model.StoryBank
 import com.example.earlyreader.model.WordBank
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -99,6 +100,30 @@ class ScrubBarModelTest {
             assertEquals("Challenge should have 3 options", 3, challenge.options.size)
             assertTrue("Challenge options must contain correct answer", challenge.options.contains(challenge.answer))
             assertTrue("Challenge answer must be positive", challenge.answer > 0)
+        }
+    }
+
+    @Test
+    fun testStoryModelIntegrity() {
+        val story = StoryBank.redHenStory
+        assertEquals("hen", story.id)
+        assertEquals("The Red Hen", story.title)
+        assertEquals("Story must have 4 pages", 4, story.pages.size)
+        for ((idx, page) in story.pages.withIndex()) {
+            assertTrue("Page $idx must have words", page.words.isNotEmpty())
+            assertTrue("Page $idx sentence must match words", page.fullSentence.isNotBlank())
+            for (word in page.words) {
+                assertTrue("Word text must not be blank", word.text.isNotBlank())
+                if (!word.sight) {
+                    assertTrue("Decodable word ${word.text} must have segments", word.segments.isNotEmpty())
+                    val cleanText = word.text.trimEnd('.', '!', '?', ',')
+                    assertEquals(
+                        "Segments must join to word text for ${word.text}",
+                        cleanText.lowercase(),
+                        word.segments.joinToString("").lowercase(),
+                    )
+                }
+            }
         }
     }
 }
