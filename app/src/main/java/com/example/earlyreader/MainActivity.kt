@@ -5,6 +5,7 @@ import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -109,6 +110,14 @@ import com.example.earlyreader.ui.theme.SegmentEmpty
 import com.example.earlyreader.ui.theme.TextDark
 import com.example.earlyreader.ui.theme.VioletPrimary
 import com.example.earlyreader.ui.theme.WarmAccent
+import com.example.earlyreader.ui.welcome.WELCOME_GREETING_SPEECH
+import com.example.earlyreader.ui.welcome.WelcomeDestination
+import com.example.earlyreader.ui.welcome.WelcomeScreen
+import com.example.earlyreader.ui.welcome.appModeFromSaved
+import com.example.earlyreader.ui.welcome.modeFor
+import com.example.earlyreader.ui.welcome.readTileInfo
+import com.example.earlyreader.ui.welcome.savedModeFor
+import com.example.earlyreader.ui.welcome.welcomeProgressLine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -230,13 +239,14 @@ fun EarlyReaderApp(
     // progress never depends on speech actually happening.
     onAwaitSpeech: suspend () -> Unit = { speechManager?.awaitIdle() ?: delay(600) },
 ) {
-    val initialMode = when (progressStorage?.lastAppMode) {
-        ProgressStorage.MODE_STORY -> AppMode.STORY_MODE
-        ProgressStorage.MODE_WORDS -> AppMode.WORD_PRACTICE
-        ProgressStorage.MODE_SENTENCES -> AppMode.SENTENCE_LAB
-        else -> AppMode.TRACK_TO_READ
-    }
+    // The last real screen the child used (old or unknown saved values mean Track to Read).
+    val initialMode = appModeFromSaved(progressStorage?.lastAppMode)
     var appMode by rememberSaveable { mutableStateOf(initialMode) }
+    // The Welcome page is not a mode: it is shown over the modes on a fresh start and by the Home button. The saved
+    // "last mode" keeps meaning the last real screen, and each screen keeps its place underneath.
+    var showWelcome by rememberSaveable { mutableStateOf(true) }
+    // The child has opened a reading screen since the app started, so "Read" says Continue.
+    var hasOpenedReading by rememberSaveable { mutableStateOf(false) }
     var selectedStoryIndex by rememberSaveable {
         mutableIntStateOf(progressStorage?.lastActiveStoryIndex ?: 0)
     }
@@ -252,7 +262,6 @@ fun EarlyReaderApp(
     var showSettingsDialog by remember { mutableStateOf(false) }
     var mathChallenge by remember { mutableStateOf(generateMathChallenge()) }
     var showResetConfirm by remember { mutableStateOf(false) }
-    var showHomeConfirm by remember { mutableStateOf(false) }
     // Keeps each screen's saved state (page, word, level) while it is off screen, so switching tabs and back
     // carries on where the child was instead of starting again at page 1.
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -262,15 +271,14 @@ fun EarlyReaderApp(
 
     val currentStory = stories[selectedStoryIndex % stories.size]
 
+    // Opens a real screen (a Welcome tile or a mode chip): leaving a screen, or the Welcome page, never leaves
+    // speech going. The saved "last mode" is only ever a real screen.
     val handleModeChange: (AppMode) -> Unit = { mode ->
-        if (mode != appMode) onStopSpeech()
+        if (mode != appMode || showWelcome) onStopSpeech()
         appMode = mode
-        progressStorage?.lastAppMode = when (mode) {
-            AppMode.STORY_MODE -> ProgressStorage.MODE_STORY
-            AppMode.TRACK_TO_READ -> ProgressStorage.MODE_TRACKING
-            AppMode.SENTENCE_LAB -> ProgressStorage.MODE_SENTENCES
-            AppMode.WORD_PRACTICE -> ProgressStorage.MODE_WORDS
-        }
+        showWelcome = false
+        if (mode == AppMode.TRACK_TO_READ || mode == AppMode.STORY_MODE) hasOpenedReading = true
+        progressStorage?.lastAppMode = savedModeFor(mode)
     }
 
     val handleStorySelect: (Int) -> Unit = { idx ->
@@ -306,30 +314,24 @@ fun EarlyReaderApp(
         showResetConfirm = false
         showSettingsDialog = false
         handleModeChange(AppMode.TRACK_TO_READ)
+        // A fresh start after a reset: nothing to continue, back on the Welcome page.
+        hasOpenedReading = false
+        showWelcome = true
     }
 
-    // Home only goes back to the start of Track to Read (the first story, page 1) and forgets where the child was
-    // in every story (the dialog says so). Words and Sentence Lab keep their place, and stars and progress are never touched. It asks
-    // first, because a stray tap would otherwise lose the place.
-    val handleHomeClick: () -> Unit = { showHomeConfirm = true }
-
-    val performHome: () -> Unit = {
-        onStopSpeech()
-        stories.indices.forEach { idx ->
-            saveableStateHolder.removeState("story-$idx-$storyResetKey")
-            saveableStateHolder.removeState("track-$idx-$storyResetKey")
+    // Home just opens the Welcome page. It never erases anything: each screen keeps its page, word and level (they are
+    // saved under their own keys while the Welcome page is up), and stars and progress are only cleared by "Reset all
+    // progress" in the grown-ups' settings. So there is nothing to confirm.
+    val handleHomeClick: () -> Unit = {
+        if (!showWelcome) {
+            onStopSpeech()
+            showStoryPicker = false
+            showWelcome = true
         }
-        selectedStoryIndex = 0
-        progressStorage?.lastActiveStoryIndex = 0
-        // A new key makes the screens that are showing right now start again, not just the saved ones.
-        storyResetKey++
-        showStoryPicker = false
-        showSettingsDialog = false
-        showMathGate = false
-        showResetConfirm = false
-        showHomeConfirm = false
-        handleModeChange(AppMode.TRACK_TO_READ)
     }
+
+    // The system Back button on a screen goes back to the Welcome page, not out of the app.
+    BackHandler(enabled = !showWelcome, onBack = handleHomeClick)
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -341,14 +343,19 @@ fun EarlyReaderApp(
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 home = {
-                    // Dedicated Home button at top start (icon only, so the bar fits a 360dp phone)
+                    // Dedicated Home button at top start (icon only, so the bar fits a 360dp phone). It opens the
+                    // Welcome page; on the Welcome page it is shown filled and selected ("you are here") and does nothing.
                     Surface(
                         onClick = handleHomeClick,
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = if (showWelcome) BorderStroke(3.dp, VioletPrimary) else null,
                         modifier = Modifier
                             .size(48.dp)
-                            .semantics { contentDescription = "Home: return to the start" },
+                            .semantics {
+                                contentDescription = if (showWelcome) "Home: you are on the welcome page" else "Home: open the welcome page"
+                                selected = showWelcome
+                            },
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                             Text(text = "🏠", fontSize = 22.sp)
@@ -364,10 +371,11 @@ fun EarlyReaderApp(
                             .padding(3.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        ModeChip("Words", appMode == AppMode.WORD_PRACTICE) { handleModeChange(AppMode.WORD_PRACTICE) }
-                        ModeChip("Stories", appMode == AppMode.STORY_MODE) { handleModeChange(AppMode.STORY_MODE) }
-                        ModeChip("Track", appMode == AppMode.TRACK_TO_READ) { handleModeChange(AppMode.TRACK_TO_READ) }
-                        ModeChip("Lab", appMode == AppMode.SENTENCE_LAB, description = "Sentence Lab, for older readers about 6 to 8") {
+                        // On the Welcome page no chip is selected: the child is not in any mode yet.
+                        ModeChip("Words", !showWelcome && appMode == AppMode.WORD_PRACTICE) { handleModeChange(AppMode.WORD_PRACTICE) }
+                        ModeChip("Stories", !showWelcome && appMode == AppMode.STORY_MODE) { handleModeChange(AppMode.STORY_MODE) }
+                        ModeChip("Track", !showWelcome && appMode == AppMode.TRACK_TO_READ) { handleModeChange(AppMode.TRACK_TO_READ) }
+                        ModeChip("Lab", !showWelcome && appMode == AppMode.SENTENCE_LAB, description = "Sentence Lab, for older readers about 6 to 8") {
                             handleModeChange(AppMode.SENTENCE_LAB)
                         }
                     }
@@ -400,7 +408,20 @@ fun EarlyReaderApp(
                     AppMode.TRACK_TO_READ -> "track-$selectedStoryIndex-$storyResetKey"
                     AppMode.SENTENCE_LAB -> "lab-$practiceResetKey"
                 }
-                saveableStateHolder.SaveableStateProvider(screenKey) {
+                if (showWelcome) {
+                    // The screens underneath are not composed, so they are saved by the state holder (like a tab
+                    // that is switched away from) and come back exactly as they were.
+                    WelcomeScreen(
+                        readTile = readTileInfo(stories.map { it.title }, selectedStoryIndex, hasOpenedReading),
+                        progressLine = welcomeProgressLine(completedStories.size, stories.size, wordsCompletedCount),
+                        onRead = { handleModeChange(modeFor(WelcomeDestination.READ)) },
+                        onSounds = { handleModeChange(modeFor(WelcomeDestination.SOUNDS)) },
+                        onStories = { handleModeChange(modeFor(WelcomeDestination.STORIES)) },
+                        onSentenceLab = { handleModeChange(modeFor(WelcomeDestination.SENTENCE_LAB)) },
+                        // Only ever on a tap, never when the page opens.
+                        onHearHello = { onSpeakWord(WELCOME_GREETING_SPEECH) },
+                    )
+                } else saveableStateHolder.SaveableStateProvider(screenKey) {
                     when (appMode) {
                         AppMode.WORD_PRACTICE -> {
                             WordPracticeScreen(
@@ -457,28 +478,6 @@ fun EarlyReaderApp(
                     }
                 }
             }
-        }
-
-        // Home asks first: it forgets the place in the stories.
-        if (showHomeConfirm) {
-            AlertDialog(
-                onDismissRequest = { showHomeConfirm = false },
-                title = { Text(text = "Go home?", fontWeight = FontWeight.Bold) },
-                text = {
-                    Text(text = "Back to page 1 of Track to Read. Your place in the stories is forgotten; stars are kept.")
-                },
-                // The safe choice is the big filled button; the one that loses the place is the quiet text button.
-                confirmButton = {
-                    Button(onClick = { showHomeConfirm = false }, modifier = Modifier.height(48.dp)) {
-                        Text(text = "Stay here")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = performHome, modifier = Modifier.height(48.dp)) {
-                        Text(text = "Yes, go home")
-                    }
-                },
-            )
         }
 
         // Story Picker Dialog
@@ -624,7 +623,7 @@ fun EarlyReaderApp(
                             Text(text = "⚙️ System TTS Settings", fontSize = 14.sp)
                         }
                         Spacer(modifier = Modifier.height(10.dp))
-                        Text(text = "• Current Mode: ${when (appMode) {
+                        Text(text = "• Current Mode: ${if (showWelcome) "Welcome page" else when (appMode) {
                             AppMode.WORD_PRACTICE -> "Word Practice"
                             AppMode.STORY_MODE -> "Story Mode (${currentStory.title})"
                             AppMode.TRACK_TO_READ -> "Track to Read (${currentStory.title})"

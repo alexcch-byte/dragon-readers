@@ -358,6 +358,62 @@
   .grownups .links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 10px; }
   .grownups .links a { min-height: 44px; display: inline-flex; align-items: center; }
 
+  /* ---- Welcome page (what Home opens, and what the page shows on load) ---- */
+  .welcome {
+    width: 100%; max-width: 880px; padding: 4px 16px 8px; display: flex; flex-direction: column;
+    align-items: center; text-align: center;
+  }
+  .welcome[hidden] { display: none; }
+  body.welcome-open main { display: none; }
+  body.welcome-open header h1, body.welcome-open header .tagline { display: none; }
+  .hello-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none;
+    padding: 2px 16px; border-radius: 24px; cursor: pointer; font-family: inherit; color: var(--text-dark);
+  }
+  .hello-btn:hover .hello-pill { background: #DDD6FE; }
+  .hello-btn .dragon { font-size: 4.5rem; line-height: 1.1; }
+  .hello-pill {
+    display: inline-flex; align-items: center; min-height: 48px; padding: 8px 18px; border-radius: 999px;
+    background: #EDE9FE; color: var(--violet); font-weight: 600; font-size: 1rem;
+  }
+  .welcome h1 { color: var(--violet); font-size: 2.6rem; margin: 4px 0 0; }
+  .welcome h1:focus { outline: none; }
+  .greeting { font-size: 1.25rem; margin: 4px 0 18px; color: var(--text-dark); }
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; }
+  .tile {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    min-height: 120px; padding: 12px 8px; border-radius: 24px; border: 2px solid var(--violet);
+    background: #EDE9FE; color: var(--text-dark); font-family: inherit; text-decoration: none; cursor: pointer;
+    text-align: center; box-shadow: 0 6px 16px rgba(80, 49, 245, 0.08);
+  }
+  .tile:hover { box-shadow: 0 8px 20px rgba(80, 49, 245, 0.18); }
+  .tile .tile-emoji { font-size: 2.6rem; line-height: 1.1; }
+  .tile .tile-label { font-size: 1.3rem; font-weight: 700; line-height: 1.15; }
+  .tile .tile-caption { font-size: 0.9rem; line-height: 1.25; }
+  .tile-read { background: #EDE9FE; border-color: var(--violet); }
+  .tile-sounds { background: #FFEDD5; border-color: var(--accent); }
+  .tile-stories { background: #DCFCE7; border-color: #15803D; }
+  .tile-lab { background: #DBEAFE; border-color: #1D4ED8; }
+  .tile:focus-visible, .hello-btn:focus-visible { outline: 3px solid var(--text-dark); outline-offset: 3px; }
+  .welcome-progress { margin: 18px 0 4px; font-size: 1rem; color: var(--text-dark); }
+  .welcome-progress[hidden] { display: none; }
+  /* Home is 48px tall at least, and filled while the Welcome page is showing ("you are here"). */
+  #home-btn { min-height: 48px; min-width: 48px; }
+  #home-btn.here { background: var(--violet); color: white; cursor: default; }
+  @media (min-width: 760px) {
+    .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+  @media (max-width: 600px) {
+    .welcome { padding: 0 12px 4px; }
+    .hello-btn .dragon { font-size: 3.4rem; }
+    .welcome h1 { font-size: 2rem; }
+    .greeting { font-size: 1.1rem; margin-bottom: 12px; }
+    .tile { min-height: 112px; }
+    .tile .tile-emoji { font-size: 2.2rem; }
+    .tile .tile-label { font-size: 1.15rem; }
+    .welcome-progress { margin-top: 12px; }
+  }
+
   .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
   /* Phones: keep the bar and the help button on the first screen. */
@@ -434,7 +490,7 @@
 <header>
   <div class="head-row">
     <div class="head-left">
-      <button type="button" class="btn btn-secondary btn-small" id="home-btn" aria-label="Home: return to start" title="Return to start of Early Reader">🏠 Home</button>
+      <button type="button" class="btn btn-secondary btn-small" id="home-btn" aria-label="Home: open the welcome page" title="Open the welcome page">🏠 Home</button>
       <h1>Early Reader</h1>
     </div>
     <a class="btn btn-secondary btn-small" id="sentence-lab-link" href="sentences.html" title="Sentence Lab, for readers about 6 to 8">✏ Sentence Lab<span class="long"> (ages 6–8)</span></a>
@@ -446,6 +502,38 @@
   <span>No English voice found on this device. The app still works, but it may be silent.</span>
   <button type="button" id="voice-banner-close" aria-label="Dismiss">✕</button>
 </div>
+
+<section class="welcome" id="welcome" aria-labelledby="welcome-title">
+  <button type="button" class="hello-btn" id="hello-btn" aria-label="Hear hello">
+    <span class="dragon" aria-hidden="true">🐉</span>
+    <span class="hello-pill" aria-hidden="true">🔊 Hear hello</span>
+  </button>
+  <h1 id="welcome-title" tabindex="-1">Early Reader</h1>
+  <p class="greeting">Hi! What shall we do today?</p>
+  <div class="tiles" id="tiles">
+    <button type="button" class="tile tile-read" id="tile-read" aria-label="Read">
+      <span class="tile-emoji" aria-hidden="true">👆</span>
+      <span class="tile-label" aria-hidden="true">Read</span>
+      <span class="tile-caption" id="tile-read-caption" aria-hidden="true"></span>
+    </button>
+    <button type="button" class="tile tile-sounds" id="tile-sounds" aria-label="Sounds, drag to sound out words">
+      <span class="tile-emoji" aria-hidden="true">🔤</span>
+      <span class="tile-label" aria-hidden="true">Sounds</span>
+      <span class="tile-caption" aria-hidden="true">Drag to sound out words</span>
+    </button>
+    <button type="button" class="tile tile-stories" id="tile-stories" aria-label="Stories, pick a story">
+      <span class="tile-emoji" aria-hidden="true">📖</span>
+      <span class="tile-label" aria-hidden="true">Stories</span>
+      <span class="tile-caption" aria-hidden="true">Pick a story</span>
+    </button>
+    <a class="tile tile-lab" id="tile-lab" href="sentences.html" aria-label="Sentence Lab, for ages 6 and up">
+      <span class="tile-emoji" aria-hidden="true">✏️</span>
+      <span class="tile-label" aria-hidden="true">Sentence Lab</span>
+      <span class="tile-caption" aria-hidden="true">for ages 6+</span>
+    </a>
+  </div>
+  <p class="welcome-progress" id="welcome-progress" hidden></p>
+</section>
 
 <main>
   <div class="mode-bar" id="mode-bar">
@@ -1498,6 +1586,19 @@
     const n = parseInt(sessionStorage.getItem(PAGE_KEY), 10);
     if (Number.isInteger(n) && n > 0 && n < currentStory().pages.length) savedPage = n;
   } catch (e) { /* storage blocked: start from the first page */ }
+  // Titles of the stories finished in this tab session (for the Welcome page's progress line).
+  const FINISHED_KEY = "earlyReader.story.finished";
+  function finishedStories() {
+    try {
+      const list = JSON.parse(sessionStorage.getItem(FINISHED_KEY) || "[]");
+      return Array.isArray(list) ? list.filter(t => STORIES.some(s => s.title === t)) : [];
+    } catch (e) { return []; }
+  }
+  function recordFinished(title) {
+    const list = finishedStories();
+    if (!list.includes(title)) list.push(title);
+    try { sessionStorage.setItem(FINISHED_KEY, JSON.stringify(list)); } catch (e) {}
+  }
   function savePage() { try { sessionStorage.setItem(PAGE_KEY, String(pageIndex)); } catch (e) {} }
   function clearSavedPage() { try { sessionStorage.removeItem(PAGE_KEY); } catch (e) {} savedPage = 0; }
 
@@ -2329,6 +2430,7 @@
     flow++;
     stopSpeech();
     clearSavedPage();
+    recordFinished(currentStory().title);
     endTextEl.textContent = "You finished “" + currentStory().title + "”.";
     demoCard.classList.add("finished");
     pageIndicatorEl.textContent = "Done!";
@@ -2381,8 +2483,7 @@
         try { sessionStorage.setItem(STORY_KEY, String(storyIndex)); } catch (e) {}
         clearSavedPage();
         pageIndex = 0;
-        startBtn.textContent = "▶ Start story";
-        startTextEl.textContent = "Story " + (idx + 1) + " of " + STORIES.length + ": " + s.title;
+        refreshStartCard();
         renderStoryTabs();
         beginStory();
       };
@@ -2394,12 +2495,16 @@
   // The Start card is the first real tap/click on the page, which browsers require before they let
   // a page speak at all (a touch pointerdown doesn't count). It speaks the title to unlock speech.
   // After a reload in the same tab it carries on from the page the child had reached.
-  if (savedPage > 0) {
-    startBtn.textContent = "▶ Continue story";
-    startTextEl.textContent = "Pick up at page " + (savedPage + 1) + " of " + currentStory().pages.length + ".";
-  } else {
-    startTextEl.textContent = "Story " + (storyIndex + 1) + " of " + STORIES.length + ": " + currentStory().title;
+  function refreshStartCard() {
+    if (savedPage > 0) {
+      startBtn.textContent = "▶ Continue story";
+      startTextEl.textContent = "Pick up at page " + (savedPage + 1) + " of " + currentStory().pages.length + ".";
+    } else {
+      startBtn.textContent = "▶ Start story";
+      startTextEl.textContent = "Story " + (storyIndex + 1) + " of " + STORIES.length + ": " + currentStory().title;
+    }
   }
+  refreshStartCard();
   function beginStory() {
     started = true;
     pageIndex = savedPage;
@@ -2409,36 +2514,109 @@
   }
   startBtn.addEventListener("click", beginStory);
 
-  function goHome() {
-    flow++;
-    stopSpeech();
-    started = false;
-    storyIndex = 0;
-    pageIndex = 0;
-    activeWordIndex = 0;
-    progress = 0;
-    trackProgress = 0;
-    trackedIndex = 0;
-    trackReached = 0;
-    trackPageCompleted = false;
-    demoCard.classList.remove("finished");
-    demoCard.classList.add("not-started");
-    setReadingMode("track");
-    renderStoryTabs();
-    // Forget the saved place (what savePage()/the story tabs write to sessionStorage), so "Start story" opens
-    // story 1 page 1 now and after a reload.
-    clearSavedPage();
-    try { sessionStorage.removeItem(STORY_KEY); } catch (_) {}
-    startTextEl.textContent = "Story 1 of " + STORIES.length + ": " + STORIES[0].title;
-    startBtn.textContent = "▶ Start story";
-    renderPage();   // so the page indicator behind the Start card says page 1 again
-  }
+  // ---- Welcome page ----
+  // Home opens this page, and so does a fresh load. It never erases anything: the story, page and stars are kept,
+  // and a tile picks the child up where they were. Nothing is spoken until a tile or the dragon is tapped (a tap is
+  // also the user gesture the browser needs before it lets the page speak).
+  const welcomeEl = document.getElementById("welcome");
+  const welcomeTitleEl = document.getElementById("welcome-title");
+  const helloBtn = document.getElementById("hello-btn");
+  const tileRead = document.getElementById("tile-read");
+  const tileReadCaption = document.getElementById("tile-read-caption");
+  const tileSounds = document.getElementById("tile-sounds");
+  const tileStories = document.getElementById("tile-stories");
+  const welcomeProgressEl = document.getElementById("welcome-progress");
   const homeBtn = document.getElementById("home-btn");
-  if (homeBtn) {
-    homeBtn.addEventListener("click", goHome);
+  const WELCOME_GREETING = "Hi! Let's read!";
+
+  function welcomeOpen() { return !welcomeEl.hidden; }
+
+  // Is there something to carry on with? (a story that has been started in this tab, a saved page, or a story picked)
+  function hasReadingProgress() {
+    return started || savedPage > 0 || storyIndex > 0;
   }
 
+  function updateWelcome() {
+    const title = currentStory().title;
+    const cont = hasReadingProgress();
+    tileReadCaption.textContent = (cont ? "Continue: " : "Start: ") + title;
+    tileRead.setAttribute("aria-label", "Read, " + (cont ? "continue " : "start ") + title);
+    const done = finishedStories().length;
+    if (done > 0) {
+      welcomeProgressEl.textContent = "⭐ " + done + " of " + STORIES.length + " stories finished";
+      welcomeProgressEl.hidden = false;
+    } else {
+      welcomeProgressEl.textContent = "";
+      welcomeProgressEl.hidden = true;
+    }
+  }
+
+  function showWelcome(focusTitle) {
+    // Whatever was being said (or about to be said) stops, and a page that was being read to the child stops
+    // advancing behind the Welcome page.
+    flow++;
+    stopSpeech();
+    stopCatchUp();
+    // Coming back through Start / Continue picks up on the page that was showing.
+    if (started && !demoCard.classList.contains("finished") && !demoCard.classList.contains("not-started")) {
+      savedPage = pageIndex;
+    }
+    updateWelcome();
+    welcomeEl.hidden = false;
+    document.body.classList.add("welcome-open");
+    homeBtn.classList.add("here");
+    homeBtn.setAttribute("aria-current", "page");
+    homeBtn.setAttribute("aria-label", "Home: you are on the welcome page");
+    window.scrollTo(0, 0);
+    if (focusTitle) { try { welcomeTitleEl.focus({ preventScroll: true }); } catch (e) {} }
+  }
+
+  function leaveWelcome() {
+    welcomeEl.hidden = true;
+    document.body.classList.remove("welcome-open");
+    homeBtn.classList.remove("here");
+    homeBtn.removeAttribute("aria-current");
+    homeBtn.setAttribute("aria-label", "Home: open the welcome page");
+    stopSpeech();
+    window.scrollTo(0, 0);
+  }
+
+  // Read / Sounds: open the story in Track to Read / Phonics Scrub. A story that has not been started yet is started
+  // by this tap (the tap is the user gesture, so beginStory's title speech works exactly as after the Start card);
+  // one that is under way carries on at its page.
+  function openReader(mode) {
+    leaveWelcome();
+    setReadingMode(mode);
+    if (demoCard.classList.contains("not-started")) {
+      beginStory();
+    } else if (!demoCard.classList.contains("finished")) {
+      renderPage();
+    }
+  }
+
+  // Stories: the story picker, which is the Start card (Continue / Start, and every story to pick from).
+  function openStoryPicker() {
+    leaveWelcome();
+    if (started && !demoCard.classList.contains("finished") && !demoCard.classList.contains("not-started")) {
+      savedPage = pageIndex;
+    }
+    started = false;
+    demoCard.classList.remove("finished");
+    demoCard.classList.add("not-started");
+    refreshStartCard();
+    renderStoryTabs();
+    renderPage();   // so the page indicator behind the Start card is right
+    try { startBtn.focus({ preventScroll: true }); } catch (e) {}
+  }
+
+  tileRead.addEventListener("click", () => openReader("track"));
+  tileSounds.addEventListener("click", () => openReader("scrub"));
+  tileStories.addEventListener("click", openStoryPicker);
+  helloBtn.addEventListener("click", () => speak(WELCOME_GREETING, 0.9));
+  homeBtn.addEventListener("click", () => { if (!welcomeOpen()) showWelcome(true); });
+
   renderPage();
+  showWelcome(false);   // the page opens on the Welcome page; nothing is spoken until a tap
 </script>
 
 </body>

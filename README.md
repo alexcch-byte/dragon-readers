@@ -39,12 +39,14 @@ dragon-readers/
 │       │   │   ├── CenteredScrollColumn.kt  # Centred column that scrolls on small phones and returns to the top per page
 │       │   │   ├── scrub/              # Segmented drag-to-sound scrub bar
 │       │   │   ├── sentences/          # 6-Level Sentence Lab with Master Celebration
-│       │   │   └── theme/              # Color palette, Material 3 typography & theme
-│       │   └── MainActivity.kt         # 4-mode switcher, parent gate, Compose previews
+│       │   │   ├── theme/              # Color palette, Material 3 typography & theme
+│       │   │   └── welcome/            # Welcome page (tiles, mascot) and its pure logic (Read tile, progress line, saved mode)
+│       │   └── MainActivity.kt         # Welcome page + 4-mode switcher, parent gate, Compose previews
 │       └── test/java/com/example/earlyreader/
-│           └── ScrubBarModelTest.kt    # Unit tests: data, sounds, voice choice, progress, tracker limit
+│           ├── ScrubBarModelTest.kt    # Unit tests: data, sounds, voice choice, progress, tracker limit
+│           └── WelcomeModelTest.kt     # Unit tests: Welcome tiles, Read-tile caption, saved mode, progress line
 ├── docs/                               # Browser prototypes (GitHub Pages live demo)
-│   ├── index.html                      # 14-story web reader with segmented scrub bar
+│   ├── index.html                      # Welcome page + 14-story web reader with segmented scrub bar
 │   └── sentences.html                  # 6-level web Sentence Lab with local storage
 └── .github/workflows/ci.yml            # Automated CI workflow on JDK 17
 ```
@@ -87,14 +89,22 @@ Digraphs, double letters, and glued sounds are ONE segment (*d-u-ck*, *b-e-ll*, 
 - **Emoji / Picture Reveal:** Emojis remain hidden until the child's first decode attempt (in Track to Read, until the tracker has passed the word), rewarding reading effort.
 - **Whole-Sentence Read Aloud:** Hear the completed page read smoothly with system text-to-speech, or tap the sentence container or "🔊 Read full sentence" button anytime to hear the entire sentence read aloud in context. Whole sentences are read slowly, about twice as long as at normal speed (on Android half the word speed; on the web the speed is chosen per voice, because some Windows voices ignore very low settings); a Sentence Lab instruction line is read at a normal pace.
 
-### 2. Android 4-Mode Experience
-Switch seamlessly between learning modes from the top bar:
+### 2. Welcome Page and the Android 4-Mode Experience
+**Welcome page.** The app opens on a friendly Welcome page (and so does the web demo): the dragon mascot, "Early Reader", "Hi! What shall we do today?" and four big picture tiles, each at least 96 dp (px on the web) tall, with a picture, a one- or two-word label and a small caption:
+- **👆 Read** opens Track to Read on the story the child was on. Its caption says "Continue: The Cat on the Mat" once there is something to carry on with (a story other than the first, or a reading screen opened since the app started) and "Start: The Red Hen" otherwise.
+- **🔤 Sounds** opens Word Practice (on the web, Phonics Scrub).
+- **📖 Stories** opens Story Mode (on the web, the story picker).
+- **✏️ Sentence Lab** (captioned "for ages 6+") opens the Sentence Lab (on the web, `sentences.html`).
+
+A small, gentle progress line ("⭐ 3 of 14 stories finished", and on Android "🔤 12 words sounded out") shows only once there is some progress. The dragon / "🔊 Hear hello" button says "Hi! Let's read!" at the normal word speed, only when it is tapped: nothing is ever spoken when the page opens. The grown-ups' gear stays in the top bar on Android (still behind the maths gate), and "For grown-ups" stays in the web footer. The tiles are a 2x2 grid on phones and a single row of four on wide screens (a tablet in landscape; the web page switches at 760 px); the page scrolls when it is taller than the screen. Every tile has a screen-reader description (for example "Read, continue The Cat on the Mat", announced as a button), the title is a heading, and colour is never the only cue (each tile has its own picture and words).
+
+Switch seamlessly between learning modes from the top bar (on the Welcome page no chip is selected):
 - **Word Practice (Ages 4–5):** Starter word bank cycling with decodable letter segments, short synthetic phonics sounds ("ah", "aw", "buh", "kuh"), sentence-in-context highlight, and tap-to-read full sentence audio.
-- **Story Mode (Ages 4–6):** Full multi-page decodable reader with segmented scrub bar, tricky word flashcard assistance, dedicated "🔊 Read full sentence" audio button, and celebratory rewards. The page and word position in each story is kept when switching tabs or stories; it is forgotten when a story is finished or when Home is used.
+- **Story Mode (Ages 4–6):** Full multi-page decodable reader with segmented scrub bar, tricky word flashcard assistance, dedicated "🔊 Read full sentence" audio button, and celebratory rewards. The page and word position in each story is kept when switching tabs, stories or going Home; it is forgotten when a story is finished or progress is reset.
 - **Track to Read (Ages 4–6):** Stepped sentence tracker with a draggable slider bar that jumps discretely from word to word and zero-shift word chips. The tracker moves at most one word past the furthest word reached, so one tap cannot finish a sentence, and a tap on the bar can only step on to a new word about every 300 ms, while even a real drag reaches at most one new word every 80 ms, so neither mashing nor a flick or wobble across the bar can finish a page in a blink (an ordinary slide along the words is not noticeably slowed); a screen-reader step (TalkBack's step action on Android) or an arrow key (web only; the Android tracker has no keyboard handling) moves one word at a time; tapping a word chip only highlights it (and speaks it in Speak Words mode). Defaults to **🔇 Highlight Only** (silent tracking so the child can read each word aloud without the app speaking over them), with an optional **🔊 Speak Words** toggle and on-demand full sentence playback.
 - **Sentence Lab (Ages 6–8):** Comprehensive 6-level interactive grammar suite, meant for older readers (the "Lab" chip is described as such to screen readers). It is not for the 4-year-old; the reading modes are. Tapping a level's instruction line reads it aloud on Android. Its level pills wrap onto a second line on a narrow phone and the screen scrolls when a level is taller than the screen.
 
-**Home button (🏠, top left):** on Android it asks "Go home?" first. "Stay here" is the large filled button and "Yes, go home" the quiet text one. If confirmed, it returns to the start of Track to Read (The Red Hen, page 1) and forgets the place in every story (the confirmation says so: "Your place in the stories is forgotten; stars are kept"). Word Practice and Sentence Lab keep their place, and stars and progress are never cleared (that is only done by "Reset all progress" in the grown-ups' settings). The web reader's Home button (no confirmation) does the same and also clears the saved page, so "Start story" opens story 1, page 1 even after a reload.
+**Home button (🏠, top left):** Home opens the Welcome page. It no longer asks anything and it never erases anything: each screen keeps its page, word and level, stars and progress are untouched, speech stops as the page changes, and a tile (or the matching mode chip) takes the child back to where they were. On Android, while the Welcome page is showing, Home has a violet ring and is announced as selected ("you are on the welcome page"), and the mode chips are all unselected; the system Back button on any screen also goes to the Welcome page, and Back on the Welcome page leaves the app. A fresh launch opens the Welcome page; the saved "last mode" is still the last real screen (Home and the Welcome page are never saved as a mode), and unknown or old saved values still mean Track to Read. The only way to clear stars and places is "Reset all progress" in the grown-ups' settings, which then returns to the Welcome page. The web reader's Home button works the same way: it stops speech, shows the Welcome page, and a tile continues the current story at the page that was showing (kept for this browser tab session, so a reload also opens the Welcome page and "Read" carries on from the saved page).
 
 On narrow phones or with large text the top bar puts Home and the grown-ups' settings gear together on the first line and moves the mode chips (all at least 48dp wide and tall) to a second line, so the gear is always reachable and never alone on a line. The story picker and settings dialogs scroll, and so do the reading screens and the Sentence Lab, which return to the top for each new page, word or sentence and scroll the Next buttons into view when a page is finished. A bare "a" is spoken as "uh" (not the letter name "ay"), and the app's launcher icon is a dragon reading a book.
 
@@ -124,6 +134,7 @@ Inspect UI composables directly inside Android Studio without deploying:
 - `PreviewWordPracticePhone`: Single-word practice on phone portrait.
 - `PreviewStoryModeTablet`: Multi-word story reader on tablet landscape (1280x800dp).
 - `PreviewEarlyReaderApp`: Full app with the 4-mode switcher and theme.
+- `PreviewWelcomePhone` / `PreviewWelcomeTablet`: The Welcome page on a 320x568dp phone (with progress) and a 1280x800dp tablet.
 - `PreviewSegmentedScrubBarCat`: Scrub bar with single-letter word ("cat").
 - `PreviewSegmentedScrubBarShip`: Scrub bar with digraph word ("ship").
 - `PreviewSentenceLabLevel1` through `PreviewSentenceLabLevel6`: Dedicated previews for each Sentence Lab level.
@@ -134,7 +145,7 @@ Inspect UI composables directly inside Android Studio without deploying:
 
 Every push and pull request to `master` triggers a GitHub Actions workflow (`.github/workflows/ci.yml`):
 - Configures Eclipse Temurin JDK 17.
-- Executes the JUnit unit test suite (`ScrubBarModelTest.kt`): story and sound-map data (every segment has a sound, no `ck`/`ll`/`ng`/`qu` split in two, the short vowels sound different), scrub-bar boundary maths and thresholds, the voice-choice, speech-status and offline-guidance logic, progress bookkeeping, the Track to Read word limit and its tap-interval rule, and the Sentence Lab datasets (including the alternative and silly Build sentences). The web/Android story parity test fails (it is not skipped) if `docs/index.html` cannot be found. The scrub gesture, text-to-speech playback and the Compose screens themselves are not unit tested; they were checked by hand and in the browser.
+- Executes the JUnit unit test suite (`ScrubBarModelTest.kt` and `WelcomeModelTest.kt`): the Welcome page logic (which screen each tile opens, the Read tile's Start / Continue caption and description, saved-mode mapping including unknown and old values, the progress line), story and sound-map data (every segment has a sound, no `ck`/`ll`/`ng`/`qu` split in two, the short vowels sound different), scrub-bar boundary maths and thresholds, the voice-choice, speech-status and offline-guidance logic, progress bookkeeping, the Track to Read word limit and its tap-interval rule, and the Sentence Lab datasets (including the alternative and silly Build sentences). The web/Android story parity test fails (it is not skipped) if `docs/index.html` cannot be found. The scrub gesture, text-to-speech playback and the Compose screens themselves are not unit tested; they were checked by hand and in the browser.
 - Runs `./gradlew test assembleDebug`.
 - Archives and uploads the debug APK artifact (`dragon-readers-debug.apk`); no release build is made.
 
@@ -174,6 +185,7 @@ Once a page has loaded, it keeps working without internet using the browser's bu
 ## Known Limitations
 
 - **Orientation.** Phones are locked to portrait. Tablets (smallest screen width 600dp or more, such as a Fire HD) may rotate to landscape; the screens scroll, but the landscape layout has not been checked on a real tablet.
+- **The Welcome page's "Continue" is remembered per story, not per page, across app restarts.** While the app is open each screen keeps its exact page and word when the child goes Home and back; after the app is closed Android remembers which story the child was on (and every star) but starts that story again at page 1. On the web the page is kept for the browser tab session only, and the web progress line counts stories finished in the same session.
 - **Phoneme sounds are respelled words.** Speech engines cannot say an isolated sound, so each sound is a short respelling spoken by the system voice. The short vowels are *a* "ah", *e* "eh", *i* "ih", *o* "aw", *u* "uh" (an engine cannot say the short *a* of "apple" on its own, so "ah" stands in for it and short *o* is "aw"; they are different from each other, but neither is a perfect phoneme). How good it sounds depends on the device voice.
 - **The APK on the GitHub releases page is the older one-word ("cat") prototype build.** It has not been rebuilt, so it does not include the stories, Track to Read or the Sentence Lab. Build from source to get the current app.
 - Sentence Lab progress on Android is remembered per level id, but the last-opened level is remembered by position, so after the level reorder in this version, an older saved level position may open a different level once.
