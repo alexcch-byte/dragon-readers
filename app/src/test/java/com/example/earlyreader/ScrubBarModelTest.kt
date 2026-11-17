@@ -160,7 +160,7 @@ class ScrubBarModelTest {
         val progress = ProgressStorage(FakeStore())
         assertEquals(0, progress.completedWordsCount)
         assertEquals(0, progress.lastActiveStoryIndex)
-        assertEquals(ProgressStorage.MODE_WORDS, progress.lastAppMode)
+        assertEquals(ProgressStorage.MODE_TRACKING, progress.lastAppMode)
         assertTrue(progress.completedStoryTitles.isEmpty())
 
         progress.recordWordCompleted()
@@ -177,10 +177,10 @@ class ScrubBarModelTest {
         progress.recordSentenceLevelCompleted("nouns")
         assertEquals(setOf("nouns"), progress.completedSentenceLevels)
 
-        progress.lastAppMode = ProgressStorage.MODE_TRACKING
+        progress.lastAppMode = ProgressStorage.MODE_STORY
         progress.lastActiveStoryIndex = 3
         progress.lastSentenceLabLevel = 4
-        assertEquals(ProgressStorage.MODE_TRACKING, progress.lastAppMode)
+        assertEquals(ProgressStorage.MODE_STORY, progress.lastAppMode)
         assertEquals(3, progress.lastActiveStoryIndex)
         assertEquals(4, progress.lastSentenceLabLevel)
 
@@ -189,7 +189,7 @@ class ScrubBarModelTest {
         assertTrue(progress.completedStoryTitles.isEmpty())
         assertTrue(progress.completedSentenceLevels.isEmpty())
         assertEquals(0, progress.lastActiveStoryIndex)
-        assertEquals(ProgressStorage.MODE_WORDS, progress.lastAppMode)
+        assertEquals(ProgressStorage.MODE_TRACKING, progress.lastAppMode)
     }
 
     @Test
@@ -608,20 +608,20 @@ class ScrubBarModelTest {
 
     @Test
     fun testHomeResetTransitions() {
-        // Simulates Home action: resets to primary home mode (WORD_PRACTICE), story index 0, and page 0
-        var currentMode = AppMode.TRACK_TO_READ
+        // Simulates Home action: resets to primary home mode (TRACK_TO_READ), story index 0, and page 0
+        var currentMode = AppMode.WORD_PRACTICE
         var storyIndex = 3
         var speechStopped = false
 
         val handleHome = {
             speechStopped = true
             storyIndex = 0
-            currentMode = AppMode.WORD_PRACTICE
+            currentMode = AppMode.TRACK_TO_READ
         }
 
         handleHome()
         assertTrue("Home action must stop active speech", speechStopped)
         assertEquals("Home action must reset to story index 0", 0, storyIndex)
-        assertEquals("Home action must reset to Word Practice mode", AppMode.WORD_PRACTICE, currentMode)
+        assertEquals("Home action must reset to Track to Read mode", AppMode.TRACK_TO_READ, currentMode)
     }
 }

@@ -50,7 +50,7 @@ class ProgressStorage(private val store: KeyValueStore) {
         set(value) = store.putStringSet(KEY_COMPLETED_SENTENCE_LEVELS, value)
 
     var lastAppMode: String
-        get() = store.getString(KEY_LAST_APP_MODE, MODE_WORDS)
+        get() = store.getString(KEY_LAST_APP_MODE, MODE_TRACKING)
         set(value) = store.putString(KEY_LAST_APP_MODE, value)
 
     fun recordWordCompleted() {

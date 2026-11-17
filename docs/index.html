@@ -404,8 +404,8 @@
 
 <main>
   <div class="mode-bar" id="mode-bar">
-    <button type="button" class="mode-btn active" id="btn-mode-scrub">🔤 Phonics Scrub</button>
-    <button type="button" class="mode-btn" id="btn-mode-track">👆 Track to Read</button>
+    <button type="button" class="mode-btn" id="btn-mode-scrub">🔤 Phonics Scrub</button>
+    <button type="button" class="mode-btn active" id="btn-mode-track">👆 Track to Read</button>
   </div>
 
   <div class="story-header">
@@ -415,7 +415,7 @@
 
   <div class="sr-only" id="live" role="status" aria-live="polite"></div>
 
-  <div class="demo-card not-started" id="demo-card">
+  <div class="demo-card not-started mode-track" id="demo-card">
     <div class="start-card" id="start-card">
       <div class="big-star" aria-hidden="true">📖</div>
       <h2>Ready to read?</h2>
@@ -487,7 +487,7 @@
     </div>
   </div>
 
-  <p class="hint" id="hint">Drag your finger along the bar (arrow keys work too).</p>
+  <p class="hint" id="hint">Slide the tracker bar smoothly across the sentence.</p>
 </main>
 
 <footer>
@@ -1678,7 +1678,7 @@
   });
 
   // ---- Track to Read (Scrolling Tracker & Silent Highlight Mode) ----
-  let readingMode = "scrub"; // "scrub" | "track"
+  let readingMode = "track"; // "scrub" | "track"
   let trackSpeakWords = false; // false = Highlight Only (default), true = Speak Words
   let trackProgress = 0;
   let trackedIndex = 0;
@@ -2078,7 +2078,7 @@
     trackPageCompleted = false;
     demoCard.classList.remove("finished");
     demoCard.classList.add("not-started");
-    setReadingMode("scrub");
+    setReadingMode("track");
     renderStoryTabs();
     try { localStorage.removeItem("early_reader_story"); } catch (_) {}
     try { localStorage.removeItem("early_reader_page"); } catch (_) {}

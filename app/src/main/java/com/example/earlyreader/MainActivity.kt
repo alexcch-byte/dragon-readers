@@ -201,9 +201,9 @@ fun EarlyReaderApp(
 ) {
     val initialMode = when (progressStorage?.lastAppMode) {
         ProgressStorage.MODE_STORY -> AppMode.STORY_MODE
-        ProgressStorage.MODE_TRACKING -> AppMode.TRACK_TO_READ
+        ProgressStorage.MODE_WORDS -> AppMode.WORD_PRACTICE
         ProgressStorage.MODE_SENTENCES -> AppMode.SENTENCE_LAB
-        else -> AppMode.WORD_PRACTICE
+        else -> AppMode.TRACK_TO_READ
     }
     var appMode by rememberSaveable { mutableStateOf(initialMode) }
     var selectedStoryIndex by rememberSaveable {
@@ -273,6 +273,7 @@ fun EarlyReaderApp(
         storyResetKey++
         showResetConfirm = false
         showSettingsDialog = false
+        handleModeChange(AppMode.TRACK_TO_READ)
     }
 
     val handleHomeClick: () -> Unit = {
@@ -287,7 +288,7 @@ fun EarlyReaderApp(
         showSettingsDialog = false
         showMathGate = false
         showResetConfirm = false
-        handleModeChange(AppMode.WORD_PRACTICE)
+        handleModeChange(AppMode.TRACK_TO_READ)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
