@@ -68,7 +68,7 @@ Rich multi-sentence decodable stories for pre-readers:
 Switch seamlessly between learning modes from the top bar:
 - **Word Practice (Ages 4–5):** Starter word bank cycling with decodable letter segments, short synthetic phonics sounds ("ah", "buh", "kuh"), sentence-in-context highlight, and tap-to-read full sentence audio.
 - **Story Mode (Ages 4–6):** Full multi-page decodable reader with segmented scrub bar, tricky word flashcard assistance, dedicated "🔊 Read full sentence" audio button, and celebratory rewards.
-- **Track to Read (Ages 4–6):** Continuous scrolling sentence tracker with a draggable slider bar and zero-shift word chips. Defaults to **🔇 Highlight Only** (silent tracking so the child can read each word aloud without the app speaking over them), with an optional **🔊 Speak Words** toggle and on-demand full sentence playback.
+- **Track to Read (Ages 4–6):** Stepped sentence tracker with a draggable slider bar that jumps discretely from word to word and zero-shift word chips. Defaults to **🔇 Highlight Only** (silent tracking so the child can read each word aloud without the app speaking over them), with an optional **🔊 Speak Words** toggle and on-demand full sentence playback.
 - **Sentence Lab (Ages 6–8):** Comprehensive 6-level interactive grammar suite.
 
 ### 3. Complete 6-Level Sentence Lab

@@ -36,13 +36,13 @@
   .tagline { font-size: 1.05rem; opacity: 0.8; margin: 6px 0 4px; text-align: left; }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    min-height: 44px; padding: 12px 22px; border-radius: 999px; font-weight: 600;
+    min-height: 48px; padding: 12px 22px; border-radius: 999px; font-weight: 600;
     text-decoration: none; font-size: 1rem; border: none; cursor: pointer;
     font-family: inherit;
   }
   .btn-primary { background: var(--violet); color: white; }
   .btn-secondary { background: white; color: var(--violet); border: 2px solid var(--violet); }
-  .btn-small { padding: 6px 14px; font-size: 0.9rem; }
+  .btn-small { padding: 6px 14px; font-size: 0.9rem; min-height: 44px; }
 
   main { width: 100%; max-width: 520px; padding: 16px 24px 24px; display: flex; flex-direction: column; align-items: center; }
 
@@ -109,7 +109,7 @@
 
   .mode-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 12px; }
   .mode-btn {
-    padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 0.9rem;
+    min-height: 48px; padding: 6px 16px; border-radius: 24px; font-weight: 600; font-size: 0.9rem;
     cursor: pointer; border: 1.5px solid #DDD6FE; background: white; color: var(--text-dark);
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease; font-family: inherit;
   }
@@ -118,7 +118,7 @@
     box-shadow: 0 2px 8px rgba(124, 58, 237, 0.25);
   }
   .track-area {
-    display: flex; flex-direction: column; align-items: center; margin: auto 0;
+    display: none; flex-direction: column; align-items: center; margin: auto 0;
     width: 100%; padding: 6px 0;
   }
   .track-header-controls {
@@ -126,11 +126,11 @@
     gap: 8px; margin-bottom: 12px; width: 100%;
   }
   .track-audio-toggle {
-    display: inline-flex; background: #F3E8FF; padding: 3px; border-radius: 18px;
+    display: inline-flex; background: #F3E8FF; padding: 3px; border-radius: 27px;
     border: 1px solid #DDD6FE; gap: 2px;
   }
   .track-audio-btn {
-    padding: 4px 12px; border-radius: 14px; font-size: 0.8rem; font-weight: 600;
+    min-height: 48px; padding: 4px 14px; border-radius: 24px; font-size: 0.85rem; font-weight: 600;
     border: none; background: transparent; color: var(--text-dark); cursor: pointer;
     font-family: inherit; transition: background 0.15s, color 0.15s;
   }
@@ -162,6 +162,10 @@
   .track-chip.upcoming {
     opacity: 0.6;
   }
+  /* A chip's picture only shows once the tracker has passed that word, so it never gives the word away.
+     It always keeps its space (visibility, not display), so nothing shifts when it appears. */
+  .track-chip .pic { font-size: 1.3rem; visibility: hidden; }
+  .track-chip.passed .pic { visibility: visible; }
   .track-bar {
     width: min(88vw, 380px); height: 56px; border-radius: 28px; background: var(--segment-empty);
     position: relative; overflow: hidden; touch-action: none; cursor: pointer; user-select: none;
@@ -170,7 +174,7 @@
   .track-bar:focus-visible { outline: 3px solid var(--text-dark); outline-offset: 3px; }
   .track-bar-fill {
     position: absolute; top: 0; left: 0; bottom: 0; width: 0%;
-    background: var(--violet); border-radius: 28px; transition: width 0.04s linear;
+    background: var(--violet); border-radius: 28px; transition: width 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .track-bar-ticks { position: absolute; inset: 0; display: flex; pointer-events: none; }
   .track-bar-ticks .tick { flex: 1 1 0; border-right: 2px solid rgba(255,255,255,0.5); }
@@ -178,7 +182,7 @@
   .track-bar-thumb {
     position: absolute; top: 50%; width: 40px; height: 40px; margin-top: -20px; left: 0;
     border-radius: 50%; background: white; border: 4px solid var(--accent);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25); pointer-events: none; transition: left 0.04s linear;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25); pointer-events: none; transition: left 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   .active-area { display: flex; flex-direction: column; align-items: center; margin: auto 0; padding-top: 12px; }
@@ -237,6 +241,10 @@
 
   .end-screen { text-align: center; margin: auto 0; }
   .end-screen .big-star { font-size: 4rem; }
+  /* Which story section shows is decided by classes on #demo-card only (never by inline display), so the
+     start card and the end screen always win over the reading mode. */
+  .demo-card.mode-track .sentence-wrap, .demo-card.mode-track .active-area { display: none; }
+  .demo-card.mode-track .track-area { display: flex; }
   /* the story sections swap for the end screen / start card without rebuilding the card */
   .demo-card.finished .sentence-wrap, .demo-card.finished .active-area, .demo-card.finished .track-area, .demo-card.finished .reward,
   .demo-card.not-started .sentence-wrap, .demo-card.not-started .active-area, .demo-card.not-started .track-area { display: none; }
@@ -247,7 +255,11 @@
   .start-card .big-star { font-size: 3.4rem; line-height: 1; }
   .start-card h2, .end-screen h2 { margin: 0; color: var(--violet); }
   .start-card p, .end-screen p { margin: 0 0 6px; }
-  .start-card .btn { font-size: 1.3rem; padding: 16px 32px; min-height: 56px; }
+  .start-card #start-btn { font-size: 1.3rem; padding: 16px 32px; min-height: 56px; }
+  .start-or { margin: 6px 0 0; font-size: 0.85rem; color: var(--dim); }
+  /* two compact columns, so all eight stories fit under the Start button on a small phone */
+  .story-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; max-width: 440px; }
+  .story-tabs .btn { min-height: 48px; padding: 4px 8px; font-size: 0.8rem; line-height: 1.15; border-radius: 16px; }
 
   .demo-card.not-started ~ .hint { visibility: hidden; }
 
@@ -338,8 +350,9 @@
       <div class="big-star" aria-hidden="true">📖</div>
       <h2>Ready to read?</h2>
       <p id="start-text">Tap to start the story.</p>
-      <div class="story-tabs" id="story-tabs" style="display:flex;gap:8px;margin-bottom:12px;justify-content:center;flex-wrap:wrap"></div>
       <button type="button" class="btn btn-primary" id="start-btn">▶ Start story</button>
+      <p class="start-or" id="start-or">Or tap a story to start it:</p>
+      <div class="story-tabs" id="story-tabs"></div>
     </div>
     <div class="end-screen" id="end-screen">
       <div class="big-star" aria-hidden="true">⭐⭐⭐</div>
@@ -371,7 +384,7 @@
       <button class="btn btn-primary next-btn" id="next-btn" style="display:none">Next ▸</button>
     </div>
 
-    <div class="track-area" id="track-area" style="display:none">
+    <div class="track-area" id="track-area">
       <div class="track-header-controls">
         <div class="track-audio-toggle" role="group" aria-label="Tracking voice mode">
           <button type="button" class="track-audio-btn active" id="btn-track-silent" title="Highlight words silently without speaking each word">🔇 Highlight Only</button>
@@ -405,9 +418,9 @@
   without internet if your device has a built-in voice.
   <details class="grownups" id="grownups">
     <summary>For grown-ups</summary>
-    <p>The Android prototype is one word (&ldquo;cat&rdquo;) to drag, not the full story. The story and the Sentence Lab are in the browser for now.</p>
+    <p>The Android app in the source repository has the same eight stories, word practice, Track to Read and the Sentence Lab as this page. The download below is the older one-word prototype build (just &ldquo;cat&rdquo; to drag) from the releases page, which has not been rebuilt yet, so it does not include them. To get the full app, build it from the source.</p>
     <div class="links">
-      <a id="download-link" href="https://github.com/alexcch-byte/dragon-readers/releases/latest/download/dragon-readers-debug.apk" rel="noopener">⬇ Download the Android prototype (APK)</a>
+      <a id="download-link" href="https://github.com/alexcch-byte/dragon-readers/releases/latest/download/dragon-readers-debug.apk" rel="noopener">⬇ Download the older Android prototype (APK)</a>
       <a id="repo-link" href="https://github.com/alexcch-byte/dragon-readers" rel="noopener">View the source on GitHub</a>
     </div>
   </details>
@@ -417,7 +430,9 @@
   // Optional `say` is what the voice speaks for a word on its own. A bare capital "A" is read as
   // the letter name ("ay"), so the article is spoken as "uh". (The full sentence read at the end of
   // a page uses each word's real text instead, where "A" is read correctly in context.)
-  // Words that sound out (did, not, in, Yes) have `seg`; only a, the, is and won are tricky words.
+  // Words that sound out (did, not, in, on, thick, Yes) have `seg`: the graphemes of the word, so a digraph or
+  // double letter (ck, ll, ng, qu, sh, th) is ONE segment and makes one sound. Tricky (sight) words have none.
+  // validateStories() below checks all of this at load time and logs a console error for any slip.
   const STORIES = [
     {
       id: "hen",
@@ -521,7 +536,7 @@
           {t:"A", sight:true, say:"uh"},
           {t:"bug", img:"🐞", seg:["b","u","g"]},
           {t:"sat", seg:["s","a","t"]},
-          {t:"on", sight:true},
+          {t:"on", seg:["o","n"]},
           {t:"a", sight:true, say:"uh"},
           {t:"cup.", img:"🥤", seg:["c","u","p"], say:"cup"}
         ],
@@ -555,7 +570,7 @@
           {t:"The", sight:true},
           {t:"bug", img:"🐞", seg:["b","u","g"]},
           {t:"ran", img:"🏃", seg:["r","a","n"]},
-          {t:"on", sight:true},
+          {t:"on", seg:["o","n"]},
           {t:"the", sight:true},
           {t:"bus.", img:"🚌", seg:["b","u","s"], say:"bus"},
           {t:"The", sight:true},
@@ -576,7 +591,7 @@
           {t:"The", sight:true},
           {t:"cat", img:"🐱", seg:["c","a","t"]},
           {t:"is", sight:true},
-          {t:"on", sight:true},
+          {t:"on", seg:["o","n"]},
           {t:"a", sight:true, say:"uh"},
           {t:"mat.", img:"🧶", seg:["m","a","t"], say:"mat"}
         ],
@@ -601,7 +616,7 @@
           {t:"The", sight:true},
           {t:"hat", img:"🎩", seg:["h","a","t"]},
           {t:"is", sight:true},
-          {t:"on", sight:true},
+          {t:"on", seg:["o","n"]},
           {t:"the", sight:true},
           {t:"cat.", img:"🐱", seg:["c","a","t"], say:"cat"}
         ],
@@ -615,7 +630,7 @@
           {t:"cat", img:"🐱", seg:["c","a","t"]},
           {t:"can", seg:["c","a","n"]},
           {t:"nap", img:"💤", seg:["n","a","p"]},
-          {t:"on", sight:true},
+          {t:"on", seg:["o","n"]},
           {t:"the", sight:true},
           {t:"mat.", img:"🧶", seg:["m","a","t"], say:"mat"}
         ]
@@ -680,7 +695,7 @@
           {t:"A", sight:true, say:"uh"},
           {t:"frog", img:"🐸", seg:["f","r","o","g"]},
           {t:"sat", seg:["s","a","t"]},
-          {t:"on", sight:true},
+          {t:"on", seg:["o","n"]},
           {t:"a", sight:true, say:"uh"},
           {t:"big", seg:["b","i","g"]},
           {t:"log.", img:"🪵", seg:["l","o","g"], say:"log"},
@@ -725,7 +740,7 @@
           {t:"pond.", img:"💧", seg:["p","o","n","d"], say:"pond"},
           {t:"He", sight:true, say:"He"},
           {t:"sat", seg:["s","a","t"]},
-          {t:"on", sight:true},
+          {t:"on", seg:["o","n"]},
           {t:"the", sight:true},
           {t:"log.", img:"🪵", seg:["l","o","g"], say:"log"}
         ]
@@ -746,7 +761,7 @@
           {t:"The", sight:true},
           {t:"fog", img:"🌫️", seg:["f","o","g"]},
           {t:"is", sight:true},
-          {t:"thick.", sight:true, say:"thick"}
+          {t:"thick.", seg:["th","i","ck"], say:"thick"}
         ],
         [
           {t:"The", sight:true},
@@ -763,10 +778,10 @@
         [
           {t:"Hear", sight:true, say:"Hear"},
           {t:"the", sight:true},
-          {t:"bell!", img:"🔔", seg:["b","e","l","l"], say:"bell"},
+          {t:"bell!", img:"🔔", seg:["b","e","ll"], say:"bell"},
           {t:"A", sight:true, say:"uh"},
-          {t:"bell", img:"🔔", seg:["b","e","l","l"]},
-          {t:"rang", seg:["r","a","n","g"]},
+          {t:"bell", img:"🔔", seg:["b","e","ll"]},
+          {t:"rang", seg:["r","a","ng"]},
           {t:"in", seg:["i","n"]},
           {t:"the", sight:true},
           {t:"fog.", img:"🌫️", seg:["f","o","g"], say:"fog"}
@@ -777,7 +792,7 @@
           {t:"ran", img:"🏃", seg:["r","a","n"]},
           {t:"to", sight:true},
           {t:"the", sight:true},
-          {t:"bell.", img:"🔔", seg:["b","e","l","l"], say:"bell"},
+          {t:"bell.", img:"🔔", seg:["b","e","ll"], say:"bell"},
           {t:"The", sight:true},
           {t:"pup", img:"🐶", seg:["p","u","p"]},
           {t:"is", sight:true},
@@ -792,28 +807,28 @@
         [
           {t:"A", sight:true, say:"uh"},
           {t:"pet", seg:["p","e","t"]},
-          {t:"duck", img:"🦆", seg:["d","u","c","k"]},
+          {t:"duck", img:"🦆", seg:["d","u","ck"]},
           {t:"sat", seg:["s","a","t"]},
           {t:"by", sight:true, say:"by"},
           {t:"a", sight:true, say:"uh"},
           {t:"pond.", img:"💧", seg:["p","o","n","d"], say:"pond"},
           {t:"The", sight:true},
-          {t:"duck", img:"🦆", seg:["d","u","c","k"]},
+          {t:"duck", img:"🦆", seg:["d","u","ck"]},
           {t:"is", sight:true},
-          {t:"quick.", seg:["q","u","i","c","k"], say:"quick"}
+          {t:"quick.", seg:["qu","i","ck"], say:"quick"}
         ],
         [
           {t:"The", sight:true},
-          {t:"duck", img:"🦆", seg:["d","u","c","k"]},
+          {t:"duck", img:"🦆", seg:["d","u","ck"]},
           {t:"can", seg:["c","a","n"]},
           {t:"swim.", img:"🏊", seg:["s","w","i","m"], say:"swim"},
           {t:"Swim,", img:"🏊", seg:["S","w","i","m"], say:"Swim"},
-          {t:"duck,", img:"🦆", seg:["d","u","c","k"], say:"duck"},
+          {t:"duck,", img:"🦆", seg:["d","u","ck"], say:"duck"},
           {t:"swim!", img:"🏊", seg:["s","w","i","m"], say:"swim"}
         ],
         [
           {t:"The", sight:true},
-          {t:"duck", img:"🦆", seg:["d","u","c","k"]},
+          {t:"duck", img:"🦆", seg:["d","u","ck"]},
           {t:"saw", sight:true, say:"saw"},
           {t:"a", sight:true, say:"uh"},
           {t:"big", seg:["b","i","g"]},
@@ -825,7 +840,7 @@
         ],
         [
           {t:"The", sight:true},
-          {t:"duck", img:"🦆", seg:["d","u","c","k"]},
+          {t:"duck", img:"🦆", seg:["d","u","ck"]},
           {t:"had", seg:["h","a","d"]},
           {t:"fun", seg:["f","u","n"]},
           {t:"in", seg:["i","n"]},
@@ -833,7 +848,7 @@
           {t:"pond.", img:"💧", seg:["p","o","n","d"], say:"pond"},
           {t:"The", sight:true},
           {t:"pet", seg:["p","e","t"]},
-          {t:"duck", img:"🦆", seg:["d","u","c","k"]},
+          {t:"duck", img:"🦆", seg:["d","u","ck"]},
           {t:"is", sight:true},
           {t:"glad.", img:"😊", seg:["g","l","a","d"], say:"glad"}
         ]
@@ -842,6 +857,27 @@
   ];
   let storyIndex = 0;
   function currentStory() { return STORIES[storyIndex]; }
+
+  // Data sanity check (logs to the console instead of breaking the page, like sentences.html). A word that
+  // sounds out must: have segments that join to its text; have a sound for every segment; and never split a
+  // digraph or double letter into single-letter segments (c+k would sound "kuh kuh"). Returns the problems.
+  const DIGRAPHS = ["ck", "ll", "ss", "ff", "zz", "ng", "nk", "sh", "ch", "th", "qu"];
+  function checkStories(stories) {
+    const problems = [];
+    stories.forEach(st => st.pages.forEach((page, pi) => page.forEach(w => {
+      const where = st.id + " p" + (pi + 1) + " " + w.t;
+      if (w.sight) { if (w.seg) problems.push(where + ": a tricky word must not have seg"); return; }
+      if (!w.seg || !w.seg.length) { problems.push(where + ": no seg"); return; }
+      const word = w.t.replace(/[.,!?]+$/, "").toLowerCase();
+      if (w.seg.join("").toLowerCase() !== word) problems.push(where + ": seg " + w.seg.join("+") + " does not join to the text");
+      w.seg.forEach(g => { if (!SEGMENT_SOUNDS[g.toLowerCase()]) problems.push(where + ": no sound for segment '" + g + "'"); });
+      for (let i = 0; i + 1 < w.seg.length; i++) {
+        const pair = (w.seg[i] + w.seg[i + 1]).toLowerCase();
+        if (DIGRAPHS.includes(pair)) problems.push(where + ": '" + w.seg[i] + "' + '" + w.seg[i + 1] + "' should be one segment '" + pair + "'");
+      }
+    })));
+    return problems;
+  }
 
   // Same completion threshold as the Android app (SegmentedScrubBar.kt).
   const DONE = 0.92;
@@ -1011,13 +1047,20 @@
   // pronunciation lexicon already, so its first sound is reliably correct —
   // Short phonetic letter sounds for synthetic phonics blending.
   // We speak the short sound for each letter / phoneme directly (e.g. "ah", "buh", "kuh").
+  // Short vowels: a "ah", e "eh", i "ih", o "aw", u "uh". The old table gave both a and o "ah", so
+  // "hat" and "hot" (and "cat" and "cot") were sounded out the same. A speech engine cannot say the
+  // short a of "apple" on its own (an invented token like "aa" or "ae" is read as letter names), so
+  // "ah" stays for a, and the short o is respelled "aw", a real word every engine says. Neither
+  // is a perfect /a/ or /o/, but they are different from each other and each is a sound the engine
+  // really makes. (Digraphs and doubles are ONE segment, so ck / ll / ss / ff / zz make one sound, not two.)
   const SEGMENT_SOUNDS = {
-    a: "ah", e: "eh", i: "ih", o: "ah", u: "uh",
+    a: "ah", e: "eh", i: "ih", o: "aw", u: "uh",
     b: "buh", c: "kuh", d: "duh", f: "fff", g: "guh",
     h: "huh", j: "juh", k: "kuh", l: "luh", m: "mmm",
     n: "nnn", p: "puh", q: "kwuh", qu: "kwuh", r: "ruh", s: "sss",
     t: "tuh", v: "vuh", w: "wuh", x: "ks", y: "yuh", z: "zzz",
-    sh: "shh", ch: "chuh", th: "th", ng: "ng",
+    sh: "shh", ch: "chuh", th: "thuh", ng: "ing",
+    ck: "kuh", ll: "luh", ss: "sss", ff: "fff", zz: "zzz",
   };
   function segmentSound(letter) {
     return SEGMENT_SOUNDS[letter.toLowerCase()] || letter;
@@ -1606,6 +1649,12 @@
     return Math.min(wordCount - 1, Math.floor(clamped * wordCount));
   }
 
+  function calculateSnappedTrackProgress(wordIndex, wordCount) {
+    if (wordCount <= 1) return 1;
+    const clampedIdx = Math.max(0, Math.min(wordCount - 1, wordIndex));
+    return clampedIdx / (wordCount - 1);
+  }
+
   function renderTrackPage() {
     trackProgress = 0;
     trackedIndex = 0;
@@ -1628,15 +1677,18 @@
       html += w.t;
       chip.innerHTML = html;
       chip.addEventListener("click", () => {
-        const p = pageWords.length <= 1 ? 1 : (i === pageWords.length - 1 ? 1 : (i + 0.5) / pageWords.length);
+        const p = pageWords.length <= 1 ? 1 : (i + 0.5) / pageWords.length;
         setTrackProgress(p, true);
       });
       trackChips.appendChild(chip);
+    });
 
+    const tickIntervals = Math.max(1, pageWords.length - 1);
+    for (let t = 0; t < tickIntervals; t++) {
       const tick = document.createElement("div");
       tick.className = "tick";
       trackBarTicks.appendChild(tick);
-    });
+    }
 
     updateTrackVisuals();
   }
@@ -1663,15 +1715,16 @@
     if (!pageWords.length) return;
     const clamped = Math.max(0, Math.min(1, nextProgress));
     const prevIndex = trackedIndex;
-    trackProgress = clamped;
-    trackedIndex = calculateTrackedIndex(clamped, pageWords.length);
+    const nextIdx = calculateTrackedIndex(clamped, pageWords.length);
+    trackedIndex = nextIdx;
+    trackProgress = calculateSnappedTrackProgress(nextIdx, pageWords.length);
 
     const wordChanged = trackedIndex !== prevIndex || forceSpeakWord;
     if (wordChanged && trackSpeakWords) {
       speak(spoken(pageWords[trackedIndex]), 0.9);
     }
 
-    if (!trackPageCompleted && (clamped >= 0.95 || (forceSpeakWord && trackedIndex === pageWords.length - 1))) {
+    if (!trackPageCompleted && nextIdx === pageWords.length - 1) {
       trackPageCompleted = true;
       trackProgress = 1;
       rewardEl.classList.add("show");

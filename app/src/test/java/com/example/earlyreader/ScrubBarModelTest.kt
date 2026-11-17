@@ -401,7 +401,15 @@ class ScrubBarModelTest {
         assertEquals(4, calculateTrackedWordIndex(1.0f, 5))
         assertEquals(4, calculateTrackedWordIndex(1.5f, 5))
 
-        // Simulate continuous scrolling tracker across each story page in both Highlight Only (silent) and Speak Words modes
+        // Validate discrete word-to-word snapped slider stops
+        assertEquals(1.0f, calculateSnappedTrackProgress(0, 1), 0.001f)
+        assertEquals(0.0f, calculateSnappedTrackProgress(0, 5), 0.001f)
+        assertEquals(0.25f, calculateSnappedTrackProgress(1, 5), 0.001f)
+        assertEquals(0.50f, calculateSnappedTrackProgress(2, 5), 0.001f)
+        assertEquals(0.75f, calculateSnappedTrackProgress(3, 5), 0.001f)
+        assertEquals(1.0f, calculateSnappedTrackProgress(4, 5), 0.001f)
+
+        // Simulate stepped word-to-word jumping slider across each story page
         for (story in StoryBank.allStories) {
             for ((pIdx, page) in story.pages.withIndex()) {
                 val words = page.words
@@ -410,7 +418,13 @@ class ScrubBarModelTest {
                 for (step in words.indices) {
                     val progress = (step + 0.5f) / words.size.toFloat()
                     trackedIndex = calculateTrackedWordIndex(progress, words.size)
+                    val snapped = calculateSnappedTrackProgress(trackedIndex, words.size)
                     assertEquals("Tracked index must match step $step", step, trackedIndex)
+                    if (step == 0 && words.size > 1) {
+                        assertEquals(0f, snapped, 0.001f)
+                    } else if (step == words.size - 1) {
+                        assertEquals(1f, snapped, 0.001f)
+                    }
                     val isComplete = trackedIndex == words.size - 1
                     if (step < words.size - 1) {
                         assertFalse("Should not be complete at word index $step", isComplete)

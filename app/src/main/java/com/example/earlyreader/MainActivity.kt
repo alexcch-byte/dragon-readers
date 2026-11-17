@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -1082,6 +1083,12 @@ fun calculateTrackedWordIndex(progress: Float, wordCount: Int): Int {
     return ((clamped * wordCount).toInt()).coerceIn(0, wordCount - 1)
 }
 
+fun calculateSnappedTrackProgress(wordIndex: Int, wordCount: Int): Float {
+    if (wordCount <= 1) return 1f
+    val clampedIdx = wordIndex.coerceIn(0, wordCount - 1)
+    return clampedIdx.toFloat() / (wordCount - 1).toFloat()
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TrackToReadScreen(
@@ -1107,8 +1114,8 @@ fun TrackToReadScreen(
             val clamped = rawProgress.coerceIn(0f, 1f)
             val prevIdx = trackedWordIndex
             val nextIdx = calculateTrackedWordIndex(clamped, wordCount)
-            trackProgress = clamped
             trackedWordIndex = nextIdx
+            trackProgress = calculateSnappedTrackProgress(nextIdx, wordCount)
 
             val wordChanged = nextIdx != prevIdx || forceSpeak
             if (wordChanged && speakWhenTracked) {
@@ -1117,7 +1124,7 @@ fun TrackToReadScreen(
                 onSpeakWord(cleanSpoken)
             }
 
-            if (!pageCompleted && (clamped >= 0.95f || (forceSpeak && nextIdx == wordCount - 1))) {
+            if (!pageCompleted && nextIdx == wordCount - 1) {
                 pageCompleted = true
                 trackProgress = 1f
                 showReward = true
@@ -1314,11 +1321,13 @@ fun TrackToReadScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Continuous Horizontal Scrolling Tracker Bar
+            // Stepped Word-to-Word Jumping Tracker Bar
             var barWidthPx by remember { mutableIntStateOf(0) }
+            val animatedProgress by animateFloatAsState(targetValue = trackProgress.coerceIn(0f, 1f), label = "trackJump")
             val thumbSize = 40.dp
             val thumbSizePx = with(LocalDensity.current) { thumbSize.toPx() }
-            val thumbOffsetPx = ((barWidthPx - thumbSizePx).coerceAtLeast(0f) * trackProgress).roundToInt()
+            val thumbOffsetPx = ((barWidthPx - thumbSizePx).coerceAtLeast(0f) * animatedProgress).roundToInt()
+            val tickIntervals = (wordCount - 1).coerceAtLeast(1)
 
             Box(
                 modifier = Modifier
@@ -1351,24 +1360,24 @@ fun TrackToReadScreen(
                         contentDescription = "Scrolling sentence tracker bar. Word ${trackedWordIndex + 1} of $wordCount"
                     },
             ) {
-                // Continuous progress fill
+                // Stepped progress fill jumping from word stop to word stop
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
-                        .fillMaxWidth(trackProgress.coerceIn(0f, 1f))
+                        .fillMaxWidth(animatedProgress)
                         .background(VioletPrimary),
                 )
 
-                // Word boundary tick dividers
+                // Word stop tick dividers
                 Row(modifier = Modifier.fillMaxSize()) {
-                    repeat(wordCount.coerceAtLeast(1)) { idx ->
+                    repeat(tickIntervals) { idx ->
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
                                 .background(Color.Transparent),
                         ) {
-                            if (idx < wordCount - 1) {
+                            if (idx < tickIntervals - 1) {
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.CenterEnd)
@@ -1381,7 +1390,7 @@ fun TrackToReadScreen(
                     }
                 }
 
-                // Smooth draggable thumb
+                // Stepped thumb jumping from word stop to word stop
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
