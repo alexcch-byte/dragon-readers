@@ -28,7 +28,7 @@ dragon-readers/
 │       │   ├── audio/SpeechManager.kt  # Android TextToSpeech with offline voice detection
 │       │   ├── model/
 │       │   │   ├── WordData.kt         # Starter words & CVC phoneme definitions
-│       │   │   └── StoryData.kt        # 5-story suite with multi-sentence pages
+│       │   │   └── StoryData.kt        # 8-story suite with multi-sentence pages
 │       │   ├── storage/
 │       │   │   └── ProgressStorage.kt  # SharedPreferences offline progress persistence
 │       │   ├── ui/
@@ -39,7 +39,7 @@ dragon-readers/
 │       └── test/java/com/example/earlyreader/
 │           └── ScrubBarModelTest.kt    # Full unit test suite (boundaries, TTS, datasets)
 ├── docs/                               # Browser prototypes (GitHub Pages live demo)
-│   ├── index.html                      # 5-story web reader with segmented scrub bar
+│   ├── index.html                      # 8-story web reader with segmented scrub bar
 │   └── sentences.html                  # 6-level web Sentence Lab with local storage
 └── .github/workflows/ci.yml            # Automated CI workflow on JDK 17
 ```
@@ -48,13 +48,16 @@ dragon-readers/
 
 ## Feature Showcase
 
-### 1. 5 Complete Early Reader Stories
+### 1. 8 Complete Early Reader Stories
 Rich multi-sentence decodable stories for pre-readers:
 1. **The Red Hen** (*"A red hen sat on a mat. She had a big nest..."*)
 2. **The Big Pig** (*"A big pig sat in the mud. He saw a red bug..."*)
 3. **The Sun and the Bug** (*"The hot sun was up in the sky. A bug sat on a warm rock..."*)
 4. **The Cat on the Mat** (*"A fat cat sat on a soft mat. He saw a quick rat..."*)
 5. **A Pet in the Net** (*"A wet pup ran in the mud. He got stuck in a big net..."*)
+6. **The Frog on the Log** (*"A frog sat on a big log. The frog saw a bug in the sun..."*)
+7. **The Pup in the Fog** (*"A pup ran out in the fog. Hear the bell! The pup ran to the bell..."*)
+8. **The Pet Duck** (*"A pet duck sat by a pond. The duck can swim! The duck had fun in the pond..."*)
 
 - **Interactive Story Switcher:** Pick any story from an accessible modal dialog with completion star indicators.
 - **Circular Progression:** Finishing a story offers immediate circular navigation to the next tale.

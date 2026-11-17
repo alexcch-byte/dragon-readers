@@ -109,8 +109,8 @@ class ScrubBarModelTest {
     @Test
     fun testStoryModelIntegrity() {
         val stories = StoryBank.allStories
-        assertEquals("StoryBank must contain all 5 stories", 5, stories.size)
-        val expectedIds = listOf("hen", "pig", "bug", "cat", "net")
+        assertEquals("StoryBank must contain all 8 stories", 8, stories.size)
+        val expectedIds = listOf("hen", "pig", "bug", "cat", "net", "frog", "fog", "duck")
         assertEquals(expectedIds, stories.map { it.id })
 
         for (story in stories) {
