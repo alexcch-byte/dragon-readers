@@ -28,12 +28,12 @@
   header {
     width: 100%;
     max-width: 720px;
-    padding: 32px 24px 8px;
+    padding: 28px 24px 8px;
     text-align: center;
   }
-  h1 { color: var(--violet); font-size: 2.2rem; margin: 0 0 4px; }
-  .tagline { font-size: 1.05rem; opacity: 0.8; margin: 0 0 20px; }
-  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+  h1 { color: var(--violet); font-size: 2.2rem; margin: 0; }
+  .tagline { font-size: 1.05rem; opacity: 0.8; margin: 6px 0 4px; text-align: left; }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     min-height: 44px; padding: 12px 22px; border-radius: 999px; font-weight: 600;
@@ -42,6 +42,7 @@
   }
   .btn-primary { background: var(--violet); color: white; }
   .btn-secondary { background: white; color: var(--violet); border: 2px solid var(--violet); }
+  .btn-small { padding: 6px 14px; font-size: 0.9rem; }
 
   main { width: 100%; max-width: 520px; padding: 16px 24px 24px; display: flex; flex-direction: column; align-items: center; }
 
@@ -157,16 +158,22 @@
 
   footer { margin: 32px 0 24px; font-size: 0.85rem; color: var(--dim); text-align: center; padding: 0 24px; max-width: 520px; }
   footer a { color: var(--violet); }
+  .grownups { margin: 14px auto 0; text-align: left; background: white; border-radius: 16px; padding: 2px 14px; }
+  .grownups summary { cursor: pointer; font-weight: 600; color: var(--violet); min-height: 44px; display: flex; align-items: center; }
+  .grownups p { margin: 0 0 10px; line-height: 1.45; }
+  .grownups .links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 10px; }
+  .grownups .links a { min-height: 44px; display: inline-flex; align-items: center; }
 
   .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
   /* Phones: keep the bar and the help button on the first screen. */
   @media (max-width: 600px) {
-    header { padding: 10px 16px 0; }
-    h1 { font-size: 1.5rem; margin: 0 0 6px; }
+    header { padding: 8px 16px 0; }
+    h1 { font-size: 1.5rem; }
     .tagline { display: none; }
-    .cta-row { gap: 8px; margin-bottom: 8px; }
-    .cta-row .btn { padding: 6px 12px; font-size: 0.8rem; min-height: 44px; }
+    .head-row { flex-wrap: nowrap; }
+    .btn-small { padding: 4px 12px; font-size: 0.8rem; }
+    .btn-small .long { display: none; }
     main { padding: 8px 16px 16px; }
     .story-header { margin-bottom: 6px; }
     .demo-card { min-height: 0; padding: 14px 12px 18px; border-radius: 24px; }
@@ -192,19 +199,15 @@
 <body>
 
 <header>
-  <h1>Early Reader</h1>
+  <div class="head-row">
+    <h1>Early Reader</h1>
+    <a class="btn btn-secondary btn-small" id="sentence-lab-link" href="sentences.html" title="Sentence Lab, for readers about 6 to 8">✏ Sentence Lab<span class="long"> (ages 6–8)</span></a>
+  </div>
   <p class="tagline">A calm, offline phonics app. Drag to sound out each word, then hear it read aloud.</p>
-  <div class="cta-row">
-    <a class="btn btn-primary" id="download-link" href="https://github.com/alexcch-byte/dragon-readers/releases/latest/download/dragon-readers-debug.apk" rel="noopener">⬇ Download Android prototype (one word)</a>
-    <a class="btn btn-secondary" href="https://github.com/alexcch-byte/dragon-readers" id="repo-link" rel="noopener">View source on GitHub</a>
-  </div>
-  <div class="cta-row">
-    <a class="btn btn-secondary" id="sentence-lab-link" href="sentences.html">✏ Ready for more? Sentence Lab (ages 6–8)</a>
-  </div>
 </header>
 
 <div class="voice-banner" id="voice-banner" hidden>
-  <span>No voice found on this device, the app will still work without sound.</span>
+  <span>No English voice found on this device. The app still works, but it may be silent.</span>
   <button type="button" id="voice-banner-close" aria-label="Dismiss">✕</button>
 </div>
 
@@ -220,7 +223,7 @@
     <div class="start-card" id="start-card">
       <div class="big-star" aria-hidden="true">📖</div>
       <h2>Ready to read?</h2>
-      <p>Tap to start the story.</p>
+      <p id="start-text">Tap to start the story.</p>
       <button type="button" class="btn btn-primary" id="start-btn">▶ Start story</button>
     </div>
     <div class="end-screen" id="end-screen">
@@ -256,11 +259,21 @@
   phonics, revealed pictures, tricky (sight) words, a spoken help button, and a read-aloud page finish —
   using your browser's built-in speech voice. No accounts, no ads, no tracking. Once the page has loaded it works
   without internet if your device has a built-in voice.
+  <details class="grownups" id="grownups">
+    <summary>For grown-ups</summary>
+    <p>The Android prototype is one word (&ldquo;cat&rdquo;) to drag, not the full story. The story and the Sentence Lab are in the browser for now.</p>
+    <div class="links">
+      <a id="download-link" href="https://github.com/alexcch-byte/dragon-readers/releases/latest/download/dragon-readers-debug.apk" rel="noopener">⬇ Download the Android prototype (APK)</a>
+      <a id="repo-link" href="https://github.com/alexcch-byte/dragon-readers" rel="noopener">View the source on GitHub</a>
+    </div>
+  </details>
 </footer>
 
 <script>
   // Optional `say` is what the voice speaks for a word on its own. A bare capital "A" is read as
-  // the letter name ("ay"), so the article is spoken as "uh".
+  // the letter name ("ay"), so the article is spoken as "uh". (The full sentence read at the end of
+  // a page uses each word's real text instead, where "A" is read correctly in context.)
+  // Words that sound out (did, not, in, Yes) have `seg`; only a, the, is and won are tricky words.
   const STORY = {
     title: "The Red Hen",
     pages: [
@@ -268,10 +281,10 @@
       [ {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"is", sight:true}, {t:"red", seg:["r","e","d"]} ],
       [ {t:"A", sight:true, say:"uh"}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"ran", img:"🏃", seg:["r","a","n"]} ],
       [ {t:"The", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"is", sight:true}, {t:"big", seg:["b","i","g"]} ],
-      [ {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"got", seg:["g","o","t"]}, {t:"in", sight:true}, {t:"a", sight:true, say:"uh"}, {t:"box", img:"📦", seg:["b","o","x"]} ],
-      [ {t:"The", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"did", sight:true}, {t:"not", sight:true}, {t:"get", seg:["g","e","t"]}, {t:"the", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]} ],
+      [ {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"got", seg:["g","o","t"]}, {t:"in", seg:["i","n"]}, {t:"a", sight:true, say:"uh"}, {t:"box", img:"📦", seg:["b","o","x"]} ],
+      [ {t:"The", sight:true}, {t:"fox", img:"🦊", seg:["f","o","x"]}, {t:"did", seg:["d","i","d"]}, {t:"not", seg:["n","o","t"]}, {t:"get", seg:["g","e","t"]}, {t:"the", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]} ],
       // "won" is not decodable (w-o-n does not sound out), so it is a tricky word.
-      [ {t:"Yes!", sight:true}, {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"won", sight:true} ],
+      [ {t:"Yes!", seg:["Y","e","s"]}, {t:"The", sight:true}, {t:"hen", img:"🐔", seg:["h","e","n"]}, {t:"won", sight:true} ],
     ],
   };
 
@@ -283,26 +296,41 @@
   // progress) and a "start here" pulse shows where. After such a snapped start the drag does not
   // follow the finger until the finger comes within reach of the thumb (or into the first segment),
   // so pressing and jittering at the far end does nothing. While dragging, progress can advance at
-  // most MAX_STEP per input event and MAX_SPEED bar-lengths per second.
+  // most MAX_STEP per input event and MAX_SPEED bar-lengths per second. A following finger that
+  // stops short of the thumb's target is still caught up with: an animation-frame loop keeps moving
+  // the thumb toward the last finger position at MAX_SPEED (for a moment after lift-off too, so a
+  // quick swipe that ends at the end of the bar still finishes the word).
   const MIN_START_REACH = 0.35;
   const START_REACH_PX = 100;
   const MAX_STEP = 0.4;
   // On top of MAX_STEP, progress may not advance faster than this many bar-lengths per second, so
   // a finger that merely jitters (or a stray touch) can never run the thumb to the end in a few events.
-  const MAX_SPEED = 2.0;
+  const MAX_SPEED = 3.0;
+  // Fraction of the bar below which a drag counts as "back at the start" (sounds can play again).
+  const RESCRUB_RESET = 0.03;
+  // Rate for the isolated segment sounds (a little quicker than the word, so they finish promptly).
+  const SOUND_RATE = 0.9;
+  const HELP_SOUND_RATE = 0.8;   // the help button says each sound a little more slowly
+  // After a cancel the engine can take a while to start speaking. This much waiting is allowed
+  // before an utterance is given up on; the length-based fallback only starts once it has started.
+  const START_WAIT_MS = 3000;
+  const NO_VOICE_START_WAIT_MS = 600;
   const PREFERS_REDUCED_MOTION = !!window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const HELP_DEBOUNCE_MS = 400;
 
   // ---- speech ----
   let voice = null;
+  const voiceBannerEl = document.getElementById("voice-banner");
   const FEMALE_VOICE_HINTS = /female|zira|hazel|susan|samantha|karen|victoria|moira|tessa|fiona|salli|joanna|kendra|kimberly|ivy|aria|jenny|libby|sonia|google us english|google uk english female/i;
   function pickVoice() {
     const voices = speechSynthesis.getVoices();
     const enVoices = voices.filter(v => /^en/i.test(v.lang));
     // Voices stored on the device come first (network voices need internet and send the text to a
-    // speech service); the female-name preference only chooses among them.
+    // speech service); the female-name preference only chooses among them. With no English voice at
+    // all, none is chosen (a non-English voice would mangle the words) and the banner shows.
     const pool = enVoices.some(v => v.localService) ? enVoices.filter(v => v.localService) : enVoices;
-    voice = pool.find(v => FEMALE_VOICE_HINTS.test(v.name)) || pool[0] || voices[0] || null;
+    voice = pool.find(v => FEMALE_VOICE_HINTS.test(v.name)) || pool[0] || null;
+    if (voice && voiceBannerEl) voiceBannerEl.hidden = true;
   }
   try {
     pickVoice();
@@ -311,25 +339,27 @@
 
   // Small dismissible notice when the browser reports no voice at all (checked after a moment, since
   // voices load asynchronously). The app works without sound either way.
-  const voiceBannerEl = document.getElementById("voice-banner");
   document.getElementById("voice-banner-close").addEventListener("click", () => { voiceBannerEl.hidden = true; });
   setTimeout(() => {
     let none = true;
-    try { none = speechSynthesis.getVoices().length === 0; } catch (e) {}
+    try { pickVoice(); none = !voice; } catch (e) {}
     if (none) voiceBannerEl.hidden = false;
   }, 1500);
 
   // Every utterance gets a monotonically increasing token. A cancelled utterance fires onerror
   // ("interrupted"), not onend, in Chromium, and some engines never fire either, so `onDone` runs
-  // exactly once from whichever of onend / onerror / a length-based fallback timer happens first.
-  // Callbacks from superseded utterances are ignored unless `survive` is set; the story-flow
-  // callbacks set it, and guard themselves with the `flow` token instead, so progress never
-  // depends on one particular utterance happening to finish.
+  // exactly once from whichever of onend / onerror / a fallback timer happens first. The timer has
+  // two stages: up to START_WAIT_MS for the engine to start (after a cancel that can take most of a
+  // second), then a length-based allowance counted from the moment it really starts, so a slow start
+  // can't make the timer fire before the utterance has been heard. Callbacks from superseded
+  // utterances are ignored unless `survive` is set; the story-flow callbacks set it, and guard
+  // themselves with the `flow` token instead, so progress never depends on one particular
+  // utterance happening to finish.
   let speakToken = 0;
   // Kept in a module-level variable: browsers can garbage-collect a playing utterance and then
   // never fire its onend, which would stall the story.
   let currentUtterance = null;
-  function speakCore(text, rate, onDone, survive, fallbackMs) {
+  function speakCore(text, rate, onDone, survive) {
     const token = ++speakToken;
     let fired = false;
     let timer = null;
@@ -340,13 +370,21 @@
       if (token !== speakToken && !survive) return;
       if (onDone) onDone();
     };
-    timer = setTimeout(finish, fallbackMs || text.length * 120 + 1500);
+    if (!voice) { try { pickVoice(); } catch (e) {} }
+    timer = setTimeout(finish, voice ? START_WAIT_MS : NO_VOICE_START_WAIT_MS);
     try {
-      speechSynthesis.cancel();
+      // Cancelling an idle engine only adds latency, so only cancel when something is speaking.
+      if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       if (voice) u.voice = voice;
+      u.lang = voice ? voice.lang : "en-US";
       u.rate = rate || 0.9;
       u.pitch = 1.0;
+      u.onstart = () => {
+        if (fired) return;
+        clearTimeout(timer);
+        timer = setTimeout(finish, text.length * 150 + 1500);
+      };
       u.onend = finish;
       u.onerror = finish;
       currentUtterance = u;
@@ -357,20 +395,55 @@
     }
   }
 
-  // Speaks each text in order (one utterance at a time), then calls onDone. Without `survive`, a
-  // newer utterance elsewhere supersedes the sequence, which then just stops.
-  function speakSounds(texts, onDone, survive) {
-    let i = 0;
-    const next = () => {
-      if (i >= texts.length) { if (onDone) onDone(); return; }
-      speakCore(texts[i++], 0.7, next, survive);
-    };
-    next();
+  // Segment sounds while dragging. A new sound never cuts off the one that is playing: the newest
+  // one waits its turn (at most one waits; an older waiting one is replaced), so every sound that
+  // starts is heard in full. `after` runs once the lane has gone quiet; the word completion uses it
+  // so the last sound is heard first and the whole word after it. Nothing waits on this for progress.
+  let laneBusy = false;
+  let laneQueue = [];
+  let laneAfter = null;
+  let laneRun = 0;
+  function laneAdd(texts, after) {
+    if (texts && texts.length) laneQueue = laneBusy ? texts.slice(-1) : texts.slice();
+    if (after) laneAfter = after;
+    if (!laneBusy) laneNext();
+  }
+  function laneNext() {
+    const run = laneRun;
+    if (laneQueue.length) {
+      laneBusy = true;
+      speakCore(laneQueue.shift(), SOUND_RATE, () => {
+        if (run !== laneRun) return;
+        laneBusy = false;
+        laneNext();
+      }, true);
+    } else {
+      laneBusy = false;
+      const after = laneAfter;
+      laneAfter = null;
+      if (after) after();
+    }
+  }
+  function laneReset() {
+    laneRun++;
+    laneBusy = false;
+    laneQueue = [];
+    laneAfter = null;
   }
 
-  // Any speech that isn't part of the help sequence also stops that sequence.
+  // Stops all speech and every sequence built on it (segment sounds, help, page callbacks). Used
+  // when the page changes so a slow word can't talk over the next page.
+  function stopSpeech() {
+    speakToken++;
+    laneReset();
+    cancelHelp();
+    try { speechSynthesis.cancel(); } catch (e) {}
+  }
+
+  // Any speech that isn't part of the help sequence also stops that sequence and the sound lane.
   function speak(text, rate, onDone) {
     cancelHelp();
+    laneReset();
     speakCore(text, rate, onDone);
   }
 
@@ -382,12 +455,18 @@
   // voice). A short, common dictionary word is in every TTS engine's
   // pronunciation lexicon already, so its first sound is reliably correct —
   // this is the same "A is for Apple" trick phonics teaching already uses.
+  // Each key word is one short syllable that STARTS with the letter's sound, so the sound is heard
+  // at once, and none is a word the story asks the child to read (so not "red", "box" or "yes", and
+  // not "goat" or "net", which sit too close to "got" and "not"). A key word therefore never gives
+  // an answer away. Two exceptions to "starts with": no English word starts with the sound of x
+  // (/ks/), so "ax" is used, where it is heard clearly at the end; and "ng" only ever ends a word,
+  // so "ring" stands in for it (neither is used by the current story).
   const SEGMENT_SOUNDS = {
-    a: "apple", e: "egg", i: "igloo", o: "ox", u: "up",
-    b: "ball", c: "cup", d: "dog", f: "fish", g: "goat",
+    a: "ant", e: "egg", i: "itch", o: "odd", u: "up",
+    b: "ball", c: "cup", d: "dog", f: "fish", g: "gum",
     h: "hat", j: "jam", k: "kite", l: "leaf", m: "map",
-    n: "net", p: "pig", qu: "queen", r: "red", s: "sun",
-    t: "top", v: "van", w: "web", x: "box", y: "yes", z: "zip",
+    n: "nap", p: "pig", qu: "queen", r: "rug", s: "sun",
+    t: "top", v: "van", w: "web", x: "ax", y: "yak", z: "zip",
     sh: "ship", ch: "chip", th: "thumb", ng: "ring",
   };
   function segmentSound(letter) {
@@ -406,17 +485,29 @@
   let boundaries = [];       // cumulative end of each segment as a fraction of the bar (letter-count weighted)
   let activePointerId = null;
   let following = false;     // the current drag may move the thumb (false after a snapped start)
-  let lastMoveAt = 0;        // event time (ms) of the previous input of this drag
+  let fingerFrac = 0;        // last finger position along the bar (0..1) of the current drag
+  let lastAdvanceAt = 0;     // performance.now() of the last time progress was allowed to advance
+  let catchUpRaf = 0;        // requestAnimationFrame id of the catch-up loop (0 = not running)
+  let catchUpUntil = 0;      // after lift-off, the loop keeps going until this time at the latest
+  let pointerIsDown = false;
   // active -> completing (word spoken) -> [reading (page sentence)] -> ready (Next shown)
   let phase = "active";
   // Bumped whenever the word/page changes; story-flow callbacks from an older flow do nothing.
   let flow = 0;
   // Bumped by cancelHelp(); every step of the help sequence returns early if its run is stale.
   let helpRun = 0;
-  let helpTimers = [];
   let lastHelpAt = -Infinity;
   let started = false;        // the Start card has been tapped (this click also unlocks speech)
-  let pendingHelp = false;    // one help tap that arrived during the completion / reading lock
+  // The page the child had reached (kept for this tab session only, so a reload picks up where
+  // they were). Read once at load; written only once the story has been started.
+  const PAGE_KEY = "earlyReader.story.page";
+  let savedPage = 0;
+  try {
+    const n = parseInt(sessionStorage.getItem(PAGE_KEY), 10);
+    if (Number.isInteger(n) && n > 0 && n < STORY.pages.length) savedPage = n;
+  } catch (e) { /* storage blocked: start from the first page */ }
+  function savePage() { try { sessionStorage.setItem(PAGE_KEY, String(pageIndex)); } catch (e) {} }
+  function clearSavedPage() { try { sessionStorage.removeItem(PAGE_KEY); } catch (e) {} savedPage = 0; }
 
   const sentenceEl = document.getElementById("sentence");
   const picEl = document.getElementById("picture");
@@ -438,13 +529,12 @@
   const startBtn = document.getElementById("start-btn");
   const restartBtn = document.getElementById("restart-btn");
   const endTextEl = document.getElementById("end-text");
+  const startTextEl = document.getElementById("start-text");
 
   storyTitleEl.textContent = STORY.title;
 
   function cancelHelp() {
     helpRun++;
-    helpTimers.forEach(clearTimeout);
-    helpTimers = [];
     [...lettersEl.children].forEach(el => el.classList.remove("hinting"));
   }
 
@@ -490,9 +580,8 @@
     const word = currentWord();
     flow++;
     cancelHelp();
-    // A help tap queued while the previous word was being read aloud must not read THIS word aloud
-    // before the child has tried it. The acknowledge pulse was the feedback; the queue is dropped.
-    pendingHelp = false;
+    laneReset();
+    stopCatchUp();
     releasePointer(); // a drag held over from the previous word must not carry into this one
     following = false;
     phase = "active";
@@ -553,6 +642,7 @@
 
   function renderPage() {
     pageIndicatorEl.textContent = "Page " + (pageIndex + 1) + " of " + STORY.pages.length;
+    if (started) savePage();
     activeWordIndex = 0;
     phase = "active";
     renderSentence();
@@ -564,6 +654,7 @@
     if (wordDone) return;
     wordDone = true;
     phase = "completing";
+    stopCatchUp();
     const word = currentWord();
     const myFlow = flow;
     const advance = () => {
@@ -576,20 +667,29 @@
         finishPage(myFlow);
       }
     };
-    const sayWord = () => speakCore(spoken(word), 0.9, advance, true);
-    if (!sounds || !sounds.length) { sayWord(); return; }
-    // The last segment's sound is heard in full first, then the whole word after a short gap.
-    speakSounds(sounds, () => {
-      setTimeout(() => { if (flow === myFlow) sayWord(); }, 150);
-    }, true);
+    const sayWord = () => {
+      if (flow !== myFlow) return;
+      speakCore(spoken(word), 0.9, advance, true);
+    };
+    // The sounds still waiting in the lane (the last segment's included) are heard in full first,
+    // then the whole word after a short gap. If nothing is playing or queued, the word starts now.
+    const afterSounds = () => setTimeout(sayWord, 150);
+    if (!sounds || !sounds.length) {
+      if (laneBusy || laneQueue.length) laneAdd(null, afterSounds);
+      else sayWord();
+      return;
+    }
+    laneAdd(sounds, afterSounds);
   }
 
   function finishPage(myFlow) {
     // read the full sentence once, then show Next / Finish
     phase = "reading";
     renderSentence();
-    // each word as it is spoken on its own (e.g. "A" -> "uh"), with a closing full stop
-    const fullSentence = currentPage().map(spoken).join(" ") + ".";
+    // The sentence is read with each word's real text (a bare "A" is read correctly in context;
+    // the `say` override only exists for the word on its own) and a closing full stop.
+    const text = currentPage().map(w => w.t).join(" ");
+    const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
     setTimeout(() => {
       if (flow !== myFlow) return;
       speakCore(fullSentence, 1.0, () => {
@@ -609,26 +709,19 @@
     }, 1400);
     nextBtn.textContent = (pageIndex === STORY.pages.length - 1) ? "Finish story ▸" : "Next ▸";
     nextBtn.style.display = "inline-flex";
-    runPendingHelp();
+    // Keyboard / screen-reader focus follows the thing to do next.
+    try { nextBtn.focus({ preventScroll: true }); } catch (e) {}
   }
 
   // While the word / sentence is being read aloud for completion, help and picture taps can't speak
-  // (it is already speaking), so they can never interrupt or stall the advance. They get a visible
-  // pulse instead, and one help tap is remembered and run when the lock ends.
+  // (it is already speaking), so they can never interrupt or stall the advance. They only get a
+  // visible pulse; they are not queued, so nothing is read aloud later that the child didn't just ask for.
   function speechLocked() { return phase === "completing" || phase === "reading"; }
   function acknowledge(el) {
     el.classList.remove("ack");
     void el.offsetWidth; // restart the animation if it is already running
     el.classList.add("ack");
     setTimeout(() => el.classList.remove("ack"), 450);
-  }
-  // Only showNext() runs the queued tap (the page is finished and the child is still on that word);
-  // renderActiveWord() throws it away. A stale timer never speaks for a later word or page.
-  function runPendingHelp() {
-    if (!pendingHelp) return;
-    pendingHelp = false;
-    const myFlow = flow;
-    setTimeout(() => { if (flow === myFlow) runHelp(); }, 250);
   }
 
   // ---- drag/scrub ----
@@ -644,6 +737,8 @@
     if (complete) fraction = 1; // snap the fill to 100% once past the threshold
 
     progress = fraction;
+    // Back at the very start: the sounds may be played again on the way forward.
+    if (fraction <= RESCRUB_RESET) maxSegmentPlayed = 0;
     const segs = word.seg;
     filledNow = complete ? segs.length : boundaries.filter(b => b <= fraction).length;
     paintBar();
@@ -665,7 +760,7 @@
       wordCompleted(sounds);
     } else if (sounds.length) {
       cancelHelp();
-      speakSounds(sounds);
+      laneAdd(sounds);
     }
   }
 
@@ -678,6 +773,41 @@
   }
   function startReach() {
     return Math.max(MIN_START_REACH, START_REACH_PX / barEl.getBoundingClientRect().width);
+  }
+
+  // The thumb follows the finger at MAX_SPEED even when the finger itself has stopped moving
+  // (no pointer events arrive for a still finger) or has moved on faster than the thumb may go.
+  // The loop only runs for a finger that is "following" (never after a snapped start that has
+  // not reached the thumb), so a finger resting or jittering at the far end still does nothing.
+  function advanceToFinger() {
+    const now = performance.now();
+    const dt = Math.max(0, (now - lastAdvanceAt) / 1000);
+    lastAdvanceAt = now;
+    dragTo(fingerFrac, dt);
+  }
+  function catchUpFrame() {
+    catchUpRaf = 0;
+    if (wordDone || phase !== "active") return;
+    const live = pointerIsDown && following;
+    const settling = !pointerIsDown && performance.now() < catchUpUntil;
+    if (!live && !settling) return;
+    if (progress < fingerFrac) {
+      advanceToFinger();
+    } else {
+      lastAdvanceAt = performance.now();
+      if (settling) return; // reached the point where the finger was lifted
+    }
+    catchUpRaf = requestAnimationFrame(catchUpFrame);
+  }
+  function startCatchUp() {
+    if (catchUpRaf) return;
+    lastAdvanceAt = performance.now();
+    catchUpRaf = requestAnimationFrame(catchUpFrame);
+  }
+  function stopCatchUp() {
+    if (catchUpRaf) cancelAnimationFrame(catchUpRaf);
+    catchUpRaf = 0;
+    catchUpUntil = 0;
   }
 
   function pulseThumb() {
@@ -695,11 +825,15 @@
     const f = fractionFromX(e.clientX);
     const reach = startReach();
     activePointerId = e.pointerId;
-    lastMoveAt = e.timeStamp;
+    pointerIsDown = true;
+    fingerFrac = f;
+    stopCatchUp();
+    lastAdvanceAt = performance.now();
     try { barEl.setPointerCapture(e.pointerId); } catch (err) {}
     if (f <= boundaries[0] || Math.abs(f - progress) <= reach) {
       following = true;
       dragTo(f);
+      startCatchUp();
     } else {
       // Too far from anywhere a drag may begin: start from the nearest allowed point instead of
       // ignoring the touch, and show where that is. The drag then waits (following = false)
@@ -712,19 +846,33 @@
   barEl.addEventListener("pointermove", e => {
     if (e.pointerId !== activePointerId) return;
     e.preventDefault();
-    const dt = Math.max(0, (e.timeStamp - lastMoveAt) / 1000);
-    lastMoveAt = e.timeStamp;
     const f = fractionFromX(e.clientX);
+    fingerFrac = f;
     if (!following) {
-      if (f <= boundaries[0] || Math.abs(f - progress) <= startReach()) following = true;
-      else return; // still far from the thumb: ignore (a finger resting or jittering at the far end)
+      if (f <= boundaries[0] || Math.abs(f - progress) <= startReach()) {
+        following = true;
+        lastAdvanceAt = performance.now();
+        startCatchUp();
+      } else {
+        return; // still far from the thumb: ignore (a finger resting or jittering at the far end)
+      }
     }
-    dragTo(f, dt);
+    advanceToFinger();
   });
   function endPointer(e) {
     if (e.pointerId !== activePointerId) return;
+    const lifted = e.type === "pointerup" && following;
+    if (lifted) fingerFrac = fractionFromX(e.clientX);
     releasePointer();
+    pointerIsDown = false;
     following = false;
+    // A quick swipe can lift off ahead of the thumb: let it finish getting there (briefly).
+    if (lifted && !wordDone && progress < fingerFrac) {
+      catchUpUntil = performance.now() + 800;
+      if (!catchUpRaf) { lastAdvanceAt = performance.now(); catchUpRaf = requestAnimationFrame(catchUpFrame); }
+    } else {
+      stopCatchUp();
+    }
   }
   barEl.addEventListener("pointerup", endPointer);
   barEl.addEventListener("pointercancel", endPointer);
@@ -762,14 +910,9 @@
     if (word && word.img) speak(spoken(word), 0.9);
   });
 
-  // ---- help button: slow whole-word speech, then segment-by-segment sounded-out replay ----
+  // ---- help button: the sounds one by one (highlighted), then the whole word blended ----
   helpBtn.addEventListener("click", () => {
-    if (speechLocked()) {
-      // Visible feedback now; one tap is queued and runs when the word / sentence has been read.
-      acknowledge(helpBtn);
-      pendingHelp = true;
-      return;
-    }
+    if (speechLocked()) { acknowledge(helpBtn); return; } // visible feedback only; not queued
     const now = performance.now();
     if (now - lastHelpAt < HELP_DEBOUNCE_MS) return; // mashing the button must not stack sequences
     lastHelpAt = now;
@@ -782,29 +925,31 @@
     if (!word) return;
 
     cancelHelp();
+    laneReset();
     const run = helpRun;
-    const later = (fn, ms) => {
-      helpTimers.push(setTimeout(() => { if (run === helpRun) fn(); }, ms));
+    if (word.sight || !word.seg) { speakCore(spoken(word), 0.6, null); return; }
+
+    // Teach the sounds, then blend them: each step starts when the previous utterance is done
+    // (never on a fixed timer, which would cut a sound off), and a stale run stops at once.
+    const letterEls = [...lettersEl.children];
+    let i = 0;
+    const step = () => {
+      if (run !== helpRun) return;
+      letterEls.forEach(el => el.classList.remove("hinting"));
+      if (i >= word.seg.length) {
+        speakCore(spoken(word), 0.7, null); // the whole word, after the last sound
+        return;
+      }
+      letterEls[i].classList.add("hinting");
+      speakCore(segmentSound(word.seg[i]), HELP_SOUND_RATE, step);
+      i++;
     };
-    speakCore(spoken(word), 0.6, () => {
-      if (run !== helpRun || word.sight) return;
-      const letterEls = [...lettersEl.children];
-      let i = 0;
-      const step = () => {
-        letterEls.forEach(el => el.classList.remove("hinting"));
-        if (i >= letterEls.length) return;
-        letterEls[i].classList.add("hinting");
-        speakCore(segmentSound(word.seg[i]), 0.7);
-        i++;
-        later(step, 600);
-      };
-      later(step, 200);
-    });
+    step();
   }
 
   // ---- next page / end screen ----
   nextBtn.addEventListener("click", () => {
-    pendingHelp = false;
+    stopSpeech();
     if (pageIndex < STORY.pages.length - 1) {
       pageIndex++;
       renderPage();
@@ -815,9 +960,9 @@
 
   function showEndScreen() {
     flow++;
-    pendingHelp = false;
-    cancelHelp();
-    endTextEl.textContent = "You finished \u201C" + STORY.title + "\u201D.";
+    stopSpeech();
+    clearSavedPage();
+    endTextEl.textContent = "You finished “" + STORY.title + "”.";
     demoCard.classList.add("finished");
     pageIndicatorEl.textContent = "Done!";
     hintEl.textContent = "";
@@ -828,8 +973,8 @@
   // "Read it again" resets the state and rebuilds the card instead of reloading the page.
   restartBtn.addEventListener("click", () => {
     flow++;
+    stopSpeech();
     pageIndex = 0;
-    pendingHelp = false;
     liveEl.textContent = "";
     demoCard.classList.remove("finished");
     renderPage();
@@ -837,8 +982,14 @@
 
   // The Start card is the first real tap/click on the page, which browsers require before they let
   // a page speak at all (a touch pointerdown doesn't count). It speaks the title to unlock speech.
+  // After a reload in the same tab it carries on from the page the child had reached.
+  if (savedPage > 0) {
+    startBtn.textContent = "▶ Continue story";
+    startTextEl.textContent = "Pick up at page " + (savedPage + 1) + " of " + STORY.pages.length + ".";
+  }
   startBtn.addEventListener("click", () => {
     started = true;
+    pageIndex = savedPage;
     demoCard.classList.remove("not-started");
     renderPage();
     speakCore(STORY.title, 0.9, null);

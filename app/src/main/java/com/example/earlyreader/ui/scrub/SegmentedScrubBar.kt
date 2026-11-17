@@ -76,7 +76,7 @@ private const val START_REACH_DP = 100
 private const val MAX_STEP = 0.4f
 
 // ...and at most this many bar-lengths per second (the same cap as MAX_SPEED in docs/index.html).
-private const val MAX_SPEED = 2.0f
+private const val MAX_SPEED = 3.0f
 
 // Keeps the bar's start clear of the system back-gesture edge (plan section 10).
 private val BarHorizontalPadding = 32.dp
@@ -229,13 +229,24 @@ fun SegmentedScrubBar(
                         // Track only this pointer; any other finger or palm is ignored.
                         val pointerId = down.id
                         var lastUptime = down.uptimeMillis
+                        var lastX = touch
                         down.consume()
                         while (true) {
                             if (progress >= DONE_THRESHOLD) { locked = true; break }
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == pointerId } ?: break
-                            if (!change.pressed) break
+                            if (!change.pressed) {
+                                if (following && lastX > progress) {
+                                    progress = lastX
+                                    if (lastX >= DONE_THRESHOLD) {
+                                        progress = 1f
+                                        locked = true
+                                    }
+                                }
+                                break
+                            }
                             val x = (change.position.x / width).coerceIn(0f, 1f)
+                            lastX = x
                             val dt = (change.uptimeMillis - lastUptime).coerceAtLeast(0L) / 1000f
                             lastUptime = change.uptimeMillis
                             if (!following) {
