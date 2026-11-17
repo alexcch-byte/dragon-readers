@@ -1,7 +1,7 @@
 package com.example.earlyreader
 
 import android.content.Intent
-import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
@@ -60,6 +60,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -113,13 +114,16 @@ import com.example.earlyreader.ui.theme.WarmAccent
 import com.example.earlyreader.ui.welcome.WELCOME_GREETING_SPEECH
 import com.example.earlyreader.ui.welcome.WelcomeDestination
 import com.example.earlyreader.ui.welcome.WelcomeScreen
-import com.example.earlyreader.ui.welcome.appModeFromSaved
+import com.example.earlyreader.ui.welcome.NavState
 import com.example.earlyreader.ui.welcome.modeFor
 import com.example.earlyreader.ui.welcome.readTileInfo
-import com.example.earlyreader.ui.welcome.savedModeFor
+import com.example.earlyreader.ui.welcome.navStateFromSaved
+import com.example.earlyreader.ui.welcome.speechNote
+import com.example.earlyreader.ui.welcome.toSaved
 import com.example.earlyreader.ui.welcome.welcomeProgressLine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -131,8 +135,11 @@ enum class AppMode {
     SENTENCE_LAB,
 }
 
-/** Screens at least this wide (smallest side, in dp) count as tablets and may rotate to landscape. */
-internal const val TABLET_MIN_WIDTH_DP = 600
+/** Saves the app's navigation state as plain values (so it survives rotation and process death). */
+private val NavStateSaver = listSaver<NavState, Any>(
+    save = { it.toSaved() },
+    restore = { navStateFromSaved(it) },
+)
 
 class MainActivity : ComponentActivity() {
     private var speechManager: SpeechManager? = null
@@ -140,12 +147,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Phones stay portrait; tablets (smallest width 600dp or more, such as a Fire HD) may rotate to landscape.
-        requestedOrientation = if (resources.configuration.smallestScreenWidthDp >= TABLET_MIN_WIDTH_DP) {
-            ActivityInfo.SCREEN_ORIENTATION_FULL_USER
-        } else {
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
+        applyOrientation(resources.configuration)
         val speech = SpeechManager(this)
         speechManager = speech
         progressStorage = ProgressStorage(this)
@@ -169,6 +171,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    // The manifest handles screen-size changes itself (no recreate), so the orientation rule is re-evaluated here: a
+    // foldable that unfolds or folds, or the app entering or leaving split-screen, must not stay stuck on the rule
+    // that fitted the screen at start-up.
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applyOrientation(newConfig)
+    }
+
+    private fun applyOrientation(config: Configuration) {
+        requestedOrientation = orientationFor(config.smallestScreenWidthDp, isInMultiWindowMode)
     }
 
     // Leaving the app (or locking the screen) must not leave a word or sentence still being said.
@@ -203,20 +217,6 @@ fun generateMathChallenge(): MathChallenge {
     )
 }
 
-@Composable
-fun WordScreen(
-    words: List<WordData> = WordBank.starterWords,
-    onSpeakWord: (String) -> Unit = {},
-    onSpeakPhoneme: (String, Boolean) -> Unit = { _, _ -> },
-) {
-    EarlyReaderApp(
-        words = words,
-        stories = StoryBank.allStories,
-        onSpeakWord = onSpeakWord,
-        onSpeakPhoneme = onSpeakPhoneme,
-    )
-}
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EarlyReaderApp(
@@ -239,14 +239,13 @@ fun EarlyReaderApp(
     // progress never depends on speech actually happening.
     onAwaitSpeech: suspend () -> Unit = { speechManager?.awaitIdle() ?: delay(600) },
 ) {
-    // The last real screen the child used (old or unknown saved values mean Track to Read).
-    val initialMode = appModeFromSaved(progressStorage?.lastAppMode)
-    var appMode by rememberSaveable { mutableStateOf(initialMode) }
-    // The Welcome page is not a mode: it is shown over the modes on a fresh start and by the Home button. The saved
-    // "last mode" keeps meaning the last real screen, and each screen keeps its place underneath.
-    var showWelcome by rememberSaveable { mutableStateOf(true) }
-    // The child has opened a reading screen since the app started, so "Read" says Continue.
-    var hasOpenedReading by rememberSaveable { mutableStateOf(false) }
+    // Where the child is: the Welcome page is not a mode, it is shown over the modes on a fresh start and by the Home
+    // button, and each screen keeps its place underneath. It also remembers which stories have a Track to Read place,
+    // so the Read tile says "Continue" only when that is true. (Every tile picks its own screen, so no "last mode"
+    // is saved.)
+    var nav by rememberSaveable(stateSaver = NavStateSaver) { mutableStateOf(NavState()) }
+    val appMode = nav.appMode
+    val showWelcome = nav.showWelcome
     var selectedStoryIndex by rememberSaveable {
         mutableIntStateOf(progressStorage?.lastActiveStoryIndex ?: 0)
     }
@@ -271,19 +270,28 @@ fun EarlyReaderApp(
 
     val currentStory = stories[selectedStoryIndex % stories.size]
 
+    // Whether speech works on this device. The engine answers a moment after the app starts, so look again until it
+    // has (and each time the Welcome page comes back).
+    var speechStatus by remember { mutableStateOf(speechManager?.speechStatus ?: SpeechStatus.READY) }
+    LaunchedEffect(speechManager, showWelcome) {
+        while (isActive) {
+            speechStatus = speechManager?.speechStatus ?: SpeechStatus.READY
+            if (speechStatus != SpeechStatus.STARTING) break
+            delay(400)
+        }
+    }
+
     // Opens a real screen (a Welcome tile or a mode chip): leaving a screen, or the Welcome page, never leaves
     // speech going. The saved "last mode" is only ever a real screen.
     val handleModeChange: (AppMode) -> Unit = { mode ->
         if (mode != appMode || showWelcome) onStopSpeech()
-        appMode = mode
-        showWelcome = false
-        if (mode == AppMode.TRACK_TO_READ || mode == AppMode.STORY_MODE) hasOpenedReading = true
-        progressStorage?.lastAppMode = savedModeFor(mode)
+        nav = nav.openMode(mode, selectedStoryIndex % stories.size)
     }
 
     val handleStorySelect: (Int) -> Unit = { idx ->
         onStopSpeech()
         selectedStoryIndex = idx
+        nav = nav.storySelected(idx)
         progressStorage?.lastActiveStoryIndex = idx
     }
 
@@ -291,6 +299,7 @@ fun EarlyReaderApp(
     val handleNextStory: () -> Unit = {
         saveableStateHolder.removeState("story-$selectedStoryIndex-$storyResetKey")
         saveableStateHolder.removeState("track-$selectedStoryIndex-$storyResetKey")
+        nav = nav.trackPlaceDropped(selectedStoryIndex % stories.size)
         handleStorySelect((selectedStoryIndex + 1) % stories.size)
     }
 
@@ -313,10 +322,9 @@ fun EarlyReaderApp(
         storyResetKey++
         showResetConfirm = false
         showSettingsDialog = false
-        handleModeChange(AppMode.TRACK_TO_READ)
         // A fresh start after a reset: nothing to continue, back on the Welcome page.
-        hasOpenedReading = false
-        showWelcome = true
+        onStopSpeech()
+        nav = nav.reset()
     }
 
     // Home just opens the Welcome page. It never erases anything: each screen keeps its page, word and level (they are
@@ -326,7 +334,7 @@ fun EarlyReaderApp(
         if (!showWelcome) {
             onStopSpeech()
             showStoryPicker = false
-            showWelcome = true
+            nav = nav.goHome()
         }
     }
 
@@ -344,9 +352,11 @@ fun EarlyReaderApp(
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 home = {
                     // Dedicated Home button at top start (icon only, so the bar fits a 360dp phone). It opens the
-                    // Welcome page; on the Welcome page it is shown filled and selected ("you are here") and does nothing.
+                    // Welcome page; on the Welcome page it keeps its violet ring and is announced as selected ("you
+                    // are here") and is switched off, so a tap there does not pretend to do something.
                     Surface(
                         onClick = handleHomeClick,
+                        enabled = !showWelcome,
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         border = if (showWelcome) BorderStroke(3.dp, VioletPrimary) else null,
@@ -412,7 +422,8 @@ fun EarlyReaderApp(
                     // The screens underneath are not composed, so they are saved by the state holder (like a tab
                     // that is switched away from) and come back exactly as they were.
                     WelcomeScreen(
-                        readTile = readTileInfo(stories.map { it.title }, selectedStoryIndex, hasOpenedReading),
+                        readTile = readTileInfo(stories.map { it.title }, selectedStoryIndex, nav.trackOpened),
+                        speechNote = speechNote(speechStatus),
                         progressLine = welcomeProgressLine(completedStories.size, stories.size, wordsCompletedCount),
                         onRead = { handleModeChange(modeFor(WelcomeDestination.READ)) },
                         onSounds = { handleModeChange(modeFor(WelcomeDestination.SOUNDS)) },
@@ -582,8 +593,6 @@ fun EarlyReaderApp(
             val voiceName = speechManager?.voiceName ?: "Default US English"
             val isOfflineVoice = speechManager?.isOfflineVoice ?: true
             val isNetworkOnly = speechManager?.isNetworkVoiceOnly ?: false
-            // Without a speech manager (previews) there is nothing to report on, so assume it works.
-            val speechStatus = speechManager?.speechStatus ?: SpeechStatus.READY
 
             AlertDialog(
                 onDismissRequest = { showSettingsDialog = false },
@@ -630,7 +639,7 @@ fun EarlyReaderApp(
                             AppMode.SENTENCE_LAB -> "Sentence Lab"
                         }}")
                         Text(text = "• Story Suite: ${stories.size} decodable stories available")
-                        Text(text = "• Words practised (repeats count): $wordsCompletedCount")
+                        Text(text = "• Sound-outs (words finished, repeats count): $wordsCompletedCount")
                         Text(text = "• Completed stories: ${completedStories.size} of ${stories.size}")
                         if (completedStories.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(4.dp))
@@ -1000,6 +1009,14 @@ fun StoryModeScreen(
     val currentWord = currentPage.words[safeWordIndex]
     val cleanSpoken = currentWord.text.trimEnd('.', '!', '?', ',')
 
+    // The star is recorded the moment the last word of the last page is finished, not when the page turns after the
+    // word has been said: a child who leaves from there (Home, a tab, the app) still gets it. Recording a story twice
+    // changes nothing, so the effect below and the later "page completed" step may repeat it safely.
+    val finishWordAndAdvance: () -> Unit = {
+        pendingAdvance = true
+        if (pageIndex == story.pages.size - 1 && safeWordIndex == currentPage.words.size - 1) onStoryCompleted()
+    }
+
     // Moves on once the word has been said (or the wait times out). Driven by this saved flag rather than by one
     // particular utterance ending, so leaving the screen and coming back (the flag is restored) still carries on.
     LaunchedEffect(pendingAdvance, pageIndex, activeWordIndex, pageCompleted) {
@@ -1215,7 +1232,7 @@ fun StoryModeScreen(
                             .clickable {
                                 if (!pendingAdvance) {
                                     onSpeakWord(cleanSpoken)
-                                    pendingAdvance = true
+                                    finishWordAndAdvance()
                                 }
                             }
                             .semantics {
@@ -1259,7 +1276,7 @@ fun StoryModeScreen(
                                 onSpeakWordQueued(cleanSpoken)
                                 pictureRevealed = true
                                 showReward = true
-                                pendingAdvance = true
+                                finishWordAndAdvance()
                             },
                         )
                     }
@@ -1455,6 +1472,8 @@ fun TrackToReadScreen(
                 pageCompleted = true
                 trackProgress = 1f
                 showReward = true
+                // Recorded now, not only when the screen next recomposes (idempotent: a story counts once).
+                if (pageIndex == story.pages.size - 1) onStoryCompleted()
                 if (speakWhenTracked) {
                     cancelSentenceRead()
                     sentenceRead[0] = coroutineScope.launch {

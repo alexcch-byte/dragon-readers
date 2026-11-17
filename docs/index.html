@@ -516,10 +516,10 @@
       <span class="tile-label" aria-hidden="true">Read</span>
       <span class="tile-caption" id="tile-read-caption" aria-hidden="true"></span>
     </button>
-    <button type="button" class="tile tile-sounds" id="tile-sounds" aria-label="Sounds, drag to sound out words">
+    <button type="button" class="tile tile-sounds" id="tile-sounds" aria-label="Sounds, drag to sound out the story">
       <span class="tile-emoji" aria-hidden="true">🔤</span>
       <span class="tile-label" aria-hidden="true">Sounds</span>
-      <span class="tile-caption" aria-hidden="true">Drag to sound out words</span>
+      <span class="tile-caption" aria-hidden="true">Drag to sound out the story</span>
     </button>
     <button type="button" class="tile tile-stories" id="tile-stories" aria-label="Stories, pick a story">
       <span class="tile-emoji" aria-hidden="true">📖</span>
@@ -1741,15 +1741,18 @@
     }
   }
 
-  function renderPage() {
+  // `resume` (optional) is where the child was on this very page before Home: { mode: "scrub", word } or
+  // { mode: "track", tracked, reached }. Without it the page starts at its first word.
+  function renderPage(resume) {
     storyTitleEl.textContent = currentStory().title;
     pageIndicatorEl.textContent = "Page " + (pageIndex + 1) + " of " + currentStory().pages.length;
     if (started) savePage();
     lastPageRenderAt = performance.now();
-    activeWordIndex = 0;
+    activeWordIndex = resume && resume.mode === "scrub"
+      ? Math.max(0, Math.min(resume.word, currentPage().length - 1)) : 0;
     phase = "active";
     if (readingMode === "track") {
-      renderTrackPage();
+      renderTrackPage(resume && resume.mode === "track" ? resume : null);
     } else {
       renderSentence();
       renderActiveWord();
@@ -2182,11 +2185,17 @@
     return clampedIdx / (wordCount - 1);
   }
 
-  function renderTrackPage() {
+  function renderTrackPage(resume) {
     trackProgress = 0;
     trackedIndex = 0;
     trackReached = 0;
     trackPageCompleted = false;
+    if (resume) {
+      const last = Math.max(0, currentPage().length - 1);
+      trackReached = Math.max(0, Math.min(resume.reached, last));
+      trackedIndex = Math.max(0, Math.min(resume.tracked, trackReached));
+      trackProgress = calculateSnappedTrackProgress(trackedIndex, currentPage().length);
+    }
     trackNextBtn.style.display = "none";
     trackAgainBtn.style.display = "none";
     pageIndicatorEl.textContent = "Page " + (pageIndex + 1) + " of " + currentStory().pages.length;
@@ -2551,7 +2560,22 @@
     }
   }
 
+  // Where the child was on the page when Home was tapped, so Read / Sounds can carry on from the same word (only
+  // when it is the same story, page and screen; otherwise the page simply starts again).
+  let resumePoint = null;
+  function rememberResumePoint() {
+    resumePoint = null;
+    if (!started || demoCard.classList.contains("finished") || demoCard.classList.contains("not-started")) return;
+    const here = { story: storyIndex, page: pageIndex, mode: readingMode };
+    if (readingMode === "scrub" && (phase === "active" || phase === "completing")) {
+      resumePoint = Object.assign(here, { word: activeWordIndex });
+    } else if (readingMode === "track" && !trackPageCompleted) {
+      resumePoint = Object.assign(here, { tracked: trackedIndex, reached: trackReached });
+    }
+  }
+
   function showWelcome(focusTitle) {
+    rememberResumePoint();
     // Whatever was being said (or about to be said) stops, and a page that was being read to the child stops
     // advancing behind the Welcome page.
     flow++;
@@ -2579,23 +2603,42 @@
     homeBtn.setAttribute("aria-label", "Home: open the welcome page");
     stopSpeech();
     window.scrollTo(0, 0);
+    // One history entry for the reader, so the browser's Back button returns to the Welcome page instead of leaving
+    // the demo (see the popstate handler). Never a second one, and never pushed while handling Back.
+    try {
+      if (!(history.state && history.state.view === "reader")) history.pushState({ view: "reader" }, "");
+    } catch (e) { /* history blocked: Back simply leaves the page as before */ }
+  }
+
+  // After a tile tap the focus must not be left on the hidden Welcome page (the page body): it goes to the thing to
+  // act on, the tracker bar (the scrub bar or tricky word is focused by renderActiveWord) or the end screen's button.
+  function focusReaderStart() {
+    let el = null;
+    if (demoCard.classList.contains("finished")) el = document.getElementById("restart-btn");
+    else if (readingMode === "track") el = trackBar;
+    if (el) { try { el.focus({ preventScroll: true }); } catch (e) {} }
   }
 
   // Read / Sounds: open the story in Track to Read / Phonics Scrub. A story that has not been started yet is started
   // by this tap (the tap is the user gesture, so beginStory's title speech works exactly as after the Start card);
   // one that is under way carries on at its page.
   function openReader(mode) {
+    const resume = resumePoint && resumePoint.story === storyIndex && resumePoint.page === pageIndex
+      && resumePoint.mode === mode ? resumePoint : null;
+    resumePoint = null;
     leaveWelcome();
     setReadingMode(mode);
     if (demoCard.classList.contains("not-started")) {
       beginStory();
     } else if (!demoCard.classList.contains("finished")) {
-      renderPage();
+      renderPage(resume);
     }
+    focusReaderStart();
   }
 
   // Stories: the story picker, which is the Start card (Continue / Start, and every story to pick from).
   function openStoryPicker() {
+    resumePoint = null;
     leaveWelcome();
     if (started && !demoCard.classList.contains("finished") && !demoCard.classList.contains("not-started")) {
       savedPage = pageIndex;
@@ -2613,7 +2656,26 @@
   tileSounds.addEventListener("click", () => openReader("scrub"));
   tileStories.addEventListener("click", openStoryPicker);
   helloBtn.addEventListener("click", () => speak(WELCOME_GREETING, 0.9));
-  homeBtn.addEventListener("click", () => { if (!welcomeOpen()) showWelcome(true); });
+  homeBtn.addEventListener("click", () => {
+    if (welcomeOpen()) return;
+    showWelcome(true);
+    // Take the reader's history entry off again (the stack stays [Welcome, reader] however often Home is used).
+    try { if (history.state && history.state.view === "reader") history.back(); } catch (e) {}
+  });
+
+  // The browser's Back button from the reader goes to the Welcome page; Back from the Welcome page leaves the demo.
+  // popstate never pushes anything, so there is no loop. Forward onto a reader entry while the Welcome page is up
+  // just makes that entry a Welcome entry (the reader opens only by a tap, which also unlocks speech).
+  window.addEventListener("popstate", (e) => {
+    const view = e.state && e.state.view;
+    if (view === "reader") {
+      if (welcomeOpen()) { try { history.replaceState({ view: "welcome" }, ""); } catch (err) {} }
+    } else if (!welcomeOpen()) {
+      showWelcome(true);
+    }
+  });
+  // A reload opens on the Welcome page whatever entry it was on; the entry is marked as the Welcome entry.
+  try { history.replaceState({ view: "welcome" }, ""); } catch (e) {}
 
   renderPage();
   showWelcome(false);   // the page opens on the Welcome page; nothing is spoken until a tap

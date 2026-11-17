@@ -1,7 +1,7 @@
 package com.example.earlyreader.ui.welcome
 
 import com.example.earlyreader.AppMode
-import com.example.earlyreader.storage.ProgressStorage
+import com.example.earlyreader.audio.SpeechStatus
 
 /** The four big tiles on the Welcome page, in the order they are shown. */
 enum class WelcomeDestination { READ, SOUNDS, STORIES, SENTENCE_LAB }
@@ -15,24 +15,48 @@ fun modeFor(destination: WelcomeDestination): AppMode = when (destination) {
 }
 
 /**
- * The last real screen, as it is saved on the device. Anything unknown (a value from an older version, a missing or
- * damaged one) means Track to Read, the main screen. Home and the Welcome page are never saved as a mode, so
- * the saved value always stays the last real screen.
+ * Where the child is in the app, as a pure value so the Home / Back / Reset / tile transitions can be unit tested.
+ * The Welcome page is not a mode: it is shown over the modes ([showWelcome]) and each screen keeps its place underneath.
+ * [trackOpened] holds the stories the child has opened Track to Read on (the screen the Read tile opens), so the Read
+ * tile only says "Continue" for a story whose Track screen really has a place to carry on from.
  */
-fun appModeFromSaved(saved: String?): AppMode = when (saved) {
-    ProgressStorage.MODE_STORY -> AppMode.STORY_MODE
-    ProgressStorage.MODE_WORDS -> AppMode.WORD_PRACTICE
-    ProgressStorage.MODE_SENTENCES -> AppMode.SENTENCE_LAB
-    else -> AppMode.TRACK_TO_READ
+data class NavState(
+    val showWelcome: Boolean = true,
+    val appMode: AppMode = AppMode.TRACK_TO_READ,
+    val trackOpened: Set<Int> = emptySet(),
+) {
+    /** A Welcome tile or a mode chip was tapped for [mode] while [storyIndex] is the selected story. */
+    fun openMode(mode: AppMode, storyIndex: Int): NavState = copy(
+        showWelcome = false,
+        appMode = mode,
+        trackOpened = if (mode == AppMode.TRACK_TO_READ) trackOpened + storyIndex else trackOpened,
+    )
+
+    /** Home (or Back) opens the Welcome page; it changes nothing else. */
+    fun goHome(): NavState = if (showWelcome) this else copy(showWelcome = true)
+
+    /** Another story was picked: on the Track screen that story is now the one being tracked. */
+    fun storySelected(storyIndex: Int): NavState =
+        if (!showWelcome && appMode == AppMode.TRACK_TO_READ) copy(trackOpened = trackOpened + storyIndex) else this
+
+    /** [storyIndex] was finished and moved on from: its saved Track place is dropped, so there is nothing to continue. */
+    fun trackPlaceDropped(storyIndex: Int): NavState = copy(trackOpened = trackOpened - storyIndex)
+
+    /** "Reset all progress": nothing to continue, back on the Welcome page. */
+    fun reset(): NavState = NavState()
+
+    /** Whether the Read tile for [storyIndex] has a Track place to carry on from. */
+    fun canContinueReading(storyIndex: Int): Boolean = storyIndex in trackOpened
 }
 
-/** The value saved for [mode]; the inverse of [appModeFromSaved]. */
-fun savedModeFor(mode: AppMode): String = when (mode) {
-    AppMode.STORY_MODE -> ProgressStorage.MODE_STORY
-    AppMode.TRACK_TO_READ -> ProgressStorage.MODE_TRACKING
-    AppMode.SENTENCE_LAB -> ProgressStorage.MODE_SENTENCES
-    AppMode.WORD_PRACTICE -> ProgressStorage.MODE_WORDS
-}
+/** Saves a [NavState] as plain values (it lives in rememberSaveable, so it survives rotation and process death). */
+internal fun NavState.toSaved(): List<Any> = listOf(showWelcome, appMode.name, trackOpened.sorted().joinToString(","))
+
+internal fun navStateFromSaved(saved: List<Any>): NavState = NavState(
+    showWelcome = saved.getOrNull(0) as? Boolean ?: true,
+    appMode = AppMode.values().firstOrNull { it.name == saved.getOrNull(1) } ?: AppMode.TRACK_TO_READ,
+    trackOpened = (saved.getOrNull(2) as? String).orEmpty().split(',').mapNotNull { it.toIntOrNull() }.toSet(),
+)
 
 /** What the "Read" tile opens: which story, and whether the child is carrying on (so it says "Continue"). */
 data class ReadTileInfo(val storyIndex: Int, val storyTitle: String, val continuing: Boolean) {
@@ -54,23 +78,23 @@ data class ReadTileInfo(val storyIndex: Int, val storyTitle: String, val continu
 }
 
 /**
- * Decides the Read tile. The child carries on with the story they were on ([lastActiveStoryIndex]) when they have
- * already moved on from the first story or have opened a reading screen since the app started
- * ([hasOpenedReading]); otherwise it starts the first story. An index that is out of range counts as the first story.
+ * Decides the Read tile, which opens Track to Read on the story the child was on ([lastActiveStoryIndex]). It says
+ * "Continue" only when [trackOpened] (the stories whose Track screen the child has opened) includes that story, so the
+ * caption is true: Track keeps its own place per story, and a story only opened in Stories mode, or one left from a
+ * previous run of the app, starts again at page 1 ("Start"). An index that is out of range counts as the first story.
  */
-fun readTileInfo(titles: List<String>, lastActiveStoryIndex: Int, hasOpenedReading: Boolean): ReadTileInfo {
+fun readTileInfo(titles: List<String>, lastActiveStoryIndex: Int, trackOpened: Set<Int>): ReadTileInfo {
     if (titles.isEmpty()) return ReadTileInfo(0, "", false)
     val valid = lastActiveStoryIndex in titles.indices
     val index = if (valid) lastActiveStoryIndex else 0
-    val continuing = valid && (index > 0 || hasOpenedReading)
-    return ReadTileInfo(index, titles[index], continuing)
+    return ReadTileInfo(index, titles[index], valid && index in trackOpened)
 }
 
 /**
  * The small progress line on the Welcome page, or null when there is nothing to show yet (so a new child sees no
  * numbers at all). Gentle wording, small counts.
  */
-fun welcomeProgressLine(finishedStories: Int, totalStories: Int, wordsSounded: Int): String? {
+fun welcomeProgressLine(finishedStories: Int, totalStories: Int, soundOuts: Int): String? {
     val parts = mutableListOf<String>()
     if (finishedStories > 0) {
         parts += if (totalStories > 0) {
@@ -79,10 +103,20 @@ fun welcomeProgressLine(finishedStories: Int, totalStories: Int, wordsSounded: I
             "⭐ $finishedStories stories finished"
         }
     }
-    if (wordsSounded > 0) {
-        parts += if (wordsSounded == 1) "🔤 1 word sounded out" else "🔤 $wordsSounded words sounded out"
+    if (soundOuts > 0) {
+        // Every finished word counts, including the same word done again, so it is "sound-outs", not "words".
+        parts += if (soundOuts == 1) "🔤 1 sound-out" else "🔤 $soundOuts sound-outs"
     }
     return if (parts.isEmpty()) null else parts.joinToString("  ·  ")
+}
+
+/**
+ * A small, calm note for the Welcome page when speech cannot work on this device, so a silent app is not a mystery.
+ * Null while the engine is READY or still STARTING (nothing is wrong yet).
+ */
+fun speechNote(status: SpeechStatus): String? = when (status) {
+    SpeechStatus.FAILED, SpeechStatus.NO_LANGUAGE -> "No voice on this device yet. A grown-up can fix this in settings."
+    SpeechStatus.READY, SpeechStatus.STARTING -> null
 }
 
 /** What the mascot says when it is tapped. Never spoken by itself. */

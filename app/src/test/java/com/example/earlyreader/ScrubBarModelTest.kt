@@ -168,7 +168,6 @@ class ScrubBarModelTest {
         val progress = ProgressStorage(FakeStore())
         assertEquals(0, progress.completedWordsCount)
         assertEquals(0, progress.lastActiveStoryIndex)
-        assertEquals(ProgressStorage.MODE_TRACKING, progress.lastAppMode)
         assertTrue(progress.completedStoryTitles.isEmpty())
 
         progress.recordWordCompleted()
@@ -185,10 +184,8 @@ class ScrubBarModelTest {
         progress.recordSentenceLevelCompleted("nouns")
         assertEquals(setOf("nouns"), progress.completedSentenceLevels)
 
-        progress.lastAppMode = ProgressStorage.MODE_STORY
         progress.lastActiveStoryIndex = 3
         progress.lastSentenceLabLevel = 4
-        assertEquals(ProgressStorage.MODE_STORY, progress.lastAppMode)
         assertEquals(3, progress.lastActiveStoryIndex)
         assertEquals(4, progress.lastSentenceLabLevel)
 
@@ -197,7 +194,6 @@ class ScrubBarModelTest {
         assertTrue(progress.completedStoryTitles.isEmpty())
         assertTrue(progress.completedSentenceLevels.isEmpty())
         assertEquals(0, progress.lastActiveStoryIndex)
-        assertEquals(ProgressStorage.MODE_TRACKING, progress.lastAppMode)
     }
 
     @Test
@@ -682,7 +678,6 @@ class ScrubBarModelTest {
 
     @Test
     fun testTrackToReadModeModel() {
-        assertEquals("TRACKING", com.example.earlyreader.storage.ProgressStorage.MODE_TRACKING)
         assertEquals(4, AppMode.values().size)
         assertTrue(AppMode.values().contains(AppMode.TRACK_TO_READ))
 

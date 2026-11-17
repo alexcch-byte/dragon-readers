@@ -49,10 +49,6 @@ class ProgressStorage(private val store: KeyValueStore) {
         get() = store.getStringSet(KEY_COMPLETED_SENTENCE_LEVELS)
         set(value) = store.putStringSet(KEY_COMPLETED_SENTENCE_LEVELS, value)
 
-    var lastAppMode: String
-        get() = store.getString(KEY_LAST_APP_MODE, MODE_TRACKING)
-        set(value) = store.putString(KEY_LAST_APP_MODE, value)
-
     fun recordWordCompleted() {
         completedWordsCount += 1
     }
@@ -80,11 +76,8 @@ class ProgressStorage(private val store: KeyValueStore) {
         const val KEY_LAST_STORY_INDEX = "last_active_story_index"
         const val KEY_LAST_SENTENCE_LEVEL = "last_sentence_lab_level"
         const val KEY_COMPLETED_SENTENCE_LEVELS = "completed_sentence_levels"
-        const val KEY_LAST_APP_MODE = "last_app_mode"
-
-        const val MODE_WORDS = "WORDS"
-        const val MODE_STORY = "STORY"
-        const val MODE_TRACKING = "TRACKING"
-        const val MODE_SENTENCES = "SENTENCES"
+        // Older versions also saved "last_app_mode". The app always opens on the Welcome page and every tile picks its
+        // own screen, so nothing reads it any more; a leftover value in the preferences file is simply ignored
+        // (and cleared by resetAll).
     }
 }
