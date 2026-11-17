@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,51 +56,121 @@ data class SentenceLabItem(
     val tags: List<String>,
 ) {
     val words: List<String> = text.split(" ")
-    val nounIndices: Set<Int> = tags.mapIndexedNotNull { idx, tag ->
-        if (tag == "noun") idx else null
-    }.toSet()
+    val nounIndices: Set<Int> get() = targetIndices("noun")
+    val verbIndices: Set<Int> get() = targetIndices("verb")
+
+    fun targetIndices(targetTag: String): Set<Int> =
+        tags.mapIndexedNotNull { idx, tag -> if (tag == targetTag) idx else null }.toSet()
 }
+
+data class SentenceLabLevel(
+    val id: String,
+    val title: String,
+    val shortName: String,
+    val targetTag: String,
+    val targetName: String,
+    val badgeLabel: String,
+    val nudgeText: String,
+    val highlightBg: Color,
+    val highlightBorder: Color,
+    val highlightText: Color,
+    val items: List<SentenceLabItem>,
+)
 
 object SentenceLabData {
-    val level1Items: List<SentenceLabItem> = listOf(
-        SentenceLabItem(
-            text = "The girl fed the hungry rabbit.",
-            tags = listOf("det", "noun", "verb", "det", "adj", "noun"),
-        ),
-        SentenceLabItem(
-            text = "Dad cooked soup in the kitchen.",
-            tags = listOf("noun", "verb", "noun", "prep", "det", "noun"),
-        ),
-        SentenceLabItem(
-            text = "The teacher put books on the shelf.",
-            tags = listOf("det", "noun", "verb", "noun", "prep", "det", "noun"),
-        ),
-        SentenceLabItem(
-            text = "A tall tree grew beside the river.",
-            tags = listOf("det", "adj", "noun", "verb", "prep", "det", "noun"),
-        ),
-        SentenceLabItem(
-            text = "My brother found a coin under the table.",
-            tags = listOf("det", "noun", "verb", "det", "noun", "prep", "det", "noun"),
-        ),
-        SentenceLabItem(
-            text = "The farmer carried apples to the market.",
-            tags = listOf("det", "noun", "verb", "noun", "prep", "det", "noun"),
+    val level1 = SentenceLabLevel(
+        id = "nouns",
+        title = "Level 1: Naming Words (Nouns)",
+        shortName = "1. Nouns",
+        targetTag = "noun",
+        targetName = "naming word",
+        badgeLabel = "🏷️ noun",
+        nudgeText = "Almost! Is that a word that names something? Try again!",
+        highlightBg = Color(0xFFDBEAFE),
+        highlightBorder = Color(0xFF2563EB),
+        highlightText = Color(0xFF1E40AF),
+        items = listOf(
+            SentenceLabItem(
+                text = "The girl fed the hungry rabbit.",
+                tags = listOf("det", "noun", "verb", "det", "adj", "noun"),
+            ),
+            SentenceLabItem(
+                text = "Dad cooked soup in the kitchen.",
+                tags = listOf("noun", "verb", "noun", "prep", "det", "noun"),
+            ),
+            SentenceLabItem(
+                text = "The teacher put books on the shelf.",
+                tags = listOf("det", "noun", "verb", "noun", "prep", "det", "noun"),
+            ),
+            SentenceLabItem(
+                text = "A tall tree grew beside the river.",
+                tags = listOf("det", "adj", "noun", "verb", "prep", "det", "noun"),
+            ),
+            SentenceLabItem(
+                text = "My brother found a coin under the table.",
+                tags = listOf("det", "noun", "verb", "det", "noun", "prep", "det", "noun"),
+            ),
+            SentenceLabItem(
+                text = "The farmer carried apples to the market.",
+                tags = listOf("det", "noun", "verb", "noun", "prep", "det", "noun"),
+            ),
         ),
     )
-}
 
-val NounHighlightBg = Color(0xFFDBEAFE)
-val NounHighlightBorder = Color(0xFF2563EB)
-val NounHighlightText = Color(0xFF1E40AF)
+    val level2 = SentenceLabLevel(
+        id = "verbs",
+        title = "Level 2: Action Words (Verbs)",
+        shortName = "2. Verbs",
+        targetTag = "verb",
+        targetName = "action word",
+        badgeLabel = "⚡ verb",
+        nudgeText = "Almost! Does that word tell what someone or something is doing? Try again!",
+        highlightBg = Color(0xFFFFEDD5),
+        highlightBorder = Color(0xFFC2410C),
+        highlightText = Color(0xFF7C2D12),
+        items = listOf(
+            SentenceLabItem(
+                text = "The children laughed at the funny clown.",
+                tags = listOf("det", "noun", "verb", "prep", "det", "adj", "noun"),
+            ),
+            SentenceLabItem(
+                text = "Mom baked bread for dinner.",
+                tags = listOf("noun", "verb", "noun", "prep", "noun"),
+            ),
+            SentenceLabItem(
+                text = "The kitten climbed up the stairs.",
+                tags = listOf("det", "noun", "verb", "prep", "det", "noun"),
+            ),
+            SentenceLabItem(
+                text = "Our class painted a picture.",
+                tags = listOf("det", "noun", "verb", "det", "noun"),
+            ),
+            SentenceLabItem(
+                text = "The bus stopped at the school.",
+                tags = listOf("det", "noun", "verb", "prep", "det", "noun"),
+            ),
+            SentenceLabItem(
+                text = "A boy splashed in the puddle.",
+                tags = listOf("det", "noun", "verb", "prep", "det", "noun"),
+            ),
+        ),
+    )
+
+    val allLevels = listOf(level1, level2)
+    val level1Items: List<SentenceLabItem> get() = level1.items
+    val level2Items: List<SentenceLabItem> get() = level2.items
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SentenceLabScreen(
-    items: List<SentenceLabItem> = SentenceLabData.level1Items,
+    levels: List<SentenceLabLevel> = SentenceLabData.allLevels,
+    initialLevelIndex: Int = 0,
     onSpeakSentence: (String) -> Unit = {},
+    onLevelSelected: (Int) -> Unit = {},
     onLevelCompleted: () -> Unit = {},
 ) {
+    var levelIndex by rememberSaveable { mutableIntStateOf(initialLevelIndex.coerceIn(0, levels.size - 1)) }
     var itemIndex by rememberSaveable { mutableIntStateOf(0) }
     var selectedIndices by rememberSaveable { mutableStateOf(setOf<Int>()) }
     var nudgeMessage by remember { mutableStateOf<String?>(null) }
@@ -107,10 +178,23 @@ fun SentenceLabScreen(
     var showReward by rememberSaveable { mutableStateOf(false) }
     var levelFinished by rememberSaveable { mutableStateOf(false) }
 
+    val currentLevel = levels[levelIndex % levels.size]
+    val items = currentLevel.items
     val curItem = items[itemIndex % items.size]
-    val totalNouns = curItem.nounIndices.size
-    val foundCount = selectedIndices.intersect(curItem.nounIndices).size
-    val isComplete = foundCount == totalNouns
+    val targetIndices = curItem.targetIndices(currentLevel.targetTag)
+    val totalTargets = targetIndices.size
+    val foundCount = selectedIndices.intersect(targetIndices).size
+    val isComplete = foundCount == totalTargets
+
+    val switchLevel: (Int) -> Unit = { newIdx ->
+        levelIndex = newIdx
+        itemIndex = 0
+        selectedIndices = emptySet()
+        nudgeMessage = null
+        isShowingSolution = false
+        levelFinished = false
+        onLevelSelected(newIdx)
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -120,9 +204,42 @@ fun SentenceLabScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            // Level Selector Pills
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                levels.forEachIndexed { idx, lvl ->
+                    val isSelected = idx == levelIndex
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isSelected) VioletPrimary else Color.Transparent)
+                            .clickable { switchLevel(idx) }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .semantics {
+                                contentDescription = "${lvl.title}" + if (isSelected) ", selected" else ""
+                            },
+                    ) {
+                        Text(
+                            text = lvl.shortName,
+                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
             if (levelFinished) {
                 Text(
-                    text = "Level 1 Finished! 🎉",
+                    text = "${currentLevel.title} Finished! 🎉",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = VioletPrimary,
@@ -134,42 +251,51 @@ fun SentenceLabScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "You found all the naming words in 6 sentences!",
+                    text = "You found all the ${currentLevel.targetName}s in 6 sentences!",
                     style = MaterialTheme.typography.bodyLarge,
                     color = TextDark,
                 )
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = {
-                        itemIndex = 0
-                        selectedIndices = emptySet()
-                        nudgeMessage = null
-                        isShowingSolution = false
-                        levelFinished = false
-                    },
-                    modifier = Modifier.height(52.dp),
-                ) {
-                    Text(text = "↺ Play Level 1 Again", fontSize = 16.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            itemIndex = 0
+                            selectedIndices = emptySet()
+                            nudgeMessage = null
+                            isShowingSolution = false
+                            levelFinished = false
+                        },
+                        modifier = Modifier.height(52.dp),
+                    ) {
+                        Text(text = "↺ Play Again", fontSize = 16.sp)
+                    }
+
+                    if (levelIndex < levels.size - 1) {
+                        Button(
+                            onClick = { switchLevel(levelIndex + 1) },
+                            modifier = Modifier.height(52.dp),
+                        ) {
+                            Text(text = "Next Level ▸", fontSize = 16.sp)
+                        }
+                    }
                 }
             } else {
-                // Header
-                Text(
-                    text = "Sentence Lab • Level 1: Naming Words (Nouns)",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = VioletPrimary,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Sentence ${itemIndex + 1} of ${items.size}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = if (isComplete) "All $totalNouns naming words found! Great job!" else "Tap all $totalNouns naming words (nouns). ($foundCount of $totalNouns)",
+                    text = if (isComplete) {
+                        "All $totalTargets ${currentLevel.targetName}s found! Great job!"
+                    } else if (totalTargets == 1) {
+                        "Tap the ${currentLevel.targetName} (${currentLevel.targetTag})."
+                    } else {
+                        "Tap all $totalTargets ${currentLevel.targetName}s (${currentLevel.targetTag}s). ($foundCount of $totalTargets)"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = if (isComplete) VioletPrimary else TextDark,
@@ -186,29 +312,33 @@ fun SentenceLabScreen(
                     verticalArrangement = Arrangement.Center,
                 ) {
                     curItem.words.forEachIndexed { idx, word ->
-                        val isNoun = curItem.nounIndices.contains(idx)
-                        val isSelected = selectedIndices.contains(idx) || (isShowingSolution && isNoun)
+                        val isTarget = targetIndices.contains(idx)
+                        val isSelected = selectedIndices.contains(idx) || (isShowingSolution && isTarget)
 
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected && isNoun) NounHighlightBg else MaterialTheme.colorScheme.surfaceVariant,
-                            border = if (isSelected && isNoun) BorderStroke(2.dp, NounHighlightBorder) else null,
+                            color = if (isSelected && isTarget) currentLevel.highlightBg else MaterialTheme.colorScheme.surfaceVariant,
+                            border = if (isSelected && isTarget) BorderStroke(2.dp, currentLevel.highlightBorder) else null,
                             modifier = Modifier
                                 .padding(horizontal = 4.dp, vertical = 6.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable {
-                                    if (isNoun) {
+                                    if (isTarget) {
                                         selectedIndices = selectedIndices + idx
                                         nudgeMessage = null
-                                        if (selectedIndices.intersect(curItem.nounIndices).size == totalNouns) {
+                                        if (selectedIndices.intersect(targetIndices).size == totalTargets) {
                                             showReward = true
                                         }
                                     } else {
-                                        nudgeMessage = "Almost! \"${word.trimEnd('.', '!', '?', ',')}\" is not a naming word. Try again!"
+                                        nudgeMessage = currentLevel.nudgeText
                                     }
                                 }
                                 .semantics {
-                                    contentDescription = "$word" + if (isSelected && isNoun) ", identified as noun" else ""
+                                    contentDescription = if (isSelected && isTarget) {
+                                        "$word, ${currentLevel.targetName}, found"
+                                    } else {
+                                        "$word, tap to choose"
+                                    }
                                 },
                         ) {
                             Column(
@@ -218,15 +348,15 @@ fun SentenceLabScreen(
                                 Text(
                                     text = word,
                                     fontSize = 24.sp,
-                                    fontWeight = if (isSelected && isNoun) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected && isNoun) NounHighlightText else TextDark,
+                                    fontWeight = if (isSelected && isTarget) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected && isTarget) currentLevel.highlightText else TextDark,
                                 )
-                                if (isSelected && isNoun) {
+                                if (isSelected && isTarget) {
                                     Text(
-                                        text = "🏷️ noun",
+                                        text = currentLevel.badgeLabel,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = NounHighlightBorder,
+                                        color = currentLevel.highlightBorder,
                                     )
                                 }
                             }
@@ -236,14 +366,16 @@ fun SentenceLabScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Nudge message if incorrect tap
+                // Feedback/nudge banner with TalkBack live region
                 if (nudgeMessage != null) {
                     Text(
                         text = nudgeMessage ?: "",
                         color = WarmAccent,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
@@ -264,7 +396,7 @@ fun SentenceLabScreen(
                         OutlinedButton(
                             onClick = {
                                 isShowingSolution = true
-                                selectedIndices = selectedIndices + curItem.nounIndices
+                                selectedIndices = selectedIndices + targetIndices
                                 showReward = true
                             },
                             modifier = Modifier.height(48.dp),
@@ -290,7 +422,7 @@ fun SentenceLabScreen(
                             modifier = Modifier.height(48.dp),
                         ) {
                             Text(
-                                text = if (itemIndex < items.size - 1) "Next sentence ▸" else "Finish Level 1 🎉",
+                                text = if (itemIndex < items.size - 1) "Next sentence ▸" else "Finish Level 🎉",
                                 fontSize = 15.sp,
                             )
                         }
@@ -309,7 +441,7 @@ fun SentenceLabScreen(
                 text = "⭐",
                 fontSize = 64.sp,
                 modifier = Modifier.semantics {
-                    contentDescription = "Great job finding naming words!"
+                    contentDescription = "Great job finding ${currentLevel.targetName}s!"
                     liveRegion = LiveRegionMode.Polite
                 },
             )
@@ -324,10 +456,18 @@ fun SentenceLabScreen(
     }
 }
 
-@Preview(name = "Sentence Lab Level 1", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Preview(name = "Sentence Lab Level 1 (Nouns)", showBackground = true, backgroundColor = 0xFFFAF7F2)
 @Composable
-fun PreviewSentenceLabScreen() {
+fun PreviewSentenceLabLevel1() {
     EarlyReaderTheme {
-        SentenceLabScreen()
+        SentenceLabScreen(initialLevelIndex = 0)
+    }
+}
+
+@Preview(name = "Sentence Lab Level 2 (Verbs)", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Composable
+fun PreviewSentenceLabLevel2() {
+    EarlyReaderTheme {
+        SentenceLabScreen(initialLevelIndex = 1)
     }
 }

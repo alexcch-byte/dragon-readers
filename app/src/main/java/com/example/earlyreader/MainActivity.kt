@@ -322,7 +322,11 @@ fun EarlyReaderApp(
                     }
                     AppMode.SENTENCE_LAB -> {
                         SentenceLabScreen(
+                            initialLevelIndex = progressStorage?.lastSentenceLabLevel ?: 0,
                             onSpeakSentence = onSpeakWord,
+                            onLevelSelected = { idx ->
+                                progressStorage?.lastSentenceLabLevel = idx
+                            },
                         )
                     }
                 }

@@ -19,6 +19,10 @@ class ProgressStorage(context: Context) {
         get() = prefs.getInt(KEY_LAST_STORY_INDEX, 0)
         set(value) = prefs.edit().putInt(KEY_LAST_STORY_INDEX, value).apply()
 
+    var lastSentenceLabLevel: Int
+        get() = prefs.getInt(KEY_LAST_SENTENCE_LEVEL, 0)
+        set(value) = prefs.edit().putInt(KEY_LAST_SENTENCE_LEVEL, value).apply()
+
     var lastAppMode: String
         get() = prefs.getString(KEY_LAST_APP_MODE, MODE_WORDS) ?: MODE_WORDS
         set(value) = prefs.edit().putString(KEY_LAST_APP_MODE, value).apply()
@@ -42,6 +46,7 @@ class ProgressStorage(context: Context) {
         const val KEY_COMPLETED_WORDS = "completed_words_count"
         const val KEY_COMPLETED_STORIES = "completed_story_titles"
         const val KEY_LAST_STORY_INDEX = "last_active_story_index"
+        const val KEY_LAST_SENTENCE_LEVEL = "last_sentence_lab_level"
         const val KEY_LAST_APP_MODE = "last_app_mode"
 
         const val MODE_WORDS = "WORDS"

@@ -210,4 +210,27 @@ class ScrubBarModelTest {
             }
         }
     }
+
+    @Test
+    fun testSentenceLabLevel2Dataset() {
+        val items = SentenceLabData.level2Items
+        assertEquals("Sentence Lab Level 2 must have 6 items", 6, items.size)
+        val expectedVerbs = listOf("laughed", "baked", "climbed", "painted", "stopped", "splashed")
+        for ((idx, item) in items.withIndex()) {
+            assertTrue("Item $idx text must not be blank", item.text.isNotBlank())
+            assertEquals(
+                "Words count must match tags count for item $idx",
+                item.words.size,
+                item.tags.size,
+            )
+            assertTrue("Item $idx must have at least one verb", item.verbIndices.isNotEmpty())
+            for (verbIdx in item.verbIndices) {
+                assertTrue("Verb index $verbIdx must be valid", verbIdx in item.words.indices)
+                assertEquals("Tag at verb index must be 'verb'", "verb", item.tags[verbIdx])
+                assertEquals("Verb word must match expected", expectedVerbs[idx], item.words[verbIdx])
+            }
+        }
+        assertEquals("Level 2 metadata targetTag must be 'verb'", "verb", SentenceLabData.level2.targetTag)
+        assertEquals("Level 2 metadata targetName must be 'action word'", "action word", SentenceLabData.level2.targetName)
+    }
 }
