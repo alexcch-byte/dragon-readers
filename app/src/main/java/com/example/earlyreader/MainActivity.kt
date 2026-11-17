@@ -10,7 +10,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,9 +21,11 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,13 +56,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.earlyreader.audio.SpeechManager
@@ -69,10 +79,12 @@ import com.example.earlyreader.storage.ProgressStorage
 import com.example.earlyreader.ui.scrub.SegmentedScrubBar
 import com.example.earlyreader.ui.sentences.SentenceLabScreen
 import com.example.earlyreader.ui.theme.EarlyReaderTheme
+import com.example.earlyreader.ui.theme.SegmentEmpty
 import com.example.earlyreader.ui.theme.VioletPrimary
 import com.example.earlyreader.ui.theme.WarmAccent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 enum class AppMode {
     WORD_PRACTICE,
@@ -583,15 +595,20 @@ fun WordPracticeScreen(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        currentWord.sentenceContext.forEachIndexed { idx, token ->
+                        currentWord.sentenceContext.forEach { token ->
                             val cleanToken = token.trimEnd('.', '!', '?', ',')
                             val isActive = cleanToken.equals(currentWord.text, ignoreCase = true)
                             Text(
-                                text = if (idx == currentWord.sentenceContext.size - 1) token else "$token ",
+                                text = token,
                                 style = MaterialTheme.typography.headlineMedium,
-                                fontSize = if (isActive) 28.sp else 22.sp,
+                                fontSize = 24.sp,
                                 color = if (isActive) WarmAccent else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .padding(horizontal = 3.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isActive) Color(0xFFFEF3C7) else Color.Transparent)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
                             )
                         }
                     }
@@ -809,19 +826,27 @@ fun StoryModeScreen(
                         val isDone = pageCompleted || idx < activeWordIndex
                         val isActive = !pageCompleted && idx == activeWordIndex
                         Text(
-                            text = "${w.text} ",
+                            text = w.text,
                             style = MaterialTheme.typography.headlineMedium,
-                            fontSize = if (isActive) 28.sp else 22.sp,
+                            fontSize = 24.sp,
                             color = when {
                                 isActive -> WarmAccent
                                 isDone -> VioletPrimary
                                 else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
                             },
-                            fontWeight = if (isActive || isDone) FontWeight.Bold else FontWeight.Normal,
+                            fontWeight = FontWeight.Bold,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
+                                .padding(horizontal = 3.dp, vertical = 2.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    when {
+                                        isActive -> Color(0xFFFEF3C7)
+                                        isDone -> VioletPrimary.copy(alpha = 0.1f)
+                                        else -> Color.Transparent
+                                    }
+                                )
                                 .clickable { onSpeakWord(w.text.trimEnd('.', '!', '?', ',')) }
-                                .padding(horizontal = 2.dp, vertical = 2.dp),
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 }
@@ -1051,6 +1076,12 @@ fun StoryModeScreen(
     }
 }
 
+fun calculateTrackedWordIndex(progress: Float, wordCount: Int): Int {
+    if (wordCount <= 0) return 0
+    val clamped = progress.coerceIn(0f, 1f)
+    return ((clamped * wordCount).toInt()).coerceIn(0, wordCount - 1)
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TrackToReadScreen(
@@ -1061,25 +1092,40 @@ fun TrackToReadScreen(
     onNextStory: () -> Unit = {},
 ) {
     var pageIndex by rememberSaveable { mutableIntStateOf(0) }
+    var trackProgress by rememberSaveable { mutableFloatStateOf(0f) }
     var trackedWordIndex by rememberSaveable { mutableIntStateOf(0) }
+    var speakWhenTracked by rememberSaveable { mutableStateOf(false) } // false = Highlight Only (default)
     var pageCompleted by rememberSaveable { mutableStateOf(false) }
     var showReward by rememberSaveable { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
     val currentPage = story.pages[pageIndex % story.pages.size]
+    val wordCount = currentPage.words.size
 
-    val handleWordTrack: (Int) -> Unit = { idx ->
-        if (!pageCompleted && idx in currentPage.words.indices) {
-            trackedWordIndex = idx
-            val word = currentPage.words[idx]
-            val cleanSpoken = word.text.trimEnd('.', '!', '?', ',')
-            onSpeakWord(cleanSpoken)
-            if (idx == currentPage.words.size - 1) {
+    val updateTrackProgress: (Float, Boolean) -> Unit = { rawProgress, forceSpeak ->
+        if (wordCount > 0) {
+            val clamped = rawProgress.coerceIn(0f, 1f)
+            val prevIdx = trackedWordIndex
+            val nextIdx = calculateTrackedWordIndex(clamped, wordCount)
+            trackProgress = clamped
+            trackedWordIndex = nextIdx
+
+            val wordChanged = nextIdx != prevIdx || forceSpeak
+            if (wordChanged && speakWhenTracked) {
+                val word = currentPage.words[nextIdx]
+                val cleanSpoken = word.text.trimEnd('.', '!', '?', ',')
+                onSpeakWord(cleanSpoken)
+            }
+
+            if (!pageCompleted && (clamped >= 0.95f || (forceSpeak && nextIdx == wordCount - 1))) {
                 pageCompleted = true
+                trackProgress = 1f
                 showReward = true
-                coroutineScope.launch {
-                    delay(500)
-                    onSpeakWord(currentPage.fullSentence)
+                if (speakWhenTracked) {
+                    coroutineScope.launch {
+                        delay(450)
+                        onSpeakWord(currentPage.fullSentence)
+                    }
                 }
             }
         }
@@ -1089,7 +1135,7 @@ fun TrackToReadScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -1110,18 +1156,92 @@ fun TrackToReadScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Mode Toggle: Highlight Only (Silent) vs Speak Words + Read Full Sentence
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (!speakWhenTracked) VioletPrimary else Color.Transparent)
+                            .clickable { speakWhenTracked = false }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .semantics {
+                                contentDescription = "Highlight Only mode: silent word tracking"
+                            },
+                    ) {
+                        Text(
+                            text = "🔇 Highlight Only",
+                            color = if (!speakWhenTracked) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (speakWhenTracked) VioletPrimary else Color.Transparent)
+                            .clickable { speakWhenTracked = true }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .semantics {
+                                contentDescription = "Speak Words mode: pronounce each word when tracked"
+                            },
+                    ) {
+                        Text(
+                            text = "🔊 Speak Words",
+                            color = if (speakWhenTracked) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier
+                        .clickable { onSpeakWord(currentPage.fullSentence) }
+                        .semantics {
+                            contentDescription = "Read full sentence: ${currentPage.fullSentence}"
+                        },
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            text = "🔊 Read sentence",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = VioletPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = if (pageCompleted) "You tracked the whole sentence! 🎉" else "Track each word with your finger:",
+                text = if (pageCompleted) "You tracked the whole sentence! 🎉" else "Slide the tracker bar across the sentence:",
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (pageCompleted) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = if (pageCompleted) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = FontWeight.SemiBold,
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Sentence Tracking Chips
+            // Sentence Tracking Chips — constant font size, font weight, border width, and padding for zero layout shift
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1133,108 +1253,147 @@ fun TrackToReadScreen(
                     val isDone = pageCompleted || idx < trackedWordIndex
                     val isActive = !pageCompleted && idx == trackedWordIndex
 
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = when {
+                            isActive -> Color(0xFFFEF3C7)
+                            isDone -> MaterialTheme.colorScheme.surfaceVariant
+                            else -> MaterialTheme.colorScheme.surface
+                        },
+                        border = BorderStroke(
+                            width = 2.dp,
                             color = when {
-                                isActive -> VioletPrimary.copy(alpha = 0.15f)
-                                isDone -> MaterialTheme.colorScheme.surfaceVariant
-                                else -> MaterialTheme.colorScheme.surface
+                                isActive -> WarmAccent
+                                isDone -> VioletPrimary.copy(alpha = 0.5f)
+                                else -> MaterialTheme.colorScheme.outlineVariant
                             },
-                            border = BorderStroke(
-                                width = if (isActive) 2.5.dp else 1.dp,
+                        ),
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                            .clickable {
+                                val targetProgress = if (wordCount <= 1 || idx == wordCount - 1) {
+                                    1f
+                                } else {
+                                    (idx + 0.5f) / wordCount.toFloat()
+                                }
+                                updateTrackProgress(targetProgress, true)
+                            }
+                            .semantics {
+                                contentDescription = "${word.text}. " + when {
+                                    isActive -> "Current word"
+                                    isDone -> "Read"
+                                    else -> "Upcoming word"
+                                }
+                            },
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        ) {
+                            if (word.img != null) {
+                                Text(
+                                    text = word.img,
+                                    fontSize = 24.sp,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                )
+                            }
+                            Text(
+                                text = word.text,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = when {
                                     isActive -> WarmAccent
-                                    isDone -> VioletPrimary.copy(alpha = 0.5f)
-                                    else -> MaterialTheme.colorScheme.outlineVariant
+                                    isDone -> VioletPrimary
+                                    else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                                 },
-                            ),
-                            modifier = Modifier
-                                .clickable { handleWordTrack(idx) }
-                                .semantics {
-                                    contentDescription = "${word.text}. " + when {
-                                        isActive -> "Current word. Tap to track"
-                                        isDone -> "Read"
-                                        else -> "Upcoming word"
-                                    }
-                                },
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            ) {
-                                if (word.img != null) {
-                                    Text(
-                                        text = word.img,
-                                        fontSize = 24.sp,
-                                        modifier = Modifier.padding(end = 6.dp),
-                                    )
-                                }
-                                Text(
-                                    text = word.text,
-                                    fontSize = 24.sp,
-                                    fontWeight = if (isActive || isDone) FontWeight.Bold else FontWeight.Normal,
-                                    color = when {
-                                        isActive -> WarmAccent
-                                        isDone -> VioletPrimary
-                                        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                                    },
-                                )
-                                if (isDone) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "✓",
-                                        fontSize = 15.sp,
-                                        color = VioletPrimary,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-                        if (isActive) {
-                            Text(
-                                text = "👆",
-                                fontSize = 22.sp,
-                                modifier = Modifier.semantics { contentDescription = "Finger here" },
                             )
-                        } else {
-                            Spacer(modifier = Modifier.height(22.dp))
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
+            // Continuous Horizontal Scrolling Tracker Bar
+            var barWidthPx by remember { mutableIntStateOf(0) }
+            val thumbSize = 40.dp
+            val thumbSizePx = with(LocalDensity.current) { thumbSize.toPx() }
+            val thumbOffsetPx = ((barWidthPx - thumbSizePx).coerceAtLeast(0f) * trackProgress).roundToInt()
+
+            Box(
                 modifier = Modifier
-                    .clickable { onSpeakWord(currentPage.fullSentence) }
+                    .widthIn(max = 380.dp)
+                    .fillMaxWidth(0.9f)
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(SegmentEmpty)
+                    .border(2.dp, VioletPrimary, RoundedCornerShape(28.dp))
+                    .onSizeChanged { barWidthPx = it.width }
+                    .pointerInput(pageIndex, wordCount, speakWhenTracked) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val pointerId = down.id
+                            if (barWidthPx > 0) {
+                                updateTrackProgress(down.position.x / barWidthPx.toFloat(), false)
+                            }
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                                if (!change.pressed) break
+                                change.consume()
+                                if (barWidthPx > 0) {
+                                    updateTrackProgress(change.position.x / barWidthPx.toFloat(), false)
+                                }
+                            }
+                        }
+                    }
                     .semantics {
-                        contentDescription = "Read full sentence: ${currentPage.fullSentence}"
+                        contentDescription = "Scrolling sentence tracker bar. Word ${trackedWordIndex + 1} of $wordCount"
                     },
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                ) {
-                    Text(
-                        text = "🔊 Read full sentence",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = VioletPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                // Continuous progress fill
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(trackProgress.coerceIn(0f, 1f))
+                        .background(VioletPrimary),
+                )
+
+                // Word boundary tick dividers
+                Row(modifier = Modifier.fillMaxSize()) {
+                    repeat(wordCount.coerceAtLeast(1)) { idx ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .background(Color.Transparent),
+                        ) {
+                            if (idx < wordCount - 1) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .width(2.dp)
+                                        .fillMaxHeight()
+                                        .background(Color.White.copy(alpha = 0.5f)),
+                                )
+                            }
+                        }
+                    }
                 }
+
+                // Smooth draggable thumb
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .offset { IntOffset(thumbOffsetPx, 0) }
+                        .size(thumbSize)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .border(4.dp, WarmAccent, CircleShape),
+                )
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             if (pageCompleted) {
                 Row(
@@ -1243,6 +1402,7 @@ fun TrackToReadScreen(
                 ) {
                     OutlinedButton(
                         onClick = {
+                            trackProgress = 0f
                             trackedWordIndex = 0
                             pageCompleted = false
                             showReward = false
@@ -1256,6 +1416,7 @@ fun TrackToReadScreen(
                         Button(
                             onClick = {
                                 pageIndex++
+                                trackProgress = 0f
                                 trackedWordIndex = 0
                                 pageCompleted = false
                                 showReward = false

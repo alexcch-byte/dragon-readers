@@ -83,10 +83,13 @@
     background: rgba(139, 92, 246, 0.15);
     box-shadow: 0 0 0 2px var(--violet);
   }
-  .sentence .w { font-size: 1.1rem; font-weight: 600; transition: color 0.2s, opacity 0.2s, font-size 0.2s; }
-  .sentence .w.upcoming { color: var(--dim); }
-  .sentence .w.done { color: var(--accent); }
-  .sentence .w.active { color: var(--violet); font-size: 1.4rem; }
+  .sentence .w {
+    font-size: 1.25rem; font-weight: 700; padding: 4px 8px; border-radius: 8px;
+    transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+  }
+  .sentence .w.upcoming { color: var(--dim); background: transparent; }
+  .sentence .w.done { color: var(--violet); background: #F3E8FF; }
+  .sentence .w.active { color: var(--accent); background: #FEF3C7; box-shadow: 0 0 0 2px var(--accent); }
   .sentence .w.sentence-highlight { color: var(--violet); }
 
   .read-sentence-btn {
@@ -108,7 +111,7 @@
   .mode-btn {
     padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 0.9rem;
     cursor: pointer; border: 1.5px solid #DDD6FE; background: white; color: var(--text-dark);
-    transition: all 0.2s ease; font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease; font-family: inherit;
   }
   .mode-btn.active {
     background: var(--violet); color: white; border-color: var(--violet);
@@ -116,45 +119,66 @@
   }
   .track-area {
     display: flex; flex-direction: column; align-items: center; margin: auto 0;
-    width: 100%; padding: 10px 0;
+    width: 100%; padding: 6px 0;
+  }
+  .track-header-controls {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: 8px; margin-bottom: 12px; width: 100%;
+  }
+  .track-audio-toggle {
+    display: inline-flex; background: #F3E8FF; padding: 3px; border-radius: 18px;
+    border: 1px solid #DDD6FE; gap: 2px;
+  }
+  .track-audio-btn {
+    padding: 4px 12px; border-radius: 14px; font-size: 0.8rem; font-weight: 600;
+    border: none; background: transparent; color: var(--text-dark); cursor: pointer;
+    font-family: inherit; transition: background 0.15s, color 0.15s;
+  }
+  .track-audio-btn.active {
+    background: var(--violet); color: white;
   }
   .track-prompt {
-    font-size: 1rem; color: var(--dim); margin: 0 0 16px; text-align: center;
+    font-size: 0.95rem; color: var(--dim); margin: 0 0 12px; text-align: center;
   }
   .track-chips {
     display: flex; flex-wrap: wrap; gap: 10px 12px; justify-content: center;
-    width: 100%; user-select: none;
+    width: 100%; user-select: none; margin-bottom: 18px;
   }
-  .track-chip-col {
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-  }
+  /* Fixed dimensions, padding, font-size, font-weight, and border-width across all states for zero layout shift */
   .track-chip {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 10px 18px; border-radius: 18px; font-size: 1.6rem; font-weight: 600;
+    padding: 10px 16px; border-radius: 16px; font-size: 1.5rem; font-weight: 700;
     cursor: pointer; background: white; border: 2px solid var(--segment-empty);
-    color: var(--text-dark); transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05); font-family: inherit;
-  }
-  .track-chip:hover {
-    transform: translateY(-2px); border-color: var(--violet);
+    color: var(--text-dark); transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+    font-family: inherit; box-sizing: border-box;
   }
   .track-chip.active {
     border-color: var(--accent); background: #FEF3C7; color: var(--accent);
-    transform: scale(1.08); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3); opacity: 1;
   }
   .track-chip.done {
-    background: #F3E8FF; border-color: #DDD6FE; color: var(--violet);
+    background: #F3E8FF; border-color: #DDD6FE; color: var(--violet); opacity: 1;
   }
   .track-chip.upcoming {
-    opacity: 0.55;
+    opacity: 0.6;
   }
-  .track-pointer {
-    font-size: 1.4rem; height: 1.6rem; line-height: 1.6rem;
-    animation: bounce 0.6s infinite alternate ease-in-out;
+  .track-bar {
+    width: min(88vw, 380px); height: 56px; border-radius: 28px; background: var(--segment-empty);
+    position: relative; overflow: hidden; touch-action: none; cursor: pointer; user-select: none;
+    box-shadow: inset 0 0 0 2px var(--violet); margin-bottom: 10px;
   }
-  @keyframes bounce {
-    from { transform: translateY(0); }
-    to { transform: translateY(4px); }
+  .track-bar:focus-visible { outline: 3px solid var(--text-dark); outline-offset: 3px; }
+  .track-bar-fill {
+    position: absolute; top: 0; left: 0; bottom: 0; width: 0%;
+    background: var(--violet); border-radius: 28px; transition: width 0.04s linear;
+  }
+  .track-bar-ticks { position: absolute; inset: 0; display: flex; pointer-events: none; }
+  .track-bar-ticks .tick { flex: 1 1 0; border-right: 2px solid rgba(255,255,255,0.5); }
+  .track-bar-ticks .tick:last-child { border-right: none; }
+  .track-bar-thumb {
+    position: absolute; top: 50%; width: 40px; height: 40px; margin-top: -20px; left: 0;
+    border-radius: 50%; background: white; border: 4px solid var(--accent);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25); pointer-events: none; transition: left 0.04s linear;
   }
 
   .active-area { display: flex; flex-direction: column; align-items: center; margin: auto 0; padding-top: 12px; }
@@ -348,11 +372,25 @@
     </div>
 
     <div class="track-area" id="track-area" style="display:none">
-      <p class="track-prompt" id="track-prompt">👆 Track each word with your finger:</p>
+      <div class="track-header-controls">
+        <div class="track-audio-toggle" role="group" aria-label="Tracking voice mode">
+          <button type="button" class="track-audio-btn active" id="btn-track-silent" title="Highlight words silently without speaking each word">🔇 Highlight Only</button>
+          <button type="button" class="track-audio-btn" id="btn-track-speak" title="Speak each word aloud when tracked">🔊 Speak Words</button>
+        </div>
+        <button type="button" class="read-sentence-btn" id="track-read-sentence-btn" style="margin-top:0" title="Hear full sentence read aloud">🔊 Read full sentence</button>
+      </div>
+      <p class="track-prompt" id="track-prompt">Slide the tracker bar across the sentence:</p>
       <div class="track-chips" id="track-chips"></div>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px">
+      <div class="track-bar" id="track-bar" role="slider" tabindex="0"
+           aria-label="Scroll across the sentence to track each word"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="track-bar-fill" id="track-bar-fill"></div>
+        <div class="track-bar-ticks" id="track-bar-ticks"></div>
+        <div class="track-bar-thumb" id="track-bar-thumb" aria-hidden="true"></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px">
         <button type="button" class="btn btn-secondary btn-small" id="track-again-btn" style="display:none">↺ Track again</button>
-        <button type="button" class="btn btn-primary next-btn" id="track-next-btn" style="display:none">Next ▸</button>
+        <button type="button" class="btn btn-primary next-btn" id="track-next-btn" style="display:none;margin-top:0">Next ▸</button>
       </div>
     </div>
   </div>
@@ -1510,19 +1548,36 @@
     }
   });
 
-  // ---- Track to Read (Finger-Tracking Mode) ----
+  // ---- Track to Read (Scrolling Tracker & Silent Highlight Mode) ----
   let readingMode = "scrub"; // "scrub" | "track"
+  let trackSpeakWords = false; // false = Highlight Only (default), true = Speak Words
+  let trackProgress = 0;
   let trackedIndex = 0;
   let trackPageCompleted = false;
+  let trackPointerId = null;
 
   const btnModeScrub = document.getElementById("btn-mode-scrub");
   const btnModeTrack = document.getElementById("btn-mode-track");
+  const btnTrackSilent = document.getElementById("btn-track-silent");
+  const btnTrackSpeak = document.getElementById("btn-track-speak");
+  const trackReadSentenceBtn = document.getElementById("track-read-sentence-btn");
   const trackArea = document.getElementById("track-area");
   const trackChips = document.getElementById("track-chips");
+  const trackBar = document.getElementById("track-bar");
+  const trackBarFill = document.getElementById("track-bar-fill");
+  const trackBarTicks = document.getElementById("track-bar-ticks");
+  const trackBarThumb = document.getElementById("track-bar-thumb");
   const trackNextBtn = document.getElementById("track-next-btn");
   const trackAgainBtn = document.getElementById("track-again-btn");
   const activeArea = document.getElementById("active-area");
   const sentenceWrap = document.getElementById("sentence-wrap");
+
+  function setTrackAudioMode(speakWords) {
+    trackSpeakWords = speakWords;
+    if (btnTrackSilent) btnTrackSilent.classList.toggle("active", !speakWords);
+    if (btnTrackSpeak) btnTrackSpeak.classList.toggle("active", speakWords);
+    if (!speakWords) stopSpeech();
+  }
 
   function setReadingMode(mode) {
     readingMode = mode;
@@ -1540,65 +1595,85 @@
       activeArea.style.display = "none";
       sentenceWrap.style.display = "none";
       trackArea.style.display = "flex";
-      hintEl.textContent = "Track with your finger from word to word.";
+      hintEl.textContent = "Slide the tracker bar smoothly across the sentence.";
       renderTrackPage();
     }
   }
 
+  function calculateTrackedIndex(progress, wordCount) {
+    if (wordCount <= 0) return 0;
+    const clamped = Math.max(0, Math.min(1, progress));
+    return Math.min(wordCount - 1, Math.floor(clamped * wordCount));
+  }
+
   function renderTrackPage() {
+    trackProgress = 0;
     trackedIndex = 0;
     trackPageCompleted = false;
     trackNextBtn.style.display = "none";
     trackAgainBtn.style.display = "none";
     pageIndicatorEl.textContent = "Page " + (pageIndex + 1) + " of " + currentStory().pages.length;
     storyTitleEl.textContent = currentStory().title;
-    renderTrackChips();
-  }
 
-  function renderTrackChips() {
-    trackChips.innerHTML = "";
     const pageWords = currentPage();
-    pageWords.forEach((w, i) => {
-      const col = document.createElement("div");
-      col.className = "track-chip-col";
+    trackChips.innerHTML = "";
+    trackBarTicks.innerHTML = "";
 
+    pageWords.forEach((w, i) => {
       const chip = document.createElement("button");
       chip.type = "button";
-      chip.className = "track-chip " + (trackPageCompleted || i < trackedIndex ? "done" : i === trackedIndex ? "active" : "upcoming");
-
+      chip.className = "track-chip";
       let html = "";
       if (w.img) html += `<span style="font-size:1.3rem">${w.img}</span> `;
       html += w.t;
-      if (trackPageCompleted || i < trackedIndex) html += ` <span style="font-size:0.9rem">✓</span>`;
       chip.innerHTML = html;
-      chip.setAttribute("aria-label", w.t + (i === trackedIndex ? " (current word)" : ""));
+      chip.addEventListener("click", () => {
+        const p = pageWords.length <= 1 ? 1 : (i === pageWords.length - 1 ? 1 : (i + 0.5) / pageWords.length);
+        setTrackProgress(p, true);
+      });
+      trackChips.appendChild(chip);
 
-      chip.addEventListener("click", () => trackWord(i));
-
-      col.appendChild(chip);
-
-      const ptr = document.createElement("div");
-      ptr.className = "track-pointer";
-      if (!trackPageCompleted && i === trackedIndex) {
-        ptr.textContent = "👆";
-      }
-      col.appendChild(ptr);
-
-      trackChips.appendChild(col);
+      const tick = document.createElement("div");
+      tick.className = "tick";
+      trackBarTicks.appendChild(tick);
     });
+
+    updateTrackVisuals();
   }
 
-  function trackWord(idx) {
-    if (trackPageCompleted) return;
+  function updateTrackVisuals() {
     const pageWords = currentPage();
-    if (idx < 0 || idx >= pageWords.length) return;
-    trackedIndex = idx;
-    const word = pageWords[idx];
-    speak(spoken(word), 0.9);
-    renderTrackChips();
+    const chipEls = [...trackChips.children];
+    chipEls.forEach((chip, i) => {
+      const isDone = trackPageCompleted || i < trackedIndex;
+      const isActive = !trackPageCompleted && i === trackedIndex;
+      chip.className = "track-chip " + (isDone ? "done" : isActive ? "active" : "upcoming");
+      chip.setAttribute("aria-label", pageWords[i].t + (isActive ? " (current word)" : ""));
+    });
 
-    if (idx === pageWords.length - 1) {
+    const pct = Math.round(trackProgress * 100);
+    trackBarFill.style.width = (trackProgress * 100) + "%";
+    trackBarThumb.style.left = "clamp(0px, calc(" + (trackProgress * 100) + "% - 20px), calc(100% - 40px))";
+    trackBar.setAttribute("aria-valuenow", String(pct));
+    trackBar.setAttribute("aria-valuetext", "Word " + (trackedIndex + 1) + " of " + pageWords.length + ": " + pageWords[trackedIndex].t);
+  }
+
+  function setTrackProgress(nextProgress, forceSpeakWord) {
+    const pageWords = currentPage();
+    if (!pageWords.length) return;
+    const clamped = Math.max(0, Math.min(1, nextProgress));
+    const prevIndex = trackedIndex;
+    trackProgress = clamped;
+    trackedIndex = calculateTrackedIndex(clamped, pageWords.length);
+
+    const wordChanged = trackedIndex !== prevIndex || forceSpeakWord;
+    if (wordChanged && trackSpeakWords) {
+      speak(spoken(pageWords[trackedIndex]), 0.9);
+    }
+
+    if (!trackPageCompleted && (clamped >= 0.95 || (forceSpeakWord && trackedIndex === pageWords.length - 1))) {
       trackPageCompleted = true;
+      trackProgress = 1;
       rewardEl.classList.add("show");
       liveEl.textContent = "Great job tracking the sentence!";
       setTimeout(() => {
@@ -1606,33 +1681,93 @@
         liveEl.textContent = "";
       }, 1400);
 
-      const text = pageWords.map(w => w.t).join(" ");
-      const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
-      setTimeout(() => {
-        speakCore(fullSentence, 0.95, null, true);
-      }, 400);
+      if (trackSpeakWords) {
+        const text = pageWords.map(w => w.t).join(" ");
+        const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
+        setTimeout(() => {
+          speakCore(fullSentence, 0.95, null, true);
+        }, 400);
+      }
 
       trackNextBtn.textContent = (pageIndex === currentStory().pages.length - 1) ? "Finish story ▸" : "Next page ▸";
       trackNextBtn.style.display = "inline-flex";
       trackAgainBtn.style.display = "inline-flex";
     }
+
+    updateTrackVisuals();
   }
+
+  function updateTrackBarFromEvent(e) {
+    const rect = trackBar.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = (e.clientX - rect.left) / rect.width;
+    setTrackProgress(ratio, false);
+  }
+
+  trackBar.addEventListener("pointerdown", (e) => {
+    trackPointerId = e.pointerId;
+    try { trackBar.setPointerCapture(e.pointerId); } catch (_) {}
+    updateTrackBarFromEvent(e);
+  });
+  trackBar.addEventListener("pointermove", (e) => {
+    if (trackPointerId === e.pointerId || e.buttons > 0) {
+      updateTrackBarFromEvent(e);
+    }
+  });
+  function releaseTrackPointer() {
+    if (trackPointerId !== null) {
+      try { trackBar.releasePointerCapture(trackPointerId); } catch (_) {}
+      trackPointerId = null;
+    }
+  }
+  trackBar.addEventListener("pointerup", releaseTrackPointer);
+  trackBar.addEventListener("pointercancel", releaseTrackPointer);
+  trackBar.addEventListener("lostpointercapture", releaseTrackPointer);
+
+  trackBar.addEventListener("keydown", (e) => {
+    const pageWords = currentPage();
+    if (!pageWords.length) return;
+    let nextIdx = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") nextIdx = Math.min(pageWords.length - 1, trackedIndex + 1);
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") nextIdx = Math.max(0, trackedIndex - 1);
+    else if (e.key === "Home") nextIdx = 0;
+    else if (e.key === "End") nextIdx = pageWords.length - 1;
+    if (nextIdx === null) return;
+    e.preventDefault();
+    const p = pageWords.length <= 1 ? 1 : (nextIdx === pageWords.length - 1 ? 1 : (nextIdx + 0.5) / pageWords.length);
+    setTrackProgress(p, true);
+  });
 
   function handleTrackPointer(e) {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const chip = el ? el.closest(".track-chip") : null;
     if (chip) {
       const idx = [...trackChips.querySelectorAll(".track-chip")].indexOf(chip);
-      if (idx !== -1 && idx !== trackedIndex && !trackPageCompleted) {
-        trackWord(idx);
+      if (idx !== -1 && idx !== trackedIndex) {
+        const pageWords = currentPage();
+        const p = pageWords.length <= 1 ? 1 : (idx === pageWords.length - 1 ? 1 : (idx + 0.5) / pageWords.length);
+        setTrackProgress(p, false);
       }
     }
   }
 
-  trackChips.addEventListener("pointerdown", handleTrackPointer);
   trackChips.addEventListener("pointermove", (e) => {
     if (e.buttons > 0) handleTrackPointer(e);
   });
+
+  if (btnTrackSilent) {
+    btnTrackSilent.addEventListener("click", () => setTrackAudioMode(false));
+  }
+  if (btnTrackSpeak) {
+    btnTrackSpeak.addEventListener("click", () => setTrackAudioMode(true));
+  }
+  if (trackReadSentenceBtn) {
+    trackReadSentenceBtn.addEventListener("click", () => {
+      const text = currentPage().map(w => w.t).join(" ");
+      const fullSentence = /[.!?]$/.test(text) ? text : text + ".";
+      speakCore(fullSentence, 0.95, null, true);
+    });
+  }
 
   if (trackNextBtn) {
     trackNextBtn.addEventListener("click", () => {

@@ -390,14 +390,27 @@ class ScrubBarModelTest {
         assertEquals(4, AppMode.values().size)
         assertTrue(AppMode.values().contains(AppMode.TRACK_TO_READ))
 
-        // Simulate finger word-tracking across each story page
+        // Validate continuous scrolling tracker progress-to-word-index mapping
+        assertEquals(0, calculateTrackedWordIndex(0f, 0))
+        assertEquals(0, calculateTrackedWordIndex(-0.5f, 5))
+        assertEquals(0, calculateTrackedWordIndex(0f, 5))
+        assertEquals(0, calculateTrackedWordIndex(0.19f, 5))
+        assertEquals(1, calculateTrackedWordIndex(0.20f, 5))
+        assertEquals(2, calculateTrackedWordIndex(0.50f, 5))
+        assertEquals(4, calculateTrackedWordIndex(0.99f, 5))
+        assertEquals(4, calculateTrackedWordIndex(1.0f, 5))
+        assertEquals(4, calculateTrackedWordIndex(1.5f, 5))
+
+        // Simulate continuous scrolling tracker across each story page in both Highlight Only (silent) and Speak Words modes
         for (story in StoryBank.allStories) {
             for ((pIdx, page) in story.pages.withIndex()) {
                 val words = page.words
                 assertTrue("Page $pIdx in ${story.title} must have words to track", words.isNotEmpty())
                 var trackedIndex = 0
                 for (step in words.indices) {
-                    trackedIndex = step
+                    val progress = (step + 0.5f) / words.size.toFloat()
+                    trackedIndex = calculateTrackedWordIndex(progress, words.size)
+                    assertEquals("Tracked index must match step $step", step, trackedIndex)
                     val isComplete = trackedIndex == words.size - 1
                     if (step < words.size - 1) {
                         assertFalse("Should not be complete at word index $step", isComplete)
