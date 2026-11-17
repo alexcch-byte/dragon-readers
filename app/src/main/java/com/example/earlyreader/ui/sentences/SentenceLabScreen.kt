@@ -56,6 +56,7 @@ import kotlinx.coroutines.delay
 enum class SentenceLabType {
     TAP_WORDS,
     JUDGE_SENTENCE,
+    BUILD_SENTENCE,
 }
 
 data class SentenceCheckItem(
@@ -64,6 +65,16 @@ data class SentenceCheckItem(
     val why: String,
     val hint: String,
 )
+
+data class SentenceBuildItem(
+    val kind: String, // "telling", "asking", "exciting"
+    val text: String,
+) {
+    val endMark: String = text.takeLast(1)
+    val rawWords: List<String> = text.dropLast(1).split(" ")
+    val scrambledWords: List<String> = rawWords.shuffled(java.util.Random(text.hashCode().toLong()))
+        .let { if (it == rawWords && it.size > 1) it.reversed() else it }
+}
 
 data class SentenceLabItem(
     val text: String,
@@ -93,6 +104,7 @@ data class SentenceLabLevel(
     val highlightText: Color = Color.Black,
     val items: List<SentenceLabItem> = emptyList(),
     val checkItems: List<SentenceCheckItem> = emptyList(),
+    val buildItems: List<SentenceBuildItem> = emptyList(),
 )
 
 object SentenceLabData {
@@ -263,11 +275,29 @@ object SentenceLabData {
         ),
     )
 
-    val allLevels = listOf(level1, level2, level3, level4)
+    val level5 = SentenceLabLevel(
+        id = "build",
+        title = "Level 5: Build a Sentence",
+        shortName = "5. Build",
+        type = SentenceLabType.BUILD_SENTENCE,
+        targetName = "sentence",
+        prompt = "Tap the words in order, then add the ending mark.",
+        buildItems = listOf(
+            SentenceBuildItem(kind = "telling", text = "The cat is very soft."),
+            SentenceBuildItem(kind = "asking", text = "Do you like soup?"),
+            SentenceBuildItem(kind = "telling", text = "We planted seeds in the garden."),
+            SentenceBuildItem(kind = "asking", text = "Where did the dog go?"),
+            SentenceBuildItem(kind = "exciting", text = "I see a big rainbow!"),
+            SentenceBuildItem(kind = "telling", text = "The bus stops at our school."),
+        ),
+    )
+
+    val allLevels = listOf(level1, level2, level3, level4, level5)
     val level1Items: List<SentenceLabItem> get() = level1.items
     val level2Items: List<SentenceLabItem> get() = level2.items
     val level3Items: List<SentenceLabItem> get() = level3.items
     val level4Items: List<SentenceCheckItem> get() = level4.checkItems
+    val level5Items: List<SentenceBuildItem> get() = level5.buildItems
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -291,21 +321,37 @@ fun SentenceLabScreen(
     var judgeFeedback by rememberSaveable { mutableStateOf<String?>(null) }
     var judgeCorrect by rememberSaveable { mutableStateOf<Boolean?>(null) }
 
+    var placedTokens by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var buildFeedback by rememberSaveable { mutableStateOf<String?>(null) }
+    var buildSuccess by rememberSaveable { mutableStateOf(false) }
+
     val currentLevel = levels[levelIndex % levels.size]
     val isJudgeLevel = currentLevel.type == SentenceLabType.JUDGE_SENTENCE
-    val totalItems = if (isJudgeLevel) currentLevel.checkItems.size else currentLevel.items.size
+    val isBuildLevel = currentLevel.type == SentenceLabType.BUILD_SENTENCE
+    val totalItems = when (currentLevel.type) {
+        SentenceLabType.JUDGE_SENTENCE -> currentLevel.checkItems.size
+        SentenceLabType.BUILD_SENTENCE -> currentLevel.buildItems.size
+        else -> currentLevel.items.size
+    }
 
-    val curTapItem = if (!isJudgeLevel && currentLevel.items.isNotEmpty()) {
+    val curTapItem = if (currentLevel.type == SentenceLabType.TAP_WORDS && currentLevel.items.isNotEmpty()) {
         currentLevel.items[itemIndex % currentLevel.items.size]
     } else null
     val curCheckItem = if (isJudgeLevel && currentLevel.checkItems.isNotEmpty()) {
         currentLevel.checkItems[itemIndex % currentLevel.checkItems.size]
     } else null
+    val curBuildItem = if (isBuildLevel && currentLevel.buildItems.isNotEmpty()) {
+        currentLevel.buildItems[itemIndex % currentLevel.buildItems.size]
+    } else null
 
     val targetIndices = curTapItem?.targetIndices(currentLevel.targetTag) ?: emptySet()
     val totalTargets = targetIndices.size
     val foundCount = selectedIndices.intersect(targetIndices).size
-    val isComplete = if (isJudgeLevel) judgeCorrect == true else foundCount == totalTargets
+    val isComplete = when (currentLevel.type) {
+        SentenceLabType.JUDGE_SENTENCE -> judgeCorrect == true
+        SentenceLabType.BUILD_SENTENCE -> buildSuccess
+        else -> foundCount == totalTargets
+    }
 
     val switchLevel: (Int) -> Unit = { newIdx ->
         levelIndex = newIdx
@@ -316,8 +362,55 @@ fun SentenceLabScreen(
         judgeAnswer = null
         judgeFeedback = null
         judgeCorrect = null
+        placedTokens = emptyList()
+        buildFeedback = null
+        buildSuccess = false
         levelFinished = false
         onLevelSelected(newIdx)
+    }
+
+    val checkBuildSentence: () -> Unit = {
+        if (curBuildItem != null) {
+            val marks = listOf(".", "?", "!")
+            val placedMarks = placedTokens.filter { it in marks }
+            val placedWords = placedTokens.filter { it !in marks }
+            val targetWords = curBuildItem.rawWords
+
+            if (placedTokens.isEmpty()) {
+                buildFeedback = "Tap some words first to build your sentence."
+                buildSuccess = false
+            } else if (placedMarks.size > 1) {
+                buildFeedback = "Almost! A sentence needs just one ending mark."
+                buildSuccess = false
+            } else if (placedWords.size < targetWords.size) {
+                buildFeedback = "Nice start! You used ${placedWords.size} of ${targetWords.size} words. Use them all, then finish with an ending mark."
+                buildSuccess = false
+            } else if (placedTokens.first() != targetWords.first()) {
+                buildFeedback = "Almost! Which word starts with a capital letter? A sentence starts with one."
+                buildSuccess = false
+            } else if (placedMarks.isEmpty()) {
+                buildFeedback = "Almost! Every sentence ends with a mark: a period, a question mark, or an exclamation mark."
+                buildSuccess = false
+            } else if (placedTokens.last() !in marks) {
+                buildFeedback = "Almost! The ending mark goes at the very end."
+                buildSuccess = false
+            } else if (placedTokens.last() != curBuildItem.endMark) {
+                val markHint = when (curBuildItem.kind) {
+                    "asking" -> "This is an asking sentence (question), so it needs a question mark (?)."
+                    "exciting" -> "This is an exciting sentence with big feeling, so it needs an exclamation mark (!)."
+                    else -> "This is a telling sentence, so it needs a period (.)."
+                }
+                buildFeedback = "Almost! $markHint"
+                buildSuccess = false
+            } else if (placedWords != targetWords) {
+                buildFeedback = "Nearly! Read your sentence aloud: does it sound right? Tap a word to take it out and try again."
+                buildSuccess = false
+            } else {
+                buildFeedback = "Yes! Wonderful sentence building! 🎉"
+                buildSuccess = true
+                showReward = true
+            }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -375,10 +468,10 @@ fun SentenceLabScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = if (isJudgeLevel) {
-                        "You checked all 6 complete thoughts vs fragments!"
-                    } else {
-                        "You found all the ${currentLevel.targetName}s in 6 sentences!"
+                    text = when {
+                        isJudgeLevel -> "You checked all 6 complete thoughts vs fragments!"
+                        isBuildLevel -> "You built all 6 sentences with capital letters and ending marks!"
+                        else -> "You found all the ${currentLevel.targetName}s in 6 sentences!"
                     },
                     style = MaterialTheme.typography.bodyLarge,
                     color = TextDark,
@@ -394,6 +487,9 @@ fun SentenceLabScreen(
                             judgeAnswer = null
                             judgeFeedback = null
                             judgeCorrect = null
+                            placedTokens = emptyList()
+                            buildFeedback = null
+                            buildSuccess = false
                             levelFinished = false
                         },
                         modifier = Modifier.height(52.dp),
@@ -577,6 +673,252 @@ fun SentenceLabScreen(
                                 Text(
                                     text = if (itemIndex < totalItems - 1) "Next sentence ▸" else "Finish Level 🎉",
                                     fontSize = 15.sp,
+                                )
+                            }
+                        }
+                    }
+                } else if (isBuildLevel && curBuildItem != null) {
+                    // --- BUILD SENTENCE UI (Level 5) ---
+                    val buildPrompt = when (curBuildItem.kind) {
+                        "asking" -> "Build an asking sentence (a question). Tap the words in order, then add the ending mark."
+                        "exciting" -> "Build an exciting sentence (it shows a big feeling). Tap the words in order, then add the ending mark."
+                        else -> "Build a telling sentence. Tap the words in order, then add the ending mark."
+                    }
+                    Text(
+                        text = buildPrompt,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = VioletPrimary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Sentence Tray
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(2.dp, if (buildSuccess) Color(0xFF15803D) else VioletPrimary.copy(alpha = 0.3f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            if (placedTokens.isEmpty()) {
+                                Text(
+                                    text = "Tap words below to place them here...",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    fontSize = 15.sp,
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                )
+                            } else {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalArrangement = Arrangement.Center,
+                                ) {
+                                    placedTokens.forEachIndexed { idx, token ->
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = if (token in listOf(".", "?", "!")) Color(0xFFE0E7FF) else Color.White,
+                                            border = BorderStroke(1.5.dp, VioletPrimary),
+                                            modifier = Modifier
+                                                .padding(4.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .clickable(enabled = !buildSuccess) {
+                                                    placedTokens = placedTokens.toMutableList().also { it.removeAt(idx) }
+                                                    buildFeedback = null
+                                                }
+                                                .semantics {
+                                                    contentDescription = "$token, placed. Tap to remove"
+                                                },
+                                        ) {
+                                            Text(
+                                                text = token,
+                                                fontSize = if (token in listOf(".", "?", "!")) 24.sp else 20.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = VioletPrimary,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Word Bank
+                    Text(
+                        text = "Word Bank",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                    ) {
+                        curBuildItem.scrambledWords.forEach { word ->
+                            val occurrencesInRaw = curBuildItem.rawWords.count { it == word }
+                            val occurrencesPlaced = placedTokens.count { it == word }
+                            val isUsed = occurrencesPlaced >= occurrencesInRaw
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isUsed) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surfaceVariant,
+                                border = if (!isUsed) BorderStroke(1.dp, VioletPrimary.copy(alpha = 0.3f)) else null,
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(enabled = !isUsed && !buildSuccess) {
+                                        placedTokens = placedTokens + word
+                                        buildFeedback = null
+                                    }
+                                    .semantics {
+                                        contentDescription = if (isUsed) "$word, used" else "$word, tap to add"
+                                    },
+                            ) {
+                                Text(
+                                    text = word,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isUsed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f) else TextDark,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Punctuation marks
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        listOf(".", "?", "!").forEach { mark ->
+                            val isUsed = placedTokens.contains(mark)
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isUsed) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) else Color(0xFFEDE9FE),
+                                border = BorderStroke(1.5.dp, if (isUsed) Color.Transparent else VioletPrimary),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable(enabled = !isUsed && !buildSuccess) {
+                                        placedTokens = placedTokens + mark
+                                        buildFeedback = null
+                                    }
+                                    .semantics {
+                                        contentDescription = "Ending mark $mark"
+                                    },
+                            ) {
+                                Text(
+                                    text = mark,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isUsed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f) else VioletPrimary,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Feedback banner
+                    if (buildFeedback != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (buildSuccess) Color(0xFFDCFCE7) else Color(0xFFFFF7ED),
+                            border = BorderStroke(1.dp, if (buildSuccess) Color(0xFF15803D) else Color(0xFFC2410C)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                                .semantics { liveRegion = LiveRegionMode.Polite },
+                        ) {
+                            Text(
+                                text = buildFeedback ?: "",
+                                color = if (buildSuccess) Color(0xFF14532D) else Color(0xFF7C2D12),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(12.dp),
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    // Controls for Build Level
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val textToSpeak = if (placedTokens.isNotEmpty()) placedTokens.joinToString(" ") else curBuildItem.text
+                                onSpeakSentence(textToSpeak)
+                            },
+                            modifier = Modifier.height(46.dp),
+                        ) {
+                            Text(text = "🔊 Hear it", fontSize = 14.sp)
+                        }
+
+                        if (!buildSuccess) {
+                            OutlinedButton(
+                                onClick = {
+                                    placedTokens = emptyList()
+                                    buildFeedback = null
+                                },
+                                modifier = Modifier.height(46.dp),
+                            ) {
+                                Text(text = "↺ Clear", fontSize = 14.sp)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    placedTokens = curBuildItem.rawWords + curBuildItem.endMark
+                                    buildFeedback = "Here is the sentence: ${curBuildItem.text}"
+                                    buildSuccess = true
+                                    showReward = true
+                                },
+                                modifier = Modifier.height(46.dp),
+                            ) {
+                                Text(text = "👀 Show me", fontSize = 14.sp)
+                            }
+
+                            Button(
+                                onClick = { checkBuildSentence() },
+                                modifier = Modifier.height(46.dp),
+                            ) {
+                                Text(text = "✔ Check", fontSize = 14.sp)
+                            }
+                        } else {
+                            Button(
+                                onClick = {
+                                    if (itemIndex < totalItems - 1) {
+                                        itemIndex++
+                                        placedTokens = emptyList()
+                                        buildFeedback = null
+                                        buildSuccess = false
+                                    } else {
+                                        levelFinished = true
+                                        onLevelCompleted()
+                                    }
+                                },
+                                modifier = Modifier.height(46.dp),
+                            ) {
+                                Text(
+                                    text = if (itemIndex < totalItems - 1) "Next sentence ▸" else "Finish Level 🎉",
+                                    fontSize = 14.sp,
                                 )
                             }
                         }
@@ -781,5 +1123,13 @@ fun PreviewSentenceLabLevel3() {
 fun PreviewSentenceLabLevel4() {
     EarlyReaderTheme {
         SentenceLabScreen(initialLevelIndex = 3)
+    }
+}
+
+@Preview(name = "Sentence Lab Level 5 (Build Sentence)", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Composable
+fun PreviewSentenceLabLevel5() {
+    EarlyReaderTheme {
+        SentenceLabScreen(initialLevelIndex = 4)
     }
 }

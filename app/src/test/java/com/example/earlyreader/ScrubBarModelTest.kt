@@ -278,6 +278,24 @@ class ScrubBarModelTest {
         }
         assertEquals("Level 4 id must be 'sentence-check'", "sentence-check", SentenceLabData.level4.id)
         assertEquals("Level 4 type must be JUDGE_SENTENCE", com.example.earlyreader.ui.sentences.SentenceLabType.JUDGE_SENTENCE, SentenceLabData.level4.type)
-        assertEquals("All levels list must have 4 levels", 4, SentenceLabData.allLevels.size)
+    }
+
+    @Test
+    fun testSentenceLabBuildSentenceDataset() {
+        val items = SentenceLabData.level5Items
+        assertEquals("Sentence Lab Level 5 must have 6 items", 6, items.size)
+        val expectedKinds = listOf("telling", "asking", "telling", "asking", "exciting", "telling")
+        val expectedMarks = listOf(".", "?", ".", "?", "!", ".")
+        for ((idx, item) in items.withIndex()) {
+            assertTrue("Item $idx text must not be blank", item.text.isNotBlank())
+            assertEquals("Item $idx kind must match expected", expectedKinds[idx], item.kind)
+            assertEquals("Item $idx endMark must match expected", expectedMarks[idx], item.endMark)
+            assertTrue("Item $idx rawWords must not be empty", item.rawWords.isNotEmpty())
+            assertEquals("Item $idx scrambledWords size must equal rawWords size", item.rawWords.size, item.scrambledWords.size)
+            assertEquals("Item $idx scrambledWords sorted must equal rawWords sorted", item.rawWords.sorted(), item.scrambledWords.sorted())
+        }
+        assertEquals("Level 5 id must be 'build'", "build", SentenceLabData.level5.id)
+        assertEquals("Level 5 type must be BUILD_SENTENCE", com.example.earlyreader.ui.sentences.SentenceLabType.BUILD_SENTENCE, SentenceLabData.level5.type)
+        assertEquals("All levels list must have 5 levels", 5, SentenceLabData.allLevels.size)
     }
 }
