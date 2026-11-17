@@ -15,10 +15,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -69,11 +72,18 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -221,6 +231,7 @@ fun EarlyReaderApp(
     var showSettingsDialog by remember { mutableStateOf(false) }
     var mathChallenge by remember { mutableStateOf(generateMathChallenge()) }
     var showResetConfirm by remember { mutableStateOf(false) }
+    var showHomeConfirm by remember { mutableStateOf(false) }
     // Keeps each screen's saved state (page, word, level) while it is off screen, so switching tabs and back
     // carries on where the child was instead of starting again at page 1.
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -276,58 +287,53 @@ fun EarlyReaderApp(
         handleModeChange(AppMode.TRACK_TO_READ)
     }
 
-    val handleHomeClick: () -> Unit = {
+    // Home only goes back to the start of Track to Read (the first story, page 1) and forgets where the child was
+    // in the stories. Words and Sentence Lab keep their place, and stars and progress are never touched. It asks
+    // first, because a stray tap would otherwise lose the place.
+    val handleHomeClick: () -> Unit = { showHomeConfirm = true }
+
+    val performHome: () -> Unit = {
         onStopSpeech()
-        saveableStateHolder.removeState("story-$selectedStoryIndex-$storyResetKey")
-        saveableStateHolder.removeState("track-$selectedStoryIndex-$storyResetKey")
+        stories.indices.forEach { idx ->
+            saveableStateHolder.removeState("story-$idx-$storyResetKey")
+            saveableStateHolder.removeState("track-$idx-$storyResetKey")
+        }
         selectedStoryIndex = 0
         progressStorage?.lastActiveStoryIndex = 0
-        practiceResetKey++
+        // A new key makes the screens that are showing right now start again, not just the saved ones.
         storyResetKey++
         showStoryPicker = false
         showSettingsDialog = false
         showMathGate = false
         showResetConfirm = false
+        showHomeConfirm = false
         handleModeChange(AppMode.TRACK_TO_READ)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar with Home button, mode selector, and adult parent gate
-            Row(
+            // Top bar: Home, the mode switcher and the grown-ups' gear. Labels are short, and the bar wraps onto a
+            // second line (instead of scrolling the gear off screen) on narrow phones or with large text.
+            FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                // Dedicated Home button at top start
+                // Dedicated Home button at top start (icon only, so the bar fits a 360dp phone)
                 Surface(
                     onClick = handleHomeClick,
-                    shape = RoundedCornerShape(24.dp),
+                    shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .semantics { contentDescription = "Home: return to start" },
+                        .size(48.dp)
+                        .semantics { contentDescription = "Home: return to the start" },
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                    ) {
-                        Text(
-                            text = "🏠 Home",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = VioletPrimary,
-                            fontWeight = FontWeight.Bold,
-                        )
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Text(text = "🏠", fontSize = 22.sp)
                     }
                 }
-
-                Spacer(modifier = Modifier.width(8.dp))
 
                 // Mode switcher: every chip is at least 48dp tall.
                 Row(
@@ -340,10 +346,10 @@ fun EarlyReaderApp(
                     ModeChip("Words", appMode == AppMode.WORD_PRACTICE) { handleModeChange(AppMode.WORD_PRACTICE) }
                     ModeChip("Stories", appMode == AppMode.STORY_MODE) { handleModeChange(AppMode.STORY_MODE) }
                     ModeChip("Track", appMode == AppMode.TRACK_TO_READ) { handleModeChange(AppMode.TRACK_TO_READ) }
-                    ModeChip("Sentence Lab", appMode == AppMode.SENTENCE_LAB) { handleModeChange(AppMode.SENTENCE_LAB) }
+                    ModeChip("Lab", appMode == AppMode.SENTENCE_LAB, description = "Sentence Lab") {
+                        handleModeChange(AppMode.SENTENCE_LAB)
+                    }
                 }
-
-                Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
                     onClick = {
@@ -422,13 +428,42 @@ fun EarlyReaderApp(
             }
         }
 
+        // Home asks first: it forgets the place in the stories.
+        if (showHomeConfirm) {
+            AlertDialog(
+                onDismissRequest = { showHomeConfirm = false },
+                title = { Text(text = "Go home?", fontWeight = FontWeight.Bold) },
+                text = {
+                    Text(
+                        text = "This goes back to the start of Track to Read (${stories.first().title}, page 1) and " +
+                            "forgets where you were in the stories. Stars and progress are kept.",
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = performHome, modifier = Modifier.height(48.dp)) {
+                        Text(text = "Yes, go home")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showHomeConfirm = false }, modifier = Modifier.height(48.dp)) {
+                        Text(text = "Stay here")
+                    }
+                },
+            )
+        }
+
         // Story Picker Dialog
         if (showStoryPicker) {
             AlertDialog(
                 onDismissRequest = { showStoryPicker = false },
                 title = { Text(text = "Choose a Story", fontWeight = FontWeight.Bold) },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 460.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         stories.forEachIndexed { idx, s ->
                             val isSelected = idx == (selectedStoryIndex % stories.size)
                             val isCompleted = completedStories.contains(s.title)
@@ -524,7 +559,11 @@ fun EarlyReaderApp(
                 onDismissRequest = { showSettingsDialog = false },
                 title = { Text(text = "Settings & Session Progress", fontWeight = FontWeight.Bold) },
                 text = {
-                    Column {
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 460.dp)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
                         Text(text = "Early Reader - Adult Dashboard", fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = "• TTS Voice: $voiceName (${if (isOfflineVoice) "offline ready" else "network required"})")
@@ -610,14 +649,18 @@ fun EarlyReaderApp(
 }
 
 @Composable
-private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun ModeChip(label: String, selected: Boolean, description: String = label, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(24.dp))
             .background(if (selected) VioletPrimary else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp),
+            .clickable(role = Role.Tab, onClick = onClick)
+            .padding(horizontal = 9.dp)
+            .semantics {
+                this.selected = selected
+                contentDescription = description
+            },
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -625,6 +668,31 @@ private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
             color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+/**
+ * A centred column that scrolls when its content is taller than the screen (a long page, a small phone, big text).
+ * When the content fits it is centred exactly as before. The bars inside consume their own drags, so a horizontal
+ * scrub is never turned into a scroll.
+ */
+@Composable
+private fun CenteredScrollColumn(
+    contentPadding: PaddingValues,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val viewportHeight: Dp = maxHeight
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = viewportHeight)
+                .padding(contentPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            content = content,
         )
     }
 }
@@ -646,13 +714,7 @@ fun WordPracticeScreen(
     var attempt by rememberSaveable { mutableIntStateOf(0) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
+        CenteredScrollColumn(contentPadding = PaddingValues(vertical = 16.dp)) {
             // Sentence context across the top
             if (currentWord.sentenceContext.isNotEmpty()) {
                 val fullSentenceText = currentWord.sentenceContext.joinToString(" ")
@@ -679,7 +741,7 @@ fun WordPracticeScreen(
                                 text = token,
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontSize = 24.sp,
-                                color = if (isActive) WarmAccent else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+                                color = if (isActive) WarmAccent else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.62f),
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
                                     .padding(horizontal = 4.dp)
@@ -891,13 +953,7 @@ fun StoryModeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
+        CenteredScrollColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)) {
             // Interactive Story & Page Indicator (tapping opens story picker)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -946,7 +1002,7 @@ fun StoryModeScreen(
                             color = when {
                                 isActive -> WarmAccent
                                 isDone -> VioletPrimary
-                                else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+                                else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.62f)
                             },
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
@@ -1196,6 +1252,25 @@ fun calculateSnappedTrackProgress(wordIndex: Int, wordCount: Int): Float {
 fun limitTrackedWordIndex(desiredIndex: Int, reachedIndex: Int): Int =
     desiredIndex.coerceAtMost(reachedIndex + 1)
 
+/**
+ * Where the tracker goes when a screen reader or switch user asks the bar to move to [target] (0..1): exactly one
+ * word forward or back, never a jump, so the page can only be finished by stepping along it.
+ */
+fun accessibilityStepIndex(trackedIndex: Int, wordCount: Int, target: Float): Int {
+    if (wordCount <= 0) return 0
+    val current = calculateSnappedTrackProgress(trackedIndex, wordCount)
+    val step = when {
+        target > current -> trackedIndex + 1
+        target < current -> trackedIndex - 1
+        else -> trackedIndex
+    }
+    return step.coerceIn(0, wordCount - 1)
+}
+
+/** Pixel offset of the tracker thumb along a bar [barWidthPx] wide: it travels the bar minus its own width. */
+fun trackThumbOffsetPx(barWidthPx: Int, thumbWidthPx: Float, progress: Float): Int =
+    ((barWidthPx - thumbWidthPx).coerceAtLeast(0f) * progress.coerceIn(0f, 1f)).roundToInt()
+
 /** Where a tracker move came from: a finger on the bar, or a tap on a word chip (which can never finish the page). */
 enum class TrackSource { BAR, CHIP }
 
@@ -1259,13 +1334,7 @@ fun TrackToReadScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
+        CenteredScrollColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)) {
             // Interactive Story & Page Indicator
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1303,9 +1372,10 @@ fun TrackToReadScreen(
                             .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(24.dp))
                             .background(if (!speakWhenTracked) VioletPrimary else Color.Transparent)
-                            .clickable { speakWhenTracked = false }
+                            .clickable(role = Role.RadioButton) { speakWhenTracked = false }
                             .padding(horizontal = 10.dp)
                             .semantics {
+                                selected = !speakWhenTracked
                                 contentDescription = "Highlight Only mode: silent word tracking"
                             },
                         contentAlignment = Alignment.Center,
@@ -1322,9 +1392,10 @@ fun TrackToReadScreen(
                             .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(24.dp))
                             .background(if (speakWhenTracked) VioletPrimary else Color.Transparent)
-                            .clickable { speakWhenTracked = true }
+                            .clickable(role = Role.RadioButton) { speakWhenTracked = true }
                             .padding(horizontal = 10.dp)
                             .semantics {
+                                selected = speakWhenTracked
                                 contentDescription = "Speak Words mode: pronounce each word when tracked"
                             },
                         contentAlignment = Alignment.Center,
@@ -1381,7 +1452,7 @@ fun TrackToReadScreen(
             val thumbWidth = ThumbWidth
             val thumbHeight = ThumbHeight
             val thumbWidthPx = with(LocalDensity.current) { thumbWidth.toPx() }
-            val thumbOffsetPx = ((barWidthPx - thumbWidthPx).coerceAtLeast(0f) * animatedProgress).roundToInt()
+            val thumbOffsetPx = trackThumbOffsetPx(barWidthPx, thumbWidthPx, animatedProgress)
             val tickIntervals = (wordCount - 1).coerceAtLeast(1)
 
             Row(
@@ -1418,7 +1489,7 @@ fun TrackToReadScreen(
                                     }
                                     .padding(horizontal = 2.dp, vertical = 2.dp)
                                     .semantics {
-                                        contentDescription = "${word.text}. " + when {
+                                        contentDescription = "${word.text}. " + (if (isTricky) "Tricky word. " else "") + when {
                                             isActive -> "Current word"
                                             isDone -> "Read"
                                             else -> "Upcoming word"
@@ -1459,7 +1530,7 @@ fun TrackToReadScreen(
                                         color = when {
                                             isActive -> TextDark
                                             isDone -> VioletPrimary
-                                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.40f)
+                                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                                         },
                                     )
                                 }
@@ -1509,6 +1580,8 @@ fun TrackToReadScreen(
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
                                     val pointerId = down.id
+                                    // The bar owns the gesture, so a parent that scrolls vertically never takes it over.
+                                    down.consume()
                                     if (barWidthPx > 0) {
                                         updateTrackProgress(down.position.x / barWidthPx.toFloat(), TrackSource.BAR)
                                     }
@@ -1524,7 +1597,20 @@ fun TrackToReadScreen(
                                 }
                             }
                             .semantics {
-                                contentDescription = "Scrolling sentence tracker bar. Word ${trackedWordIndex + 1} of $wordCount"
+                                contentDescription = "Sentence tracker bar"
+                                stateDescription = "Word ${trackedWordIndex + 1} of $wordCount"
+                                // One step per word, so a screen reader or switch user can move along the sentence
+                                // (and finish the page) without dragging.
+                                progressBarRangeInfo = ProgressBarRangeInfo(
+                                    calculateSnappedTrackProgress(trackedWordIndex, wordCount),
+                                    0f..1f,
+                                    steps = (wordCount - 2).coerceAtLeast(0),
+                                )
+                                setProgress(action = { target ->
+                                    val stepTo = accessibilityStepIndex(trackedWordIndex, wordCount, target)
+                                    updateTrackProgress((stepTo + 0.5f) / wordCount.toFloat(), TrackSource.BAR)
+                                    true
+                                })
                             },
                     ) {
                         // Stepped progress fill jumping from word stop to word stop
@@ -1584,6 +1670,8 @@ fun TrackToReadScreen(
                     enabled = checkEnabled,
                     shape = RoundedCornerShape(16.dp),
                     color = if (checkEnabled) VioletPrimary else SegmentEmpty,
+                    // Dimmed (not hidden): the violet outline and glyph stay readable on the pale fill.
+                    border = if (checkEnabled) null else BorderStroke(1.5.dp, VioletPrimary.copy(alpha = 0.45f)),
                     shadowElevation = if (checkEnabled) 4.dp else 0.dp,
                     modifier = Modifier
                         .size(52.dp)
@@ -1595,7 +1683,7 @@ fun TrackToReadScreen(
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         Text(
                             text = "✓",
-                            color = Color.White,
+                            color = if (checkEnabled) Color.White else VioletPrimary.copy(alpha = 0.6f),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                         )

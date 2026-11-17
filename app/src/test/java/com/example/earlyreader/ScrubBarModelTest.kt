@@ -3,6 +3,7 @@ package com.example.earlyreader
 import com.example.earlyreader.audio.SpeechManager
 import com.example.earlyreader.audio.VoiceCandidate
 import com.example.earlyreader.audio.VoiceSelection
+import com.example.earlyreader.audio.spokenForm
 import com.example.earlyreader.model.StoryBank
 import com.example.earlyreader.model.WordBank
 import com.example.earlyreader.storage.KeyValueStore
@@ -19,7 +20,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume
 import org.junit.Test
+import java.io.File
+import kotlin.math.roundToInt
 
 class ScrubBarModelTest {
 
@@ -487,13 +491,149 @@ class ScrubBarModelTest {
         assertTrue(campStory.pages.flatMap { it.words }.any { it.text.contains("camp") })
     }
 
+    /** One word of a story as written in docs/index.html: {t:"hen", img:"🐔", seg:["h","e","n"]} or {t:"The", sight:true}. */
+    private data class WebWord(val text: String, val sight: Boolean, val img: String?, val seg: List<String>)
+
+    private data class WebStory(val id: String, val title: String, val pages: List<List<WebWord>>)
+
+    private fun readWebStories(html: String): List<WebStory> {
+        val lines = html.lines()
+        val start = lines.indexOfFirst { it.contains("const STORIES = [") }
+        require(start >= 0) { "STORIES not found in docs/index.html" }
+        val wordRe = Regex("""\{t:"([^"]*)"(.*)\}""")
+        val imgRe = Regex("""img:"([^"]*)"""")
+        val segRe = Regex("""seg:\[([^\]]*)\]""")
+        val stories = mutableListOf<WebStory>()
+        var id = ""
+        var title = ""
+        var pages = mutableListOf<List<WebWord>>()
+        var page: MutableList<WebWord>? = null
+        for (line in lines.drop(start + 1)) {
+            val t = line.trim()
+            if (t == "];") break
+            when {
+                t.startsWith("id:") -> id = t.substringAfter('"').substringBeforeLast('"')
+                t.startsWith("title:") -> title = t.substringAfter('"').substringBeforeLast('"')
+                t == "pages: [" -> pages = mutableListOf()
+                t == "[" -> page = mutableListOf()
+                t == "]," || t == "]" -> {
+                    if (page != null) {
+                        pages.add(page)
+                        page = null
+                    } else {
+                        stories.add(WebStory(id, title, pages.toList()))
+                    }
+                }
+                t.startsWith("{t:") -> {
+                    val m = wordRe.find(t) ?: error("Unreadable word line: $t")
+                    val rest = m.groupValues[2]
+                    page!!.add(
+                        WebWord(
+                            text = m.groupValues[1],
+                            sight = rest.contains("sight:true"),
+                            img = imgRe.find(rest)?.groupValues?.get(1),
+                            seg = segRe.find(rest)?.groupValues?.get(1)
+                                ?.split(",")?.map { it.trim().trim('"') }?.filter { it.isNotEmpty() }
+                                ?: emptyList(),
+                        ),
+                    )
+                }
+            }
+        }
+        return stories
+    }
+
     @Test
-    fun testStoriesAreTheSameOnWebAndAndroidWhereCheckable() {
-        // The Red Hen is the story that used to differ: page 1 is now "A hen sat. The hen is red." on both platforms.
-        val hen = StoryBank.allStories.first { it.id == "hen" }
-        assertEquals("A hen sat. The hen is red.".replace(".", ""), hen.pages[0].fullSentence.replace(".", ""))
-        assertEquals("A fox ran. The fox is big.".replace(".", ""), hen.pages[1].fullSentence.replace(".", ""))
-        assertEquals("The hen got in a box.", hen.pages[2].fullSentence)
+    fun testStoriesAreTheSameOnWebAndAndroid() {
+        // Reads the real web reader (docs/index.html). Unit tests run in app/, so the web page is one level up.
+        val webFile = listOf(File("../docs/index.html"), File("docs/index.html")).firstOrNull { it.isFile }
+        Assume.assumeTrue("docs/index.html is not reachable from the test working directory", webFile != null)
+        val web = readWebStories(webFile!!.readText(Charsets.UTF_8))
+
+        assertEquals("Same story ids", StoryBank.allStories.map { it.id }, web.map { it.id })
+        for ((story, webStory) in StoryBank.allStories.zip(web)) {
+            assertEquals("Title of ${story.id}", story.title, webStory.title)
+            assertEquals("Page count of ${story.title}", story.pages.size, webStory.pages.size)
+            for ((pIdx, pair) in story.pages.zip(webStory.pages).withIndex()) {
+                val (page, webPage) = pair
+                val where = "${story.title} page ${pIdx + 1}"
+                assertEquals("$where: same words", page.words.map { it.text }, webPage.map { it.text })
+                for ((word, webWord) in page.words.zip(webPage)) {
+                    assertEquals("$where '${word.text}': tricky flag", word.sight, webWord.sight)
+                    assertEquals("$where '${word.text}': picture", word.img, webWord.img)
+                    assertEquals(
+                        "$where '${word.text}': sounds",
+                        word.segments.map { it.lowercase() },
+                        webWord.seg.map { it.lowercase() },
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun testTheArticleIsSpokenAsUhOnItsOwnButSentencesAreLeftAlone() {
+        assertEquals("uh", spokenForm("A"))
+        assertEquals("uh", spokenForm("a"))
+        assertEquals("uh", spokenForm("a."))
+        assertEquals("cat", spokenForm("cat"))
+        assertEquals("at", spokenForm("at"))
+        // A whole sentence is read as written: the voice says the article correctly in context.
+        assertEquals("A hen sat. The hen is red.", spokenForm("A hen sat. The hen is red."))
+        assertEquals("", spokenForm(""))
+    }
+
+    @Test
+    fun testScreenReaderStepsMoveExactlyOneWord() {
+        // Forward one word at a time, back one word at a time, and never out of range.
+        assertEquals(1, accessibilityStepIndex(trackedIndex = 0, wordCount = 5, target = 1f))
+        assertEquals(3, accessibilityStepIndex(trackedIndex = 2, wordCount = 5, target = 1f))
+        assertEquals(1, accessibilityStepIndex(trackedIndex = 2, wordCount = 5, target = 0f))
+        assertEquals(4, accessibilityStepIndex(trackedIndex = 4, wordCount = 5, target = 1f))
+        assertEquals(0, accessibilityStepIndex(trackedIndex = 0, wordCount = 5, target = 0f))
+        assertEquals(2, accessibilityStepIndex(trackedIndex = 2, wordCount = 5, target = 0.5f))
+        // Stepping along a whole page finishes it in wordCount - 1 steps, the same as sliding.
+        var index = 0
+        var steps = 0
+        while (index < 6) {
+            index = limitTrackedWordIndex(accessibilityStepIndex(index, 7, 1f), index)
+            steps++
+        }
+        assertEquals(6, steps)
+    }
+
+    @Test
+    fun testTrackThumbOffsetStaysInsideTheBar() {
+        // The thumb travels the bar minus its own width, so it is always fully inside at both ends.
+        for (barWidth in listOf(300, 400, 600, 800)) {
+            val thumb = 150f
+            assertEquals(0, trackThumbOffsetPx(barWidth, thumb, 0f))
+            assertEquals(((barWidth - thumb) / 2f).roundToInt(), trackThumbOffsetPx(barWidth, thumb, 0.5f))
+            assertEquals((barWidth - thumb).roundToInt(), trackThumbOffsetPx(barWidth, thumb, 1f))
+            assertEquals((barWidth - thumb).roundToInt(), trackThumbOffsetPx(barWidth, thumb, 1.5f))
+            assertEquals(0, trackThumbOffsetPx(barWidth, thumb, -0.5f))
+        }
+        // A bar narrower than the thumb pins it at the start instead of going negative.
+        assertEquals(0, trackThumbOffsetPx(100, 150f, 1f))
+        assertEquals(56.dp, ThumbWidth)
+        assertEquals(48.dp, ThumbHeight)
+    }
+
+    @Test
+    fun testHasIsATrickyWordEverywhere() {
+        // "has" ends in /z/, which sounding it out gets wrong, so it is a sight word in every story.
+        val hasWords = StoryBank.allStories.flatMap { it.pages }.flatMap { it.words }.filter { it.text == "has" }
+        assertTrue("Stories use 'has'", hasWords.isNotEmpty())
+        assertTrue("Every 'has' is a tricky word", hasWords.all { it.sight && it.segments.isEmpty() })
+    }
+
+    @Test
+    fun testNoPictureNeedsAPhoneNewerThanAndroid8() {
+        // minSdk 26 phones show newer emoji as empty boxes, so pictures stay in the old, widely available set.
+        val newer = listOf("🪽", "🪵", "🟫", "🧶", "🦘")
+        val pictures = StoryBank.allStories.flatMap { it.pages }.flatMap { it.words }.mapNotNull { it.img } +
+            WordBank.starterWords.mapNotNull { it.img }
+        for (picture in pictures) assertFalse("$picture may not draw on older phones", picture in newer)
     }
 
     @Test
@@ -592,40 +732,6 @@ class ScrubBarModelTest {
     }
 
     @Test
-    fun testFingerSliderThumbDimensionsAndGeometry() {
-        // Finger thumb dimensions matching tactile pill affordance with grip ridges and pointed peak
-        assertEquals(56.dp, ThumbWidth)
-        assertEquals(48.dp, ThumbHeight)
-
-        // Validate thumb offset calculations along various track widths
-        val trackWidthsPx = listOf(300f, 400f, 600f, 800f)
-        val thumbWidthPx = 150f // e.g. 56dp in px
-
-        for (barWidth in trackWidthsPx) {
-            val maxOffset = barWidth - thumbWidthPx
-            assertTrue("Max offset must be positive", maxOffset > 0f)
-
-            // Progress at start (0.0): offset must be exactly 0
-            val startOffset = (maxOffset * 0.0f).coerceIn(0f, maxOffset)
-            assertEquals(0f, startOffset, 0.001f)
-
-            // Progress at midpoint (0.5): offset must be exactly half of available space
-            val midOffset = (maxOffset * 0.5f).coerceIn(0f, maxOffset)
-            assertEquals(maxOffset / 2f, midOffset, 0.001f)
-
-            // Progress at end (1.0): offset must be exactly maxOffset (kept fully inside track)
-            val endOffset = (maxOffset * 1.0f).coerceIn(0f, maxOffset)
-            assertEquals(maxOffset, endOffset, 0.001f)
-
-            // Over-range clamping
-            val overOffset = (maxOffset * 1.5f).coerceIn(0f, maxOffset)
-            assertEquals(maxOffset, overOffset, 0.001f)
-            val underOffset = (maxOffset * -0.5f).coerceIn(0f, maxOffset)
-            assertEquals(0f, underOffset, 0.001f)
-        }
-    }
-
-    @Test
     fun testTrickySightWordsCoverageInStories() {
         // Ensure tricky words have sight = true so they receive the orange pill capsule
         val trickyWords = mutableListOf<String>()
@@ -640,24 +746,5 @@ class ScrubBarModelTest {
         }
         assertTrue("Stories must have tricky sight words (e.g. 'the')", trickyWords.isNotEmpty())
         assertTrue("Tricky words should include 'the'", trickyWords.any { it.contains("the") })
-    }
-
-    @Test
-    fun testHomeResetTransitions() {
-        // Simulates Home action: resets to primary home mode (TRACK_TO_READ), story index 0, and page 0
-        var currentMode = AppMode.WORD_PRACTICE
-        var storyIndex = 3
-        var speechStopped = false
-
-        val handleHome = {
-            speechStopped = true
-            storyIndex = 0
-            currentMode = AppMode.TRACK_TO_READ
-        }
-
-        handleHome()
-        assertTrue("Home action must stop active speech", speechStopped)
-        assertEquals("Home action must reset to story index 0", 0, storyIndex)
-        assertEquals("Home action must reset to Track to Read mode", AppMode.TRACK_TO_READ, currentMode)
     }
 }

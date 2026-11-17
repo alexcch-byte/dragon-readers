@@ -27,10 +27,11 @@ dragon-readers/
 │       ├── main/java/com/example/earlyreader/
 │       │   ├── audio/
 │       │   │   ├── SpeechManager.kt    # Android TextToSpeech: queued sounds, offline voice detection
+│       │   │   ├── SpokenForm.kt       # What is said for a word on its own (the article "a" is "uh")
 │       │   │   └── VoiceSelection.kt   # Pure voice-choice / offline-guidance logic (unit tested)
 │       │   ├── model/
 │       │   │   ├── WordData.kt         # Starter words & CVC phoneme definitions
-│       │   │   └── StoryData.kt        # 8-story suite with multi-sentence pages
+│       │   │   └── StoryData.kt        # 14-story suite with multi-sentence pages
 │       │   ├── storage/
 │       │   │   └── ProgressStorage.kt  # Offline progress (SharedPreferences behind a small interface)
 │       │   ├── ui/
@@ -41,7 +42,7 @@ dragon-readers/
 │       └── test/java/com/example/earlyreader/
 │           └── ScrubBarModelTest.kt    # Unit tests: data, sounds, voice choice, progress, tracker limit
 ├── docs/                               # Browser prototypes (GitHub Pages live demo)
-│   ├── index.html                      # 8-story web reader with segmented scrub bar
+│   ├── index.html                      # 14-story web reader with segmented scrub bar
 │   └── sentences.html                  # 6-level web Sentence Lab with local storage
 └── .github/workflows/ci.yml            # Automated CI workflow on JDK 17
 ```
@@ -51,7 +52,7 @@ dragon-readers/
 ## Feature Showcase
 
 ### 1. 14 Complete Early Reader Stories (5 Difficulty Tiers)
-Rich multi-sentence decodable stories for pre-readers with carefully graded difficulty. The 14 stories are the same on the web reader and the Android app:
+Rich multi-sentence decodable stories for pre-readers that get gradually harder. The difficulty tiers below are approximate (they follow the sounds each story introduces), and page length is not graded. The 14 stories are the same on the web reader and the Android app:
 
 #### Level 1: Basic CVC Words
 1. **The Red Hen** (*"A hen sat. The hen is red."*)
@@ -87,9 +88,13 @@ Digraphs, double letters, and glued sounds are ONE segment (*d-u-ck*, *b-e-ll*, 
 ### 2. Android 4-Mode Experience
 Switch seamlessly between learning modes from the top bar:
 - **Word Practice (Ages 4–5):** Starter word bank cycling with decodable letter segments, short synthetic phonics sounds ("ah", "aw", "buh", "kuh"), sentence-in-context highlight, and tap-to-read full sentence audio.
-- **Story Mode (Ages 4–6):** Full multi-page decodable reader with segmented scrub bar, tricky word flashcard assistance, dedicated "🔊 Read full sentence" audio button, and celebratory rewards. The page, word and story position is kept when switching tabs.
+- **Story Mode (Ages 4–6):** Full multi-page decodable reader with segmented scrub bar, tricky word flashcard assistance, dedicated "🔊 Read full sentence" audio button, and celebratory rewards. The page and word position in each story is kept when switching tabs or stories; it is forgotten when a story is finished or when Home is used.
 - **Track to Read (Ages 4–6):** Stepped sentence tracker with a draggable slider bar that jumps discretely from word to word and zero-shift word chips. The tracker moves at most one word past the furthest word reached, so one tap cannot finish a sentence; tapping a word chip only highlights it (and speaks it in Speak Words mode). Defaults to **🔇 Highlight Only** (silent tracking so the child can read each word aloud without the app speaking over them), with an optional **🔊 Speak Words** toggle and on-demand full sentence playback.
 - **Sentence Lab (Ages 6–8):** Comprehensive 6-level interactive grammar suite.
+
+**Home button (🏠, top left):** on Android it asks "Go home?" first. If confirmed, it returns to the start of Track to Read (The Red Hen, page 1) and forgets the place in the other stories. Word Practice and Sentence Lab keep their place, and stars and progress are never cleared (that is only done by "Reset all progress" in the grown-ups' settings). The web reader's Home button (no confirmation) does the same and also clears the saved page, so "Start story" opens story 1, page 1 even after a reload.
+
+The top bar wraps onto a second line on narrow phones or with large text, so the grown-ups' settings gear is always reachable. The story picker and settings dialogs scroll. A bare "a" is spoken as "uh" (not the letter name "ay"), and the app's launcher icon is a dragon reading a book.
 
 ### 3. Complete 6-Level Sentence Lab
 Ported from the web prototype to native Jetpack Compose with accessibility semantics. The levels are in the same order on the web and on Android:

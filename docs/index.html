@@ -158,8 +158,10 @@
   .floating-check-btn:hover:not(:disabled) {
     transform: scale(1.08); background: #4324d6;
   }
+  /* Dimmed, not washed out: a readable violet check on the pale fill, with an outline. */
   .floating-check-btn:disabled {
-    background: #C9C1EE; cursor: default; box-shadow: none; transform: none; opacity: 0.7;
+    background: #E9E5FB; color: rgba(80, 49, 245, 0.6); border: 1.5px solid rgba(80, 49, 245, 0.45);
+    cursor: default; box-shadow: none; transform: none;
   }
   .floating-check-btn:active:not(:disabled) {
     transform: scale(0.96);
@@ -177,7 +179,7 @@
   }
   .track-chip-text {
     font-size: 2.6rem; font-weight: 700; line-height: 1.25; letter-spacing: 0.02em; display: inline-flex; align-items: center; gap: 6px;
-    border-bottom: 5px solid transparent; color: #94A3B8;
+    border-bottom: 5px solid transparent; color: #64748B;
     transition: color 0.12s ease, border-color 0.12s ease;
   }
   .track-chip.active .track-chip-text {
@@ -187,7 +189,7 @@
     color: var(--violet); border-bottom-color: transparent;
   }
   .track-chip.upcoming .track-chip-text {
-    color: #94A3B8; border-bottom-color: transparent;
+    color: #64748B; border-bottom-color: transparent;
   }
 
   .word-pill {
@@ -213,7 +215,7 @@
   .track-chip .pic { font-size: 1.8rem; visibility: hidden; }
   .track-chip.passed .pic { visibility: visible; }
   .track-bar {
-    width: min(88vw, 380px); height: 56px; border-radius: 28px; background: var(--segment-empty);
+    width: 100%; max-width: 380px; height: 56px; border-radius: 28px; background: var(--segment-empty);
     position: relative; overflow: hidden; touch-action: none; cursor: pointer; user-select: none;
     box-shadow: inset 0 0 0 2px var(--violet); margin-bottom: 10px;
   }
@@ -327,7 +329,7 @@
   .start-card p, .end-screen p { margin: 0 0 6px; }
   .start-card #start-btn { font-size: 1.3rem; padding: 16px 32px; min-height: 56px; }
   .start-or { margin: 6px 0 0; font-size: 0.85rem; color: var(--dim); }
-  /* two compact columns, so all eight stories fit under the Start button on a small phone */
+  /* two compact columns, so all the stories fit under the Start button on a small phone */
   .story-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; max-width: 440px; }
   .story-tabs .btn { min-height: 48px; padding: 4px 8px; font-size: 0.8rem; line-height: 1.15; border-radius: 16px; }
 
@@ -579,7 +581,7 @@
           {t:"pig", img:"🐷", seg:["p","i","g"]},
           {t:"is", sight:true},
           {t:"in", seg:["i","n"]},
-          {t:"mud.", img:"🟫", seg:["m","u","d"], say:"mud"}
+          {t:"mud.", seg:["m","u","d"], say:"mud"}
         ],
         [
           {t:"The", sight:true},
@@ -633,7 +635,7 @@
           {t:"got", seg:["g","o","t"]},
           {t:"in", seg:["i","n"]},
           {t:"the", sight:true},
-          {t:"mud.", img:"🟫", seg:["m","u","d"], say:"mud"},
+          {t:"mud.", seg:["m","u","d"], say:"mud"},
           {t:"The", sight:true},
           {t:"bug", img:"🐞", seg:["b","u","g"]},
           {t:"is", sight:true},
@@ -680,7 +682,7 @@
           {t:"is", sight:true},
           {t:"on", seg:["o","n"]},
           {t:"a", sight:true, say:"uh"},
-          {t:"mat.", img:"🧶", seg:["m","a","t"], say:"mat"}
+          {t:"mat.", seg:["m","a","t"], say:"mat"}
         ],
         [
           {t:"A", sight:true, say:"uh"},
@@ -719,7 +721,7 @@
           {t:"nap", img:"💤", seg:["n","a","p"]},
           {t:"on", seg:["o","n"]},
           {t:"the", sight:true},
-          {t:"mat.", img:"🧶", seg:["m","a","t"], say:"mat"}
+          {t:"mat.", seg:["m","a","t"], say:"mat"}
         ]
       ]
     },
@@ -730,7 +732,7 @@
         [
           {t:"A", sight:true, say:"uh"},
           {t:"boy", sight:true, say:"boy"},
-          {t:"has", seg:["h","a","s"]},
+          {t:"has", sight:true},
           {t:"a", sight:true, say:"uh"},
           {t:"pet.", img:"🐶", seg:["p","e","t"], say:"pet"},
           {t:"The", sight:true},
@@ -785,9 +787,9 @@
           {t:"on", seg:["o","n"]},
           {t:"a", sight:true, say:"uh"},
           {t:"big", seg:["b","i","g"]},
-          {t:"log.", img:"🪵", seg:["l","o","g"], say:"log"},
+          {t:"log.", seg:["l","o","g"], say:"log"},
           {t:"The", sight:true},
-          {t:"log", img:"🪵", seg:["l","o","g"]},
+          {t:"log", seg:["l","o","g"]},
           {t:"is", sight:true},
           {t:"wet.", img:"💧", seg:["w","e","t"], say:"wet"}
         ],
@@ -807,9 +809,9 @@
           {t:"it?", seg:["i","t"], say:"it"}
         ],
         [
-          {t:"Jump,", img:"🦘", seg:["J","u","m","p"], say:"Jump"},
+          {t:"Jump,", seg:["J","u","m","p"], say:"Jump"},
           {t:"frog,", img:"🐸", seg:["f","r","o","g"], say:"frog"},
-          {t:"jump!", img:"🦘", seg:["j","u","m","p"], say:"jump"},
+          {t:"jump!", seg:["j","u","m","p"], say:"jump"},
           {t:"The", sight:true},
           {t:"frog", img:"🐸", seg:["f","r","o","g"]},
           {t:"got", seg:["g","o","t"]},
@@ -829,7 +831,7 @@
           {t:"sat", seg:["s","a","t"]},
           {t:"on", seg:["o","n"]},
           {t:"the", sight:true},
-          {t:"log.", img:"🪵", seg:["l","o","g"], say:"log"}
+          {t:"log.", seg:["l","o","g"], say:"log"}
         ]
       ]
     },
@@ -964,7 +966,7 @@
         ],
         [
           {t:"I", sight:true, say:"I"},
-          {t:"wish", img:"⭐", seg:["w","i","sh"], say:"wish"},
+          {t:"wish", seg:["w","i","sh"], say:"wish"},
           {t:"for", sight:true, say:"for"},
           {t:"that", seg:["th","a","t"]},
           {t:"big", seg:["b","i","g"]},
@@ -992,7 +994,7 @@
           {t:"sat", seg:["s","a","t"]},
           {t:"on", seg:["o","n"]},
           {t:"a", sight:true, say:"uh"},
-          {t:"branch.", img:"🌿", seg:["b","r","a","n","ch"], say:"branch"}
+          {t:"branch.", seg:["b","r","a","n","ch"], say:"branch"}
         ],
         [
           {t:"The", sight:true},
@@ -1000,14 +1002,14 @@
           {t:"can", seg:["c","a","n"]},
           {t:"peck", seg:["p","e","ck"]},
           {t:"a", sight:true, say:"uh"},
-          {t:"chip.", img:"🥔", seg:["ch","i","p"], say:"chip"}
+          {t:"chip.", seg:["ch","i","p"], say:"chip"}
         ],
         [
           {t:"Peck,", seg:["P","e","ck"], say:"Peck"},
           {t:"chick,", img:"🐥", seg:["ch","i","ck"], say:"chick"},
           {t:"peck", seg:["p","e","ck"]},
           {t:"the", sight:true},
-          {t:"chip!", img:"🥔", seg:["ch","i","p"], say:"chip"}
+          {t:"chip!", seg:["ch","i","p"], say:"chip"}
         ],
         [
           {t:"The", sight:true},
@@ -1016,7 +1018,7 @@
           {t:"fun", seg:["f","u","n"]},
           {t:"on", seg:["o","n"]},
           {t:"the", sight:true},
-          {t:"branch.", img:"🌿", seg:["b","r","a","n","ch"], say:"branch"},
+          {t:"branch.", seg:["b","r","a","n","ch"], say:"branch"},
           {t:"Chip,", seg:["Ch","i","p"], say:"Chip"},
           {t:"chop!", seg:["ch","o","p"], say:"chop"}
         ]
@@ -1029,7 +1031,7 @@
         [
           {t:"The", sight:true},
           {t:"king", img:"👑", seg:["k","i","ng"]},
-          {t:"has", seg:["h","a","s"]},
+          {t:"has", sight:true},
           {t:"a", sight:true, say:"uh"},
           {t:"pink", img:"🌸", seg:["p","i","nk"]},
           {t:"ring.", img:"💍", seg:["r","i","ng"], say:"ring"}
@@ -1047,7 +1049,7 @@
           {t:"duck", img:"🦆", seg:["d","u","ck"]},
           {t:"had", seg:["h","a","d"]},
           {t:"a", sight:true, say:"uh"},
-          {t:"wing", img:"🪽", seg:["w","i","ng"]},
+          {t:"wing", seg:["w","i","ng"]},
           {t:"and", seg:["a","n","d"]},
           {t:"can", seg:["c","a","n"]},
           {t:"sing.", img:"🎵", seg:["s","i","ng"], say:"sing"}
@@ -1055,7 +1057,7 @@
         [
           {t:"Sing", img:"🎵", seg:["S","i","ng"]},
           {t:"a", sight:true, say:"uh"},
-          {t:"song", img:"🎶", seg:["s","o","ng"]},
+          {t:"song", seg:["s","o","ng"]},
           {t:"for", sight:true, say:"for"},
           {t:"the", sight:true},
           {t:"king!", img:"👑", seg:["k","i","ng"], say:"king"},
@@ -1097,7 +1099,7 @@
         [
           {t:"The", sight:true},
           {t:"bug", img:"🐛", seg:["b","u","g"]},
-          {t:"has", seg:["h","a","s"]},
+          {t:"has", sight:true},
           {t:"red", seg:["r","e","d"]},
           {t:"fuzz.", seg:["f","u","zz"], say:"fuzz"},
           {t:"Buzz,", img:"🐝", seg:["B","u","zz"], say:"Buzz"},
@@ -2327,6 +2329,7 @@
   startBtn.addEventListener("click", beginStory);
 
   function goHome() {
+    flow++;
     stopSpeech();
     started = false;
     storyIndex = 0;
@@ -2341,10 +2344,13 @@
     demoCard.classList.add("not-started");
     setReadingMode("track");
     renderStoryTabs();
-    try { localStorage.removeItem("early_reader_story"); } catch (_) {}
-    try { localStorage.removeItem("early_reader_page"); } catch (_) {}
+    // Forget the saved place (what savePage()/the story tabs write to sessionStorage), so "Start story" opens
+    // story 1 page 1 now and after a reload.
+    clearSavedPage();
+    try { sessionStorage.removeItem(STORY_KEY); } catch (_) {}
     startTextEl.textContent = "Story 1 of " + STORIES.length + ": " + STORIES[0].title;
     startBtn.textContent = "▶ Start story";
+    renderPage();   // so the page indicator behind the Start card says page 1 again
   }
   const homeBtn = document.getElementById("home-btn");
   if (homeBtn) {

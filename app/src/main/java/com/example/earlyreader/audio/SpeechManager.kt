@@ -100,7 +100,7 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
      * playing is cut off; with [queue] true (the word that completes a scrub) it waits for the sounds before it.
      */
     fun speakWord(text: String, queue: Boolean = false) {
-        enqueue(text, flush = !queue, isPhoneme = false)
+        enqueue(spokenForm(text), flush = !queue, isPhoneme = false)
     }
 
     /**
