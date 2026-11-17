@@ -5,6 +5,7 @@ import com.example.earlyreader.model.WordBank
 import com.example.earlyreader.ui.sentences.SentenceLabData
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -296,6 +297,34 @@ class ScrubBarModelTest {
         }
         assertEquals("Level 5 id must be 'build'", "build", SentenceLabData.level5.id)
         assertEquals("Level 5 type must be BUILD_SENTENCE", com.example.earlyreader.ui.sentences.SentenceLabType.BUILD_SENTENCE, SentenceLabData.level5.type)
-        assertEquals("All levels list must have 5 levels", 5, SentenceLabData.allLevels.size)
+    }
+
+    @Test
+    fun testSentenceLabRolesDataset() {
+        val items = SentenceLabData.level6Items
+        assertEquals("Sentence Lab Level 6 must have 6 items", 6, items.size)
+        val expectedSubjects = listOf("The baby", "Dad", "Our teacher", "The children", "The wind", "A girl")
+        val expectedVerbs = listOf("ate", "washed", "told", "planted", "shook", "drew")
+        val expectedObjects = listOf("a banana.", "the car.", "a story.", "some seeds.", "the trees.", "a rainbow.")
+
+        for ((idx, item) in items.withIndex()) {
+            assertEquals("Item $idx must have 3 chunks", 3, item.chunks.size)
+            val subjectChunk = item.chunks.find { it.role == "subject" }
+            val verbChunk = item.chunks.find { it.role == "verb" }
+            val objectChunk = item.chunks.find { it.role == "object" }
+
+            assertNotNull("Item $idx must have subject", subjectChunk)
+            assertNotNull("Item $idx must have verb", verbChunk)
+            assertNotNull("Item $idx must have object", objectChunk)
+
+            assertEquals("Subject must match for item $idx", expectedSubjects[idx], subjectChunk?.text)
+            assertEquals("Verb must match for item $idx", expectedVerbs[idx], verbChunk?.text)
+            assertEquals("Object must match for item $idx", expectedObjects[idx], objectChunk?.text)
+            assertTrue("Full sentence must not be blank", item.fullSentence.isNotBlank())
+        }
+
+        assertEquals("Level 6 id must be 'roles'", "roles", SentenceLabData.level6.id)
+        assertEquals("Level 6 type must be SORT_ROLES", com.example.earlyreader.ui.sentences.SentenceLabType.SORT_ROLES, SentenceLabData.level6.type)
+        assertEquals("All levels list must have 6 levels", 6, SentenceLabData.allLevels.size)
     }
 }

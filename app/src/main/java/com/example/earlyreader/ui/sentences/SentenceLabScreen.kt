@@ -57,6 +57,7 @@ enum class SentenceLabType {
     TAP_WORDS,
     JUDGE_SENTENCE,
     BUILD_SENTENCE,
+    SORT_ROLES,
 }
 
 data class SentenceCheckItem(
@@ -74,6 +75,17 @@ data class SentenceBuildItem(
     val rawWords: List<String> = text.dropLast(1).split(" ")
     val scrambledWords: List<String> = rawWords.shuffled(java.util.Random(text.hashCode().toLong()))
         .let { if (it == rawWords && it.size > 1) it.reversed() else it }
+}
+
+data class SentenceRoleChunk(
+    val text: String,
+    val role: String, // "subject", "verb", "object"
+)
+
+data class SentenceRoleItem(
+    val chunks: List<SentenceRoleChunk>,
+) {
+    val fullSentence: String = chunks.joinToString(" ") { it.text }
 }
 
 data class SentenceLabItem(
@@ -105,6 +117,7 @@ data class SentenceLabLevel(
     val items: List<SentenceLabItem> = emptyList(),
     val checkItems: List<SentenceCheckItem> = emptyList(),
     val buildItems: List<SentenceBuildItem> = emptyList(),
+    val roleItems: List<SentenceRoleItem> = emptyList(),
 )
 
 object SentenceLabData {
@@ -292,12 +305,66 @@ object SentenceLabData {
         ),
     )
 
-    val allLevels = listOf(level1, level2, level3, level4, level5)
+    val level6 = SentenceLabLevel(
+        id = "roles",
+        title = "Level 6: Who and What (Roles)",
+        shortName = "6. Roles",
+        type = SentenceLabType.SORT_ROLES,
+        targetName = "sentence parts",
+        prompt = "Tap a part of the sentence, then tap the box where it belongs.",
+        roleItems = listOf(
+            SentenceRoleItem(
+                listOf(
+                    SentenceRoleChunk("The baby", "subject"),
+                    SentenceRoleChunk("ate", "verb"),
+                    SentenceRoleChunk("a banana.", "object"),
+                ),
+            ),
+            SentenceRoleItem(
+                listOf(
+                    SentenceRoleChunk("Dad", "subject"),
+                    SentenceRoleChunk("washed", "verb"),
+                    SentenceRoleChunk("the car.", "object"),
+                ),
+            ),
+            SentenceRoleItem(
+                listOf(
+                    SentenceRoleChunk("Our teacher", "subject"),
+                    SentenceRoleChunk("told", "verb"),
+                    SentenceRoleChunk("a story.", "object"),
+                ),
+            ),
+            SentenceRoleItem(
+                listOf(
+                    SentenceRoleChunk("The children", "subject"),
+                    SentenceRoleChunk("planted", "verb"),
+                    SentenceRoleChunk("some seeds.", "object"),
+                ),
+            ),
+            SentenceRoleItem(
+                listOf(
+                    SentenceRoleChunk("The wind", "subject"),
+                    SentenceRoleChunk("shook", "verb"),
+                    SentenceRoleChunk("the trees.", "object"),
+                ),
+            ),
+            SentenceRoleItem(
+                listOf(
+                    SentenceRoleChunk("A girl", "subject"),
+                    SentenceRoleChunk("drew", "verb"),
+                    SentenceRoleChunk("a rainbow.", "object"),
+                ),
+            ),
+        ),
+    )
+
+    val allLevels = listOf(level1, level2, level3, level4, level5, level6)
     val level1Items: List<SentenceLabItem> get() = level1.items
     val level2Items: List<SentenceLabItem> get() = level2.items
     val level3Items: List<SentenceLabItem> get() = level3.items
     val level4Items: List<SentenceCheckItem> get() = level4.checkItems
     val level5Items: List<SentenceBuildItem> get() = level5.buildItems
+    val level6Items: List<SentenceRoleItem> get() = level6.roleItems
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -305,9 +372,10 @@ object SentenceLabData {
 fun SentenceLabScreen(
     levels: List<SentenceLabLevel> = SentenceLabData.allLevels,
     initialLevelIndex: Int = 0,
+    completedLevels: Set<String> = emptySet(),
     onSpeakSentence: (String) -> Unit = {},
     onLevelSelected: (Int) -> Unit = {},
-    onLevelCompleted: () -> Unit = {},
+    onLevelCompleted: (String) -> Unit = {},
 ) {
     var levelIndex by rememberSaveable { mutableIntStateOf(initialLevelIndex.coerceIn(0, levels.size - 1)) }
     var itemIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -316,6 +384,7 @@ fun SentenceLabScreen(
     var isShowingSolution by rememberSaveable { mutableStateOf(false) }
     var showReward by rememberSaveable { mutableStateOf(false) }
     var levelFinished by rememberSaveable { mutableStateOf(false) }
+    var localCompletedLevels by rememberSaveable { mutableStateOf(completedLevels) }
 
     var judgeAnswer by rememberSaveable { mutableStateOf<Boolean?>(null) }
     var judgeFeedback by rememberSaveable { mutableStateOf<String?>(null) }
@@ -325,12 +394,19 @@ fun SentenceLabScreen(
     var buildFeedback by rememberSaveable { mutableStateOf<String?>(null) }
     var buildSuccess by rememberSaveable { mutableStateOf(false) }
 
+    var selectedRoleChunkIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+    var assignedRoles by rememberSaveable { mutableStateOf(mapOf<String, Int>()) }
+    var roleFeedback by rememberSaveable { mutableStateOf<String?>(null) }
+    var roleSuccess by rememberSaveable { mutableStateOf(false) }
+
     val currentLevel = levels[levelIndex % levels.size]
     val isJudgeLevel = currentLevel.type == SentenceLabType.JUDGE_SENTENCE
     val isBuildLevel = currentLevel.type == SentenceLabType.BUILD_SENTENCE
+    val isRoleLevel = currentLevel.type == SentenceLabType.SORT_ROLES
     val totalItems = when (currentLevel.type) {
         SentenceLabType.JUDGE_SENTENCE -> currentLevel.checkItems.size
         SentenceLabType.BUILD_SENTENCE -> currentLevel.buildItems.size
+        SentenceLabType.SORT_ROLES -> currentLevel.roleItems.size
         else -> currentLevel.items.size
     }
 
@@ -343,6 +419,9 @@ fun SentenceLabScreen(
     val curBuildItem = if (isBuildLevel && currentLevel.buildItems.isNotEmpty()) {
         currentLevel.buildItems[itemIndex % currentLevel.buildItems.size]
     } else null
+    val curRoleItem = if (isRoleLevel && currentLevel.roleItems.isNotEmpty()) {
+        currentLevel.roleItems[itemIndex % currentLevel.roleItems.size]
+    } else null
 
     val targetIndices = curTapItem?.targetIndices(currentLevel.targetTag) ?: emptySet()
     val totalTargets = targetIndices.size
@@ -350,6 +429,7 @@ fun SentenceLabScreen(
     val isComplete = when (currentLevel.type) {
         SentenceLabType.JUDGE_SENTENCE -> judgeCorrect == true
         SentenceLabType.BUILD_SENTENCE -> buildSuccess
+        SentenceLabType.SORT_ROLES -> roleSuccess
         else -> foundCount == totalTargets
     }
 
@@ -365,8 +445,30 @@ fun SentenceLabScreen(
         placedTokens = emptyList()
         buildFeedback = null
         buildSuccess = false
+        selectedRoleChunkIndex = null
+        assignedRoles = emptyMap()
+        roleFeedback = null
+        roleSuccess = false
         levelFinished = false
         onLevelSelected(newIdx)
+    }
+
+    val resetCurrentLevel: () -> Unit = {
+        itemIndex = 0
+        selectedIndices = emptySet()
+        nudgeMessage = null
+        isShowingSolution = false
+        judgeAnswer = null
+        judgeFeedback = null
+        judgeCorrect = null
+        placedTokens = emptyList()
+        buildFeedback = null
+        buildSuccess = false
+        selectedRoleChunkIndex = null
+        assignedRoles = emptyMap()
+        roleFeedback = null
+        roleSuccess = false
+        levelFinished = false
     }
 
     val checkBuildSentence: () -> Unit = {
@@ -432,20 +534,23 @@ fun SentenceLabScreen(
             ) {
                 levels.forEachIndexed { idx, lvl ->
                     val isSelected = idx == levelIndex
+                    val isCompleted = localCompletedLevels.contains(lvl.id)
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(if (isSelected) VioletPrimary else Color.Transparent)
                             .clickable { switchLevel(idx) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .padding(horizontal = 10.dp, vertical = 7.dp)
                             .semantics {
-                                contentDescription = "${lvl.title}" + if (isSelected) ", selected" else ""
+                                contentDescription = "${lvl.title}" +
+                                    if (isSelected) ", selected" else "" +
+                                    if (isCompleted) ", completed" else ""
                             },
                     ) {
                         Text(
-                            text = lvl.shortName,
+                            text = lvl.shortName + if (isCompleted) "⭐" else "",
                             color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -455,54 +560,92 @@ fun SentenceLabScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             if (levelFinished) {
-                Text(
-                    text = "${currentLevel.title} Finished! 🎉",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = VioletPrimary,
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "⭐⭐⭐⭐⭐⭐",
-                    fontSize = 32.sp,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = when {
-                        isJudgeLevel -> "You checked all 6 complete thoughts vs fragments!"
-                        isBuildLevel -> "You built all 6 sentences with capital letters and ending marks!"
-                        else -> "You found all the ${currentLevel.targetName}s in 6 sentences!"
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = TextDark,
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            itemIndex = 0
-                            selectedIndices = emptySet()
-                            nudgeMessage = null
-                            isShowingSolution = false
-                            judgeAnswer = null
-                            judgeFeedback = null
-                            judgeCorrect = null
-                            placedTokens = emptyList()
-                            buildFeedback = null
-                            buildSuccess = false
-                            levelFinished = false
-                        },
-                        modifier = Modifier.height(52.dp),
-                    ) {
-                        Text(text = "↺ Play Again", fontSize = 16.sp)
-                    }
+                val allLevelsFinished = levels.all { localCompletedLevels.contains(it.id) }
 
-                    if (levelIndex < levels.size - 1) {
-                        Button(
-                            onClick = { switchLevel(levelIndex + 1) },
+                if (allLevelsFinished) {
+                    // --- ALL 6 LEVELS COMPLETE MASTER CELEBRATION ---
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xFFFEF3C7),
+                        border = BorderStroke(2.dp, Color(0xFFD97706)),
+                        modifier = Modifier.padding(8.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(text = "🏆", fontSize = 56.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Sentence Master!",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF92400E),
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐",
+                                fontSize = 20.sp,
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "All 6 Levels Finished! You are a sentence master!\nYou explored naming words, action words, describing words, complete thoughts, sentence building, and who/what roles!",
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center,
+                                color = Color(0xFF78350F),
+                            )
+                            Spacer(modifier = Modifier.height(18.dp))
+                            Button(
+                                onClick = {
+                                    levelIndex = 0
+                                    resetCurrentLevel()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
+                            ) {
+                                Text(text = "↺ Play Sentence Lab Again", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                } else {
+                    // Standard level complete screen
+                    Text(
+                        text = "${currentLevel.title} Finished! 🎉",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = VioletPrimary,
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "⭐⭐⭐⭐⭐⭐",
+                        fontSize = 32.sp,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = when {
+                            isJudgeLevel -> "You checked all 6 complete thoughts vs fragments!"
+                            isBuildLevel -> "You built all 6 sentences with capital letters and ending marks!"
+                            isRoleLevel -> "You sorted all 6 sentences into who, action, and what!"
+                            else -> "You found all the ${currentLevel.targetName}s in 6 sentences!"
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextDark,
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedButton(
+                            onClick = { resetCurrentLevel() },
                             modifier = Modifier.height(52.dp),
                         ) {
-                            Text(text = "Next Level ▸", fontSize = 16.sp)
+                            Text(text = "↺ Play Again", fontSize = 16.sp)
+                        }
+
+                        if (levelIndex < levels.size - 1) {
+                            Button(
+                                onClick = { switchLevel(levelIndex + 1) },
+                                modifier = Modifier.height(52.dp),
+                            ) {
+                                Text(text = "Next Level ▸", fontSize = 16.sp)
+                            }
                         }
                     }
                 }
@@ -665,7 +808,8 @@ fun SentenceLabScreen(
                                         judgeCorrect = null
                                     } else {
                                         levelFinished = true
-                                        onLevelCompleted()
+                                        localCompletedLevels = localCompletedLevels + currentLevel.id
+                                        onLevelCompleted(currentLevel.id)
                                     }
                                 },
                                 modifier = Modifier.height(48.dp),
@@ -911,7 +1055,257 @@ fun SentenceLabScreen(
                                         buildSuccess = false
                                     } else {
                                         levelFinished = true
-                                        onLevelCompleted()
+                                        localCompletedLevels = localCompletedLevels + currentLevel.id
+                                        onLevelCompleted(currentLevel.id)
+                                    }
+                                },
+                                modifier = Modifier.height(46.dp),
+                            ) {
+                                Text(
+                                    text = if (itemIndex < totalItems - 1) "Next sentence ▸" else "Finish Level 🎉",
+                                    fontSize = 14.sp,
+                                )
+                            }
+                        }
+                    }
+                } else if (isRoleLevel && curRoleItem != null) {
+                    // --- SORT ROLES UI (Level 6: Who and What) ---
+                    Text(
+                        text = currentLevel.prompt,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = VioletPrimary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Sentence Chunks at top
+                    Text(
+                        text = "Sentence Parts (tap to select):",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                    ) {
+                        curRoleItem.chunks.forEachIndexed { cIdx, chunk ->
+                            val isAssigned = assignedRoles.values.contains(cIdx)
+                            val isSelected = selectedRoleChunkIndex == cIdx
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isAssigned) {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                } else if (isSelected) {
+                                    VioletPrimary.copy(alpha = 0.15f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                border = if (isSelected) {
+                                    BorderStroke(2.dp, VioletPrimary)
+                                } else if (!isAssigned) {
+                                    BorderStroke(1.dp, VioletPrimary.copy(alpha = 0.3f))
+                                } else null,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(enabled = !roleSuccess) {
+                                        if (isAssigned) {
+                                            assignedRoles = assignedRoles.filterValues { it != cIdx }
+                                            roleFeedback = null
+                                        } else {
+                                            selectedRoleChunkIndex = if (selectedRoleChunkIndex == cIdx) null else cIdx
+                                            roleFeedback = null
+                                        }
+                                    }
+                                    .semantics {
+                                        contentDescription = "${chunk.text}, " + if (isAssigned) "already placed" else if (isSelected) "selected" else "tap to select"
+                                    },
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = chunk.text + if (isAssigned) " ✔" else "",
+                                        fontSize = 15.sp,
+                                        fontWeight = if (isSelected || isAssigned) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isAssigned) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else TextDark,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Three Target Role Boxes
+                    val roleBoxes = listOf(
+                        Triple("subject", "👤 Who or what (Subject)" to "Who or what is it about?", Triple(Color(0xFFF3E8FF), Color(0xFF7E22CE), Color(0xFF581C87))),
+                        Triple("verb", "⚡ Action (Verb)" to "What did they do?", Triple(Color(0xFFFFEDD5), Color(0xFFC2410C), Color(0xFF7C2D12))),
+                        Triple("object", "🎯 What? (Object)" to "What did they do it to?", Triple(Color(0xFFCCFBF1), Color(0xFF0F766E), Color(0xFF115E59))),
+                    )
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                    ) {
+                        roleBoxes.forEach { (roleKey, labels, colors) ->
+                            val (title, question) = labels
+                            val (bgColor, borderColor, textColor) = colors
+                            val assignedChunkIdx = assignedRoles[roleKey]
+                            val isFilled = assignedChunkIdx != null
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isFilled) bgColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                border = BorderStroke(2.dp, if (isFilled) borderColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(enabled = !roleSuccess) {
+                                        if (isFilled) {
+                                            assignedRoles = assignedRoles - roleKey
+                                            roleFeedback = null
+                                        } else if (selectedRoleChunkIndex != null) {
+                                            val candidateChunk = curRoleItem.chunks[selectedRoleChunkIndex!!]
+                                            if (candidateChunk.role == roleKey) {
+                                                val newMap = assignedRoles + (roleKey to selectedRoleChunkIndex!!)
+                                                assignedRoles = newMap
+                                                selectedRoleChunkIndex = null
+                                                roleFeedback = null
+                                                if (newMap.size == 3) {
+                                                    roleSuccess = true
+                                                    showReward = true
+                                                }
+                                            } else {
+                                                val nudge = when (roleKey) {
+                                                    "subject" -> "Almost! The subject tells who or what the sentence is about."
+                                                    "verb" -> "Almost! The verb is the action (what they did)."
+                                                    else -> "Almost! The object is what they did it to."
+                                                }
+                                                roleFeedback = nudge
+                                            }
+                                        } else {
+                                            roleFeedback = "Tap a sentence part above first, then tap this box!"
+                                        }
+                                    }
+                                    .semantics {
+                                        contentDescription = if (isFilled) {
+                                            "$title: ${curRoleItem.chunks[assignedChunkIdx!!].text}. Tap to remove"
+                                        } else {
+                                            "$title box, empty. $question"
+                                        }
+                                    },
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = title,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isFilled) textColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Text(
+                                            text = if (isFilled) {
+                                                curRoleItem.chunks[assignedChunkIdx!!].text
+                                            } else {
+                                                question
+                                            },
+                                            fontSize = if (isFilled) 18.sp else 12.sp,
+                                            fontWeight = if (isFilled) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isFilled) textColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        )
+                                    }
+                                    if (isFilled) {
+                                        Text(
+                                            text = "✕",
+                                            fontSize = 16.sp,
+                                            color = textColor,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Feedback banner
+                    if (roleFeedback != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFFF7ED),
+                            border = BorderStroke(1.dp, Color(0xFFC2410C)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp)
+                                .semantics { liveRegion = LiveRegionMode.Polite },
+                        ) {
+                            Text(
+                                text = roleFeedback ?: "",
+                                color = Color(0xFF7C2D12),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(10.dp),
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    // Controls for Roles Level
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedButton(
+                            onClick = { onSpeakSentence(curRoleItem.fullSentence) },
+                            modifier = Modifier.height(46.dp),
+                        ) {
+                            Text(text = "🔊 Hear it", fontSize = 14.sp)
+                        }
+
+                        if (!roleSuccess) {
+                            OutlinedButton(
+                                onClick = {
+                                    assignedRoles = curRoleItem.chunks.mapIndexed { idx, c -> c.role to idx }.toMap()
+                                    roleSuccess = true
+                                    showReward = true
+                                    roleFeedback = null
+                                },
+                                modifier = Modifier.height(46.dp),
+                            ) {
+                                Text(text = "👀 Show me", fontSize = 14.sp)
+                            }
+                        } else {
+                            Button(
+                                onClick = {
+                                    if (itemIndex < totalItems - 1) {
+                                        itemIndex++
+                                        selectedRoleChunkIndex = null
+                                        assignedRoles = emptyMap()
+                                        roleFeedback = null
+                                        roleSuccess = false
+                                    } else {
+                                        levelFinished = true
+                                        localCompletedLevels = localCompletedLevels + currentLevel.id
+                                        onLevelCompleted(currentLevel.id)
                                     }
                                 },
                                 modifier = Modifier.height(46.dp),
@@ -1053,7 +1447,8 @@ fun SentenceLabScreen(
                                         showReward = false
                                     } else {
                                         levelFinished = true
-                                        onLevelCompleted()
+                                        localCompletedLevels = localCompletedLevels + currentLevel.id
+                                        onLevelCompleted(currentLevel.id)
                                     }
                                 },
                                 modifier = Modifier.height(48.dp),
@@ -1131,5 +1526,13 @@ fun PreviewSentenceLabLevel4() {
 fun PreviewSentenceLabLevel5() {
     EarlyReaderTheme {
         SentenceLabScreen(initialLevelIndex = 4)
+    }
+}
+
+@Preview(name = "Sentence Lab Level 6 (Roles)", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Composable
+fun PreviewSentenceLabLevel6() {
+    EarlyReaderTheme {
+        SentenceLabScreen(initialLevelIndex = 5)
     }
 }
