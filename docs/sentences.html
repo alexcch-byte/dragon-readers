@@ -976,7 +976,7 @@
 
   // ===== Level 5: is it a sentence? =====
   function renderJudge(L, item) {
-    cur = { type: "judge", done: false, btns: {} };
+    cur = { type: "judge", done: false, btns: {}, wrong: false };
     const mk = (isSentence, icon, label) => {
       const b = el("button", { type: "button", class: "choice", "aria-pressed": "false", onclick: () => choose(isSentence) },
         el("span", { "aria-hidden": "true", text: icon }), el("span", { text: label }));
@@ -1009,8 +1009,10 @@
       if (cur.done) return;
       if (isSentence === item.sentence) {
         markRight();
-        finishItem("solved", "Yes! " + item.why, item.text);
+        // With only two buttons, a wrong guess leaves one choice: that is not "on your own", so it counts as a peek.
+        finishItem(cur.wrong ? "peek" : "solved", "Yes! " + item.why, item.text);
       } else {
+        cur.wrong = true;
         nudgeEl(cur.btns[String(isSentence)]);
         say("Almost! " + L.ask + " " + item.hint, "nudge");
       }
@@ -1156,6 +1158,8 @@
     const stars = "⭐".repeat(solved) + "✨".repeat(peek);
     const hasNext = st.level < LEVELS.length - 1;
     const allFinished = LEVELS.every(l => progress[l.id] === "done" || progress[l.id] === "peek");
+    // The trophy is for solving at least one sentence on your own in every level: a level finished only by peeking doesn't count.
+    const allMastered = LEVELS.every(l => progress[l.id] === "done");
 
     const children = [
       el("h2", { tabindex: "-1", id: "prompt", text: "Level " + (st.level + 1) + " finished!" }),
@@ -1164,7 +1168,7 @@
       el("p", { class: "lead" },
         "⭐ " + solved + " on your own" + (peek ? "   ✨ " + peek + " learned with a peek" : ""))
     ];
-    if (allFinished) {
+    if (allMastered) {
       children.push(el("div", { class: "master-badge", role: "status" }, "🏆 All 6 Levels Finished! You are a sentence master!"));
     }
     stage.replaceChildren(el("div", { class: "end" }, ...children));

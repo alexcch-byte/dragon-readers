@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -52,9 +53,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -71,6 +74,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.earlyreader.audio.SpeechManager
+import com.example.earlyreader.audio.VoiceSelection
 import com.example.earlyreader.model.PageData
 import com.example.earlyreader.model.StoryBank
 import com.example.earlyreader.model.StoryData
@@ -113,11 +117,20 @@ class MainActivity : ComponentActivity() {
                         progressStorage = progressStorage,
                         speechManager = speech,
                         onSpeakWord = { text -> speech.speakWord(text) },
-                        onSpeakPhoneme = { segment -> speech.speakPhoneme(segment) },
+                        onSpeakWordQueued = { text -> speech.speakWord(text, queue = true) },
+                        onSpeakPhoneme = { segment, flush -> speech.speakPhoneme(segment, flush) },
+                        onStopSpeech = { speech.stop() },
+                        onAwaitSpeech = { speech.awaitIdle() },
                     )
                 }
             }
         }
+    }
+
+    // Leaving the app (or locking the screen) must not leave a word or sentence still being said.
+    override fun onStop() {
+        speechManager?.stop()
+        super.onStop()
     }
 
     override fun onDestroy() {
@@ -150,7 +163,7 @@ fun generateMathChallenge(): MathChallenge {
 fun WordScreen(
     words: List<WordData> = WordBank.starterWords,
     onSpeakWord: (String) -> Unit = {},
-    onSpeakPhoneme: (String) -> Unit = {},
+    onSpeakPhoneme: (String, Boolean) -> Unit = { _, _ -> },
 ) {
     EarlyReaderApp(
         words = words,
@@ -167,8 +180,16 @@ fun EarlyReaderApp(
     stories: List<StoryData> = StoryBank.allStories,
     progressStorage: ProgressStorage? = null,
     speechManager: SpeechManager? = null,
+    // Says a word or sentence now, cutting off whatever is playing (help button, tapping a sentence).
     onSpeakWord: (String) -> Unit = {},
-    onSpeakPhoneme: (String) -> Unit = { speechManager?.speakPhoneme(it) },
+    // Says the word that completes a scrub AFTER the sounds already queued, instead of cutting the last one off.
+    onSpeakWordQueued: (String) -> Unit = onSpeakWord,
+    // (segment, startsNewScrub): only a new scrub from the start flushes the speech queue.
+    onSpeakPhoneme: (String, Boolean) -> Unit = { segment, flush -> speechManager?.speakPhoneme(segment, flush) },
+    onStopSpeech: () -> Unit = { speechManager?.stop() },
+    // Returns when what was just asked for has been said, or after a timeout: stories move on from this, so
+    // progress never depends on speech actually happening.
+    onAwaitSpeech: suspend () -> Unit = { speechManager?.awaitIdle() ?: delay(600) },
 ) {
     val initialMode = when (progressStorage?.lastAppMode) {
         ProgressStorage.MODE_STORY -> AppMode.STORY_MODE
@@ -191,7 +212,10 @@ fun EarlyReaderApp(
     var showMathGate by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var mathChallenge by remember { mutableStateOf(generateMathChallenge()) }
-    var gateError by remember { mutableStateOf(false) }
+    var showResetConfirm by remember { mutableStateOf(false) }
+    // Keeps each screen's saved state (page, word, level) while it is off screen, so switching tabs and back
+    // carries on where the child was instead of starting again at page 1.
+    val saveableStateHolder = rememberSaveableStateHolder()
 
     var practiceResetKey by rememberSaveable { mutableIntStateOf(0) }
     var storyResetKey by rememberSaveable { mutableIntStateOf(0) }
@@ -199,6 +223,7 @@ fun EarlyReaderApp(
     val currentStory = stories[selectedStoryIndex % stories.size]
 
     val handleModeChange: (AppMode) -> Unit = { mode ->
+        if (mode != appMode) onStopSpeech()
         appMode = mode
         progressStorage?.lastAppMode = when (mode) {
             AppMode.STORY_MODE -> ProgressStorage.MODE_STORY
@@ -209,8 +234,16 @@ fun EarlyReaderApp(
     }
 
     val handleStorySelect: (Int) -> Unit = { idx ->
+        onStopSpeech()
         selectedStoryIndex = idx
         progressStorage?.lastActiveStoryIndex = idx
+    }
+
+    // After a story is finished, its saved page/word state is dropped, so coming back later starts it fresh.
+    val handleNextStory: () -> Unit = {
+        saveableStateHolder.removeState("story-$selectedStoryIndex-$storyResetKey")
+        saveableStateHolder.removeState("track-$selectedStoryIndex-$storyResetKey")
+        handleStorySelect((selectedStoryIndex + 1) % stories.size)
     }
 
     val handleWordComplete: () -> Unit = {
@@ -230,6 +263,7 @@ fun EarlyReaderApp(
         selectedStoryIndex = 0
         practiceResetKey++
         storyResetKey++
+        showResetConfirm = false
         showSettingsDialog = false
     }
 
@@ -243,76 +277,23 @@ fun EarlyReaderApp(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // 3-Mode Toggle
+                // Mode switcher: every chip is at least 48dp tall.
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(26.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (appMode == AppMode.WORD_PRACTICE) VioletPrimary else Color.Transparent)
-                            .clickable { handleModeChange(AppMode.WORD_PRACTICE) }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                    ) {
-                        Text(
-                            text = "Words",
-                            color = if (appMode == AppMode.WORD_PRACTICE) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (appMode == AppMode.STORY_MODE) VioletPrimary else Color.Transparent)
-                            .clickable { handleModeChange(AppMode.STORY_MODE) }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                    ) {
-                        Text(
-                            text = "Stories",
-                            color = if (appMode == AppMode.STORY_MODE) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (appMode == AppMode.TRACK_TO_READ) VioletPrimary else Color.Transparent)
-                            .clickable { handleModeChange(AppMode.TRACK_TO_READ) }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                    ) {
-                        Text(
-                            text = "Track",
-                            color = if (appMode == AppMode.TRACK_TO_READ) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (appMode == AppMode.SENTENCE_LAB) VioletPrimary else Color.Transparent)
-                            .clickable { handleModeChange(AppMode.SENTENCE_LAB) }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                    ) {
-                        Text(
-                            text = "Sentence Lab",
-                            color = if (appMode == AppMode.SENTENCE_LAB) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
+                    ModeChip("Words", appMode == AppMode.WORD_PRACTICE) { handleModeChange(AppMode.WORD_PRACTICE) }
+                    ModeChip("Stories", appMode == AppMode.STORY_MODE) { handleModeChange(AppMode.STORY_MODE) }
+                    ModeChip("Track", appMode == AppMode.TRACK_TO_READ) { handleModeChange(AppMode.TRACK_TO_READ) }
+                    ModeChip("Sentence Lab", appMode == AppMode.SENTENCE_LAB) { handleModeChange(AppMode.SENTENCE_LAB) }
                 }
 
                 IconButton(
                     onClick = {
                         mathChallenge = generateMathChallenge()
-                        gateError = false
                         showMathGate = true
                     },
                     modifier = Modifier
@@ -330,58 +311,58 @@ fun EarlyReaderApp(
                     .fillMaxWidth()
                     .weight(1f),
             ) {
-                when (appMode) {
-                    AppMode.WORD_PRACTICE -> {
-                        key(practiceResetKey) {
+                val screenKey = when (appMode) {
+                    AppMode.WORD_PRACTICE -> "words-$practiceResetKey"
+                    AppMode.STORY_MODE -> "story-$selectedStoryIndex-$storyResetKey"
+                    AppMode.TRACK_TO_READ -> "track-$selectedStoryIndex-$storyResetKey"
+                    AppMode.SENTENCE_LAB -> "lab-$practiceResetKey"
+                }
+                saveableStateHolder.SaveableStateProvider(screenKey) {
+                    when (appMode) {
+                        AppMode.WORD_PRACTICE -> {
                             WordPracticeScreen(
                                 words = words,
                                 onSpeakWord = onSpeakWord,
+                                onSpeakWordQueued = onSpeakWordQueued,
                                 onSpeakPhoneme = onSpeakPhoneme,
                                 onWordCompleted = handleWordComplete,
                             )
                         }
-                    }
-                    AppMode.STORY_MODE -> {
-                        key(selectedStoryIndex, storyResetKey) {
+                        AppMode.STORY_MODE -> {
                             StoryModeScreen(
                                 story = currentStory,
                                 onSpeakWord = onSpeakWord,
+                                onSpeakWordQueued = onSpeakWordQueued,
                                 onSpeakPhoneme = onSpeakPhoneme,
+                                onAwaitSpeech = onAwaitSpeech,
                                 onOpenStoryPicker = { showStoryPicker = true },
                                 onStoryCompleted = { handleStoryComplete(currentStory) },
-                                onNextStory = {
-                                    val nextIdx = (selectedStoryIndex + 1) % stories.size
-                                    handleStorySelect(nextIdx)
-                                },
+                                onNextStory = handleNextStory,
                             )
                         }
-                    }
-                    AppMode.TRACK_TO_READ -> {
-                        key(selectedStoryIndex, storyResetKey) {
+                        AppMode.TRACK_TO_READ -> {
                             TrackToReadScreen(
                                 story = currentStory,
                                 onSpeakWord = onSpeakWord,
+                                onAwaitSpeech = onAwaitSpeech,
                                 onOpenStoryPicker = { showStoryPicker = true },
                                 onStoryCompleted = { handleStoryComplete(currentStory) },
-                                onNextStory = {
-                                    val nextIdx = (selectedStoryIndex + 1) % stories.size
-                                    handleStorySelect(nextIdx)
+                                onNextStory = handleNextStory,
+                            )
+                        }
+                        AppMode.SENTENCE_LAB -> {
+                            SentenceLabScreen(
+                                initialLevelIndex = progressStorage?.lastSentenceLabLevel ?: 0,
+                                completedLevels = progressStorage?.completedSentenceLevels ?: emptySet(),
+                                onSpeakSentence = onSpeakWord,
+                                onLevelSelected = { idx ->
+                                    progressStorage?.lastSentenceLabLevel = idx
+                                },
+                                onLevelCompleted = { levelId ->
+                                    progressStorage?.recordSentenceLevelCompleted(levelId)
                                 },
                             )
                         }
-                    }
-                    AppMode.SENTENCE_LAB -> {
-                        SentenceLabScreen(
-                            initialLevelIndex = progressStorage?.lastSentenceLabLevel ?: 0,
-                            completedLevels = progressStorage?.completedSentenceLevels ?: emptySet(),
-                            onSpeakSentence = onSpeakWord,
-                            onLevelSelected = { idx ->
-                                progressStorage?.lastSentenceLabLevel = idx
-                            },
-                            onLevelCompleted = { levelId ->
-                                progressStorage?.recordSentenceLevelCompleted(levelId)
-                            },
-                        )
                     }
                 }
             }
@@ -446,10 +427,6 @@ fun EarlyReaderApp(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        if (gateError) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = "Not quite, try again.", color = MaterialTheme.colorScheme.error)
-                        }
                         Spacer(modifier = Modifier.height(16.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             mathChallenge.options.forEach { opt ->
@@ -459,7 +436,10 @@ fun EarlyReaderApp(
                                             showMathGate = false
                                             showSettingsDialog = true
                                         } else {
-                                            gateError = true
+                                            // A wrong answer closes the gate and the next try is a different question,
+                                            // so guessing among the three options can't open it.
+                                            showMathGate = false
+                                            mathChallenge = generateMathChallenge()
                                         }
                                     },
                                     modifier = Modifier.height(48.dp),
@@ -494,7 +474,7 @@ fun EarlyReaderApp(
                         Text(text = "Early Reader - Adult Dashboard", fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = "• TTS Voice: $voiceName (${if (isOfflineVoice) "offline ready" else "network required"})")
-                        if (isNetworkOnly || !isOfflineVoice) {
+                        if (VoiceSelection.needsOfflineGuidance(isOfflineVoice, isNetworkOnly)) {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Tip: For reliable offline play, download an offline voice in Android Settings -> Accessibility -> Text-to-speech output.",
@@ -537,7 +517,7 @@ fun EarlyReaderApp(
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         OutlinedButton(
-                            onClick = handleResetProgress,
+                            onClick = { showResetConfirm = true },
                             modifier = Modifier.height(48.dp),
                         ) {
                             Text(text = "Reset all progress")
@@ -551,6 +531,47 @@ fun EarlyReaderApp(
                 },
             )
         }
+
+        // Resetting wipes every star and count, so it has to be confirmed.
+        if (showResetConfirm) {
+            AlertDialog(
+                onDismissRequest = { showResetConfirm = false },
+                title = { Text(text = "Reset all progress?", fontWeight = FontWeight.Bold) },
+                text = {
+                    Text(text = "This clears every completed word, story and Sentence Lab level on this device. It cannot be undone.")
+                },
+                confirmButton = {
+                    Button(onClick = handleResetProgress, modifier = Modifier.height(48.dp)) {
+                        Text(text = "Yes, reset everything")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showResetConfirm = false }, modifier = Modifier.height(48.dp)) {
+                        Text(text = "Keep my progress")
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(if (selected) VioletPrimary else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -558,7 +579,8 @@ fun EarlyReaderApp(
 fun WordPracticeScreen(
     words: List<WordData> = WordBank.starterWords,
     onSpeakWord: (String) -> Unit = {},
-    onSpeakPhoneme: (String) -> Unit = {},
+    onSpeakWordQueued: (String) -> Unit = onSpeakWord,
+    onSpeakPhoneme: (String, Boolean) -> Unit = { _, _ -> },
     onWordCompleted: () -> Unit = {},
 ) {
     var wordIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -669,7 +691,8 @@ fun WordPracticeScreen(
                         completed = true
                         pictureRevealed = true
                         onWordCompleted()
-                        onSpeakWord(currentWord.text)
+                        // Queued, so the whole word is said after the last sound instead of cutting it off.
+                        onSpeakWordQueued(currentWord.text)
                     },
                 )
             }
@@ -760,7 +783,9 @@ fun WordPracticeScreen(
 fun StoryModeScreen(
     story: StoryData = StoryBank.redHenStory,
     onSpeakWord: (String) -> Unit = {},
-    onSpeakPhoneme: (String) -> Unit = {},
+    onSpeakWordQueued: (String) -> Unit = onSpeakWord,
+    onSpeakPhoneme: (String, Boolean) -> Unit = { _, _ -> },
+    onAwaitSpeech: suspend () -> Unit = { delay(600) },
     onOpenStoryPicker: () -> Unit = {},
     onStoryCompleted: () -> Unit = {},
     onNextStory: () -> Unit = {},
@@ -771,12 +796,35 @@ fun StoryModeScreen(
     var pictureRevealed by rememberSaveable { mutableStateOf(false) }
     var showReward by rememberSaveable { mutableStateOf(false) }
     var attempt by rememberSaveable { mutableIntStateOf(0) }
+    // The current word is done and the story is waiting for it to be said before moving on. A second tap on a
+    // tricky word while this is set does nothing, so a double tap can no longer skip a word.
+    var pendingAdvance by rememberSaveable { mutableStateOf(false) }
 
-    val coroutineScope = rememberCoroutineScope()
     val currentPage = story.pages[pageIndex % story.pages.size]
     val safeWordIndex = activeWordIndex.coerceIn(0, currentPage.words.size - 1)
     val currentWord = currentPage.words[safeWordIndex]
     val cleanSpoken = currentWord.text.trimEnd('.', '!', '?', ',')
+
+    // Moves on once the word has been said (or the wait times out). Driven by this saved flag rather than by one
+    // particular utterance ending, so leaving the screen and coming back (the flag is restored) still carries on.
+    LaunchedEffect(pendingAdvance, pageIndex, activeWordIndex, pageCompleted) {
+        if (pendingAdvance && !pageCompleted) {
+            onAwaitSpeech()
+            pendingAdvance = false
+            if (activeWordIndex + 1 < currentPage.words.size) {
+                activeWordIndex++
+                pictureRevealed = false
+            } else {
+                pageCompleted = true
+                showReward = true
+            }
+        }
+    }
+
+    // Finishing the last page completes the story, however the child leaves (Next story, Read again, or a tab).
+    LaunchedEffect(pageCompleted, pageIndex) {
+        if (pageCompleted && pageIndex == story.pages.size - 1) onStoryCompleted()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -792,6 +840,7 @@ fun StoryModeScreen(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
+                    .heightIn(min = 48.dp)
                     .clickable { onOpenStoryPicker() }
                     .padding(horizontal = 12.dp, vertical = 4.dp),
             ) {
@@ -948,10 +997,7 @@ fun StoryModeScreen(
                         }
 
                         Button(
-                            onClick = {
-                                onStoryCompleted()
-                                onNextStory()
-                            },
+                            onClick = { onNextStory() },
                             modifier = Modifier.height(52.dp),
                         ) {
                             Text(text = "Next story ▸", fontSize = 17.sp)
@@ -969,16 +1015,9 @@ fun StoryModeScreen(
                         modifier = Modifier
                             .padding(vertical = 12.dp)
                             .clickable {
-                                onSpeakWord(cleanSpoken)
-                                coroutineScope.launch {
-                                    delay(500)
-                                    if (activeWordIndex + 1 < currentPage.words.size) {
-                                        activeWordIndex++
-                                        pictureRevealed = false
-                                    } else {
-                                        pageCompleted = true
-                                        showReward = true
-                                    }
+                                if (!pendingAdvance) {
+                                    onSpeakWord(cleanSpoken)
+                                    pendingAdvance = true
                                 }
                             }
                             .semantics {
@@ -1018,18 +1057,11 @@ fun StoryModeScreen(
                             onDragStart = { pictureRevealed = true },
                             onSegmentSound = onSpeakPhoneme,
                             onWordComplete = {
-                                onSpeakWord(cleanSpoken)
+                                // Queued behind the last sound, then the story moves on when it has been said.
+                                onSpeakWordQueued(cleanSpoken)
                                 pictureRevealed = true
                                 showReward = true
-                                coroutineScope.launch {
-                                    delay(600)
-                                    if (activeWordIndex + 1 < currentPage.words.size) {
-                                        activeWordIndex++
-                                        pictureRevealed = false
-                                    } else {
-                                        pageCompleted = true
-                                    }
-                                }
+                                pendingAdvance = true
                             },
                         )
                     }
@@ -1089,11 +1121,22 @@ fun calculateSnappedTrackProgress(wordIndex: Int, wordCount: Int): Float {
     return clampedIdx.toFloat() / (wordCount - 1).toFloat()
 }
 
+/**
+ * The tracked word may move at most ONE word past the furthest word reached so far, so a single tap on the right
+ * end of the bar (or on the last word) cannot finish the sentence: the child has to slide along it.
+ */
+fun limitTrackedWordIndex(desiredIndex: Int, reachedIndex: Int): Int =
+    desiredIndex.coerceAtMost(reachedIndex + 1)
+
+/** Where a tracker move came from: a finger on the bar, or a tap on a word chip (which can never finish the page). */
+enum class TrackSource { BAR, CHIP }
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TrackToReadScreen(
     story: StoryData = StoryBank.redHenStory,
     onSpeakWord: (String) -> Unit = {},
+    onAwaitSpeech: suspend () -> Unit = { delay(450) },
     onOpenStoryPicker: () -> Unit = {},
     onStoryCompleted: () -> Unit = {},
     onNextStory: () -> Unit = {},
@@ -1101,6 +1144,8 @@ fun TrackToReadScreen(
     var pageIndex by rememberSaveable { mutableIntStateOf(0) }
     var trackProgress by rememberSaveable { mutableFloatStateOf(0f) }
     var trackedWordIndex by rememberSaveable { mutableIntStateOf(0) }
+    // The furthest word reached on this page (see limitTrackedWordIndex); also decides when a chip's picture shows.
+    var reachedWordIndex by rememberSaveable { mutableIntStateOf(0) }
     var speakWhenTracked by rememberSaveable { mutableStateOf(false) } // false = Highlight Only (default)
     var pageCompleted by rememberSaveable { mutableStateOf(false) }
     var showReward by rememberSaveable { mutableStateOf(false) }
@@ -1109,33 +1154,40 @@ fun TrackToReadScreen(
     val currentPage = story.pages[pageIndex % story.pages.size]
     val wordCount = currentPage.words.size
 
-    val updateTrackProgress: (Float, Boolean) -> Unit = { rawProgress, forceSpeak ->
+    val updateTrackProgress: (Float, TrackSource) -> Unit = { rawProgress, source ->
         if (wordCount > 0) {
             val clamped = rawProgress.coerceIn(0f, 1f)
             val prevIdx = trackedWordIndex
-            val nextIdx = calculateTrackedWordIndex(clamped, wordCount)
+            val nextIdx = limitTrackedWordIndex(calculateTrackedWordIndex(clamped, wordCount), reachedWordIndex)
             trackedWordIndex = nextIdx
             trackProgress = calculateSnappedTrackProgress(nextIdx, wordCount)
+            if (nextIdx > reachedWordIndex) reachedWordIndex = nextIdx
 
-            val wordChanged = nextIdx != prevIdx || forceSpeak
+            val wordChanged = nextIdx != prevIdx || source == TrackSource.CHIP
             if (wordChanged && speakWhenTracked) {
                 val word = currentPage.words[nextIdx]
                 val cleanSpoken = word.text.trimEnd('.', '!', '?', ',')
                 onSpeakWord(cleanSpoken)
             }
 
-            if (!pageCompleted && nextIdx == wordCount - 1) {
+            // Only the bar can finish the page, and only by arriving at the last word the allowed way.
+            if (!pageCompleted && source == TrackSource.BAR && nextIdx == wordCount - 1) {
                 pageCompleted = true
                 trackProgress = 1f
                 showReward = true
                 if (speakWhenTracked) {
                     coroutineScope.launch {
-                        delay(450)
+                        onAwaitSpeech()
                         onSpeakWord(currentPage.fullSentence)
                     }
                 }
             }
         }
+    }
+
+    // Finishing the last page completes the story, however the child leaves (Next story, or a tab).
+    LaunchedEffect(pageCompleted, pageIndex) {
+        if (pageCompleted && pageIndex == story.pages.size - 1) onStoryCompleted()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -1152,6 +1204,7 @@ fun TrackToReadScreen(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
+                    .heightIn(min = 48.dp)
                     .clickable { onOpenStoryPicker() }
                     .padding(horizontal = 12.dp, vertical = 4.dp),
             ) {
@@ -1179,13 +1232,15 @@ fun TrackToReadScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(24.dp))
                             .background(if (!speakWhenTracked) VioletPrimary else Color.Transparent)
                             .clickable { speakWhenTracked = false }
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .padding(horizontal = 10.dp)
                             .semantics {
                                 contentDescription = "Highlight Only mode: silent word tracking"
                             },
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = "🔇 Highlight Only",
@@ -1196,13 +1251,15 @@ fun TrackToReadScreen(
                     }
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(24.dp))
                             .background(if (speakWhenTracked) VioletPrimary else Color.Transparent)
                             .clickable { speakWhenTracked = true }
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .padding(horizontal = 10.dp)
                             .semantics {
                                 contentDescription = "Speak Words mode: pronounce each word when tracked"
                             },
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = "🔊 Speak Words",
@@ -1217,6 +1274,7 @@ fun TrackToReadScreen(
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
+                        .heightIn(min = 48.dp)
                         .clickable { onSpeakWord(currentPage.fullSentence) }
                         .semantics {
                             contentDescription = "Read full sentence: ${currentPage.fullSentence}"
@@ -1225,7 +1283,9 @@ fun TrackToReadScreen(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                     ) {
                         Text(
                             text = "🔊 Read sentence",
@@ -1259,6 +1319,9 @@ fun TrackToReadScreen(
                 currentPage.words.forEachIndexed { idx, word ->
                     val isDone = pageCompleted || idx < trackedWordIndex
                     val isActive = !pageCompleted && idx == trackedWordIndex
+                    // The picture would give the word away, so it appears only after the tracker has passed the word
+                    // (it keeps its space until then, so nothing shifts).
+                    val isPassed = pageCompleted || idx < reachedWordIndex
 
                     Surface(
                         shape = RoundedCornerShape(16.dp),
@@ -1278,12 +1341,7 @@ fun TrackToReadScreen(
                         modifier = Modifier
                             .padding(horizontal = 4.dp, vertical = 4.dp)
                             .clickable {
-                                val targetProgress = if (wordCount <= 1 || idx == wordCount - 1) {
-                                    1f
-                                } else {
-                                    (idx + 0.5f) / wordCount.toFloat()
-                                }
-                                updateTrackProgress(targetProgress, true)
+                                updateTrackProgress((idx + 0.5f) / wordCount.toFloat(), TrackSource.CHIP)
                             }
                             .semantics {
                                 contentDescription = "${word.text}. " + when {
@@ -1301,7 +1359,9 @@ fun TrackToReadScreen(
                                 Text(
                                     text = word.img,
                                     fontSize = 24.sp,
-                                    modifier = Modifier.padding(end = 6.dp),
+                                    modifier = Modifier
+                                        .padding(end = 6.dp)
+                                        .alpha(if (isPassed) 1f else 0f),
                                 )
                             }
                             Text(
@@ -1343,7 +1403,7 @@ fun TrackToReadScreen(
                             val down = awaitFirstDown(requireUnconsumed = false)
                             val pointerId = down.id
                             if (barWidthPx > 0) {
-                                updateTrackProgress(down.position.x / barWidthPx.toFloat(), false)
+                                updateTrackProgress(down.position.x / barWidthPx.toFloat(), TrackSource.BAR)
                             }
                             while (true) {
                                 val event = awaitPointerEvent()
@@ -1351,7 +1411,7 @@ fun TrackToReadScreen(
                                 if (!change.pressed) break
                                 change.consume()
                                 if (barWidthPx > 0) {
-                                    updateTrackProgress(change.position.x / barWidthPx.toFloat(), false)
+                                    updateTrackProgress(change.position.x / barWidthPx.toFloat(), TrackSource.BAR)
                                 }
                             }
                         }
@@ -1413,6 +1473,7 @@ fun TrackToReadScreen(
                         onClick = {
                             trackProgress = 0f
                             trackedWordIndex = 0
+                            reachedWordIndex = 0
                             pageCompleted = false
                             showReward = false
                         },
@@ -1427,6 +1488,7 @@ fun TrackToReadScreen(
                                 pageIndex++
                                 trackProgress = 0f
                                 trackedWordIndex = 0
+                                reachedWordIndex = 0
                                 pageCompleted = false
                                 showReward = false
                             },
@@ -1436,10 +1498,7 @@ fun TrackToReadScreen(
                         }
                     } else {
                         Button(
-                            onClick = {
-                                onStoryCompleted()
-                                onNextStory()
-                            },
+                            onClick = { onNextStory() },
                             modifier = Modifier.height(52.dp),
                         ) {
                             Text(text = "Next story ▸", fontSize = 17.sp)

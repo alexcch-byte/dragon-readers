@@ -1066,6 +1066,7 @@
     return SEGMENT_SOUNDS[letter.toLowerCase()] || letter;
   }
   function spoken(word) { return word.say || word.t; }
+  checkStories(STORIES).forEach(m => console.error("Story data:", m));
 
   // ---- state ----
   let pageIndex = 0;
@@ -1090,6 +1091,8 @@
   // Bumped by cancelHelp(); every step of the help sequence returns early if its run is stale.
   let helpRun = 0;
   let lastHelpAt = -Infinity;
+  let lastPageRenderAt = -Infinity;   // performance.now() of the last page render (see helpBtn)
+  const HELP_AFTER_PAGE_MS = 500;
   let started = false;        // the Start card has been tapped (this click also unlocks speech)
   // The page the child had reached (kept for this tab session only, so a reload picks up where
   // they were). Read once at load; written only once the story has been started.
@@ -1250,6 +1253,7 @@
     storyTitleEl.textContent = currentStory().title;
     pageIndicatorEl.textContent = "Page " + (pageIndex + 1) + " of " + currentStory().pages.length;
     if (started) savePage();
+    lastPageRenderAt = performance.now();
     activeWordIndex = 0;
     phase = "active";
     if (readingMode === "track") {
@@ -1525,6 +1529,9 @@
   helpBtn.addEventListener("click", () => {
     if (speechLocked()) { acknowledge(helpBtn); return; } // visible feedback only; not queued
     const now = performance.now();
+    // A double tap on Next: the page changes under the first tap and the second one lands where the
+    // Next button was, which is now the Help button. A tap this soon after a page appears is ignored.
+    if (now - lastPageRenderAt < HELP_AFTER_PAGE_MS) return;
     if (now - lastHelpAt < HELP_DEBOUNCE_MS) return; // mashing the button must not stack sequences
     lastHelpAt = now;
     runHelp();
@@ -1598,6 +1605,9 @@
   let trackedIndex = 0;
   let trackPageCompleted = false;
   let trackPointerId = null;
+  // The tracker may only move ONE word past the furthest word reached so far, so a single tap on the right
+  // end of the bar (or on the last chip) cannot finish the sentence; the child has to move along it.
+  let trackReached = 0;
 
   const btnModeScrub = document.getElementById("btn-mode-scrub");
   const btnModeTrack = document.getElementById("btn-mode-track");
@@ -1622,23 +1632,27 @@
     if (!speakWords) stopSpeech();
   }
 
+  // Which section shows is a class on #demo-card (mode-track), never inline display, so the Start card
+  // (not-started) and the end screen (finished) keep winning over the mode.
   function setReadingMode(mode) {
+    if (mode === readingMode) return;
     readingMode = mode;
+    flow++;            // a word being spoken in the other mode must not advance it behind the child's back
     stopSpeech();
+    stopCatchUp();
     btnModeScrub.classList.toggle("active", mode === "scrub");
     btnModeTrack.classList.toggle("active", mode === "track");
+    btnModeScrub.setAttribute("aria-pressed", mode === "scrub" ? "true" : "false");
+    btnModeTrack.setAttribute("aria-pressed", mode === "track" ? "true" : "false");
+    demoCard.classList.toggle("mode-track", mode === "track");
+    if (demoCard.classList.contains("finished")) return;   // end screen: nothing to redraw
+    hintEl.textContent = mode === "scrub" ? "Drag your finger along the bar (arrow keys work too)."
+                                         : "Slide the tracker bar smoothly across the sentence.";
     if (mode === "scrub") {
-      trackArea.style.display = "none";
-      activeArea.style.display = "flex";
-      sentenceWrap.style.display = "flex";
-      hintEl.textContent = "Drag your finger along the bar (arrow keys work too).";
+      phase = "active";
       renderSentence();
       renderActiveWord();
     } else {
-      activeArea.style.display = "none";
-      sentenceWrap.style.display = "none";
-      trackArea.style.display = "flex";
-      hintEl.textContent = "Slide the tracker bar smoothly across the sentence.";
       renderTrackPage();
     }
   }
@@ -1658,6 +1672,7 @@
   function renderTrackPage() {
     trackProgress = 0;
     trackedIndex = 0;
+    trackReached = 0;
     trackPageCompleted = false;
     trackNextBtn.style.display = "none";
     trackAgainBtn.style.display = "none";
@@ -1672,14 +1687,16 @@
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "track-chip";
-      let html = "";
-      if (w.img) html += `<span style="font-size:1.3rem">${w.img}</span> `;
-      html += w.t;
-      chip.innerHTML = html;
-      chip.addEventListener("click", () => {
-        const p = pageWords.length <= 1 ? 1 : (i + 0.5) / pageWords.length;
-        setTrackProgress(p, true);
-      });
+      if (w.img) {
+        const pic = document.createElement("span");
+        pic.className = "pic";
+        pic.setAttribute("aria-hidden", "true");
+        pic.textContent = w.img;
+        chip.append(pic, " ");
+      }
+      chip.append(w.t);
+      // A chip tap only highlights (and speaks, in Speak Words mode); it can never finish the sentence.
+      chip.addEventListener("click", () => setTrackProgress((i + 0.5) / pageWords.length, "chip"));
       trackChips.appendChild(chip);
     });
 
@@ -1699,7 +1716,8 @@
     chipEls.forEach((chip, i) => {
       const isDone = trackPageCompleted || i < trackedIndex;
       const isActive = !trackPageCompleted && i === trackedIndex;
-      chip.className = "track-chip " + (isDone ? "done" : isActive ? "active" : "upcoming");
+      const passed = trackPageCompleted || i < trackReached;
+      chip.className = "track-chip " + (isDone ? "done" : isActive ? "active" : "upcoming") + (passed ? " passed" : "");
       chip.setAttribute("aria-label", pageWords[i].t + (isActive ? " (current word)" : ""));
     });
 
@@ -1710,21 +1728,28 @@
     trackBar.setAttribute("aria-valuetext", "Word " + (trackedIndex + 1) + " of " + pageWords.length + ": " + pageWords[trackedIndex].t);
   }
 
-  function setTrackProgress(nextProgress, forceSpeakWord) {
+  // `source` is "bar" (a finger on the tracker bar), "key" (arrow keys) or "chip" (a tap on a word). The
+  // tracked word never moves more than one word past the furthest one reached; only the bar (at its far end)
+  // or the keyboard can finish the page, never a chip.
+  function setTrackProgress(nextProgress, source) {
     const pageWords = currentPage();
     if (!pageWords.length) return;
+    const n = pageWords.length;
     const clamped = Math.max(0, Math.min(1, nextProgress));
     const prevIndex = trackedIndex;
-    const nextIdx = calculateTrackedIndex(clamped, pageWords.length);
-    trackedIndex = nextIdx;
-    trackProgress = calculateSnappedTrackProgress(nextIdx, pageWords.length);
+    let idx = calculateTrackedIndex(clamped, n);
+    idx = Math.min(idx, trackReached + 1);   // at most one word past the furthest one reached
+    trackedIndex = idx;
+    trackProgress = calculateSnappedTrackProgress(idx, n);   // the thumb steps from word to word
+    if (idx > trackReached) trackReached = idx;
 
-    const wordChanged = trackedIndex !== prevIndex || forceSpeakWord;
+    const wordChanged = trackedIndex !== prevIndex || source === "key" || source === "chip";
     if (wordChanged && trackSpeakWords) {
       speak(spoken(pageWords[trackedIndex]), 0.9);
     }
 
-    if (!trackPageCompleted && nextIdx === pageWords.length - 1) {
+    const atEnd = trackedIndex === n - 1 && source !== "chip";
+    if (!trackPageCompleted && atEnd) {
       trackPageCompleted = true;
       trackProgress = 1;
       rewardEl.classList.add("show");
@@ -1754,7 +1779,7 @@
     const rect = trackBar.getBoundingClientRect();
     if (rect.width <= 0) return;
     const ratio = (e.clientX - rect.left) / rect.width;
-    setTrackProgress(ratio, false);
+    setTrackProgress(ratio, "bar");
   }
 
   trackBar.addEventListener("pointerdown", (e) => {
@@ -1787,8 +1812,7 @@
     else if (e.key === "End") nextIdx = pageWords.length - 1;
     if (nextIdx === null) return;
     e.preventDefault();
-    const p = pageWords.length <= 1 ? 1 : (nextIdx === pageWords.length - 1 ? 1 : (nextIdx + 0.5) / pageWords.length);
-    setTrackProgress(p, true);
+    setTrackProgress((nextIdx + 0.5) / pageWords.length, "key");
   });
 
   function handleTrackPointer(e) {
@@ -1797,9 +1821,7 @@
     if (chip) {
       const idx = [...trackChips.querySelectorAll(".track-chip")].indexOf(chip);
       if (idx !== -1 && idx !== trackedIndex) {
-        const pageWords = currentPage();
-        const p = pageWords.length <= 1 ? 1 : (idx === pageWords.length - 1 ? 1 : (idx + 0.5) / pageWords.length);
-        setTrackProgress(p, false);
+        setTrackProgress((idx + 0.5) / currentPage().length, "chip");
       }
     }
   }
@@ -1827,7 +1849,7 @@
       stopSpeech();
       if (pageIndex < currentStory().pages.length - 1) {
         pageIndex++;
-        renderTrackPage();
+        renderPage();   // renders the track page in track mode and saves the page index
       } else {
         showEndScreen();
       }
@@ -1908,6 +1930,7 @@
       btn.type = "button";
       btn.className = "btn btn-small " + (idx === storyIndex ? "btn-primary" : "btn-secondary");
       btn.textContent = (idx + 1) + ". " + s.title;
+      // Tapping a story starts it (this tap also unlocks speech, like the Start button).
       btn.onclick = () => {
         storyIndex = idx;
         try { sessionStorage.setItem(STORY_KEY, String(storyIndex)); } catch (e) {}
@@ -1916,7 +1939,7 @@
         startBtn.textContent = "▶ Start story";
         startTextEl.textContent = "Story " + (idx + 1) + " of " + STORIES.length + ": " + s.title;
         renderStoryTabs();
-        renderPage();
+        beginStory();
       };
       tabsEl.appendChild(btn);
     });
@@ -1932,13 +1955,14 @@
   } else {
     startTextEl.textContent = "Story " + (storyIndex + 1) + " of " + STORIES.length + ": " + currentStory().title;
   }
-  startBtn.addEventListener("click", () => {
+  function beginStory() {
     started = true;
     pageIndex = savedPage;
     demoCard.classList.remove("not-started");
     renderPage();
     speakCore(currentStory().title, 0.9, null);
-  });
+  }
+  startBtn.addEventListener("click", beginStory);
 
   renderPage();
 </script>

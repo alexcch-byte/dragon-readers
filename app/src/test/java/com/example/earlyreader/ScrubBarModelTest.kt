@@ -1,23 +1,27 @@
 package com.example.earlyreader
 
 import com.example.earlyreader.audio.SpeechManager
+import com.example.earlyreader.audio.VoiceCandidate
+import com.example.earlyreader.audio.VoiceSelection
 import com.example.earlyreader.model.StoryBank
 import com.example.earlyreader.model.WordBank
+import com.example.earlyreader.storage.KeyValueStore
+import com.example.earlyreader.storage.ProgressStorage
+import com.example.earlyreader.ui.scrub.DONE_THRESHOLD
+import com.example.earlyreader.ui.scrub.RESCRUB_RESET
+import com.example.earlyreader.ui.scrub.segmentBoundaries
 import com.example.earlyreader.ui.sentences.SentenceLabData
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScrubBarModelTest {
 
-    private fun calculateBoundaries(segments: List<String>): List<Float> {
-        val weights = segments.map { it.length.coerceAtLeast(1) }
-        val total = weights.sum().toFloat()
-        var running = 0
-        return weights.map { running += it; running / total }
-    }
+    // The real boundary maths used by the scrub bar (internal in SegmentedScrubBar.kt), not a copy.
+    private fun calculateBoundaries(segments: List<String>): List<Float> = segmentBoundaries(segments)
 
     @Test
     fun testSingleLetterWeightedBoundaries() {
@@ -41,19 +45,18 @@ class ScrubBarModelTest {
 
     @Test
     fun testDoneThreshold() {
-        val doneThreshold = 0.92f
-        assertFalse("Progress at 0.91 should not complete", 0.91f >= doneThreshold)
-        assertTrue("Progress at 0.92 should complete", 0.92f >= doneThreshold)
-        assertTrue("Progress at 0.99 should complete", 0.99f >= doneThreshold)
-        assertTrue("Progress at 1.0 should complete", 1.0f >= doneThreshold)
+        // The real constant the scrub bar uses (same value as DONE in docs/index.html)
+        assertEquals(0.92f, DONE_THRESHOLD, 0.0001f)
+        assertFalse("Progress at 0.91 should not complete", 0.91f >= DONE_THRESHOLD)
+        assertTrue("Progress at 0.92 should complete", 0.92f >= DONE_THRESHOLD)
+        assertTrue("Progress at 1.0 should complete", 1.0f >= DONE_THRESHOLD)
     }
 
     @Test
     fun testRescrubReset() {
-        val rescrubReset = 0.03f
-        assertTrue("Touch at 0.01 should trigger rescrub reset", 0.01f <= rescrubReset)
-        assertTrue("Touch at 0.03 should trigger rescrub reset", 0.03f <= rescrubReset)
-        assertFalse("Touch at 0.04 should not trigger rescrub reset", 0.04f <= rescrubReset)
+        assertEquals(0.03f, RESCRUB_RESET, 0.0001f)
+        assertTrue("Touch at 0.01 should trigger rescrub reset", 0.01f <= RESCRUB_RESET)
+        assertFalse("Touch at 0.04 should not trigger rescrub reset", 0.04f <= RESCRUB_RESET)
     }
 
     @Test
@@ -135,63 +138,101 @@ class ScrubBarModelTest {
         }
     }
 
-    @Test
-    fun testProgressBookkeeping() {
-        var completedWords = 0
-        val completedStories = mutableSetOf<String>()
-        var activeStoryIndex = 0
-        var activeMode = "WORDS"
-        assertEquals(0, activeStoryIndex)
-        assertEquals("WORDS", activeMode)
-
-        // Simulate word completions
-        completedWords += 1
-        assertEquals(1, completedWords)
-        completedWords += 1
-        assertEquals(2, completedWords)
-
-        // Simulate story completions
-        completedStories.add("The Red Hen")
-        assertEquals(1, completedStories.size)
-        assertTrue(completedStories.contains("The Red Hen"))
-        // Idempotent addition
-        completedStories.add("The Red Hen")
-        assertEquals(1, completedStories.size)
-        completedStories.add("The Big Pig")
-        assertEquals(2, completedStories.size)
-
-        // Mode and story switching
-        activeMode = "STORY"
-        assertEquals("STORY", activeMode)
-        activeStoryIndex = 3
-        assertEquals(3, activeStoryIndex)
-
-        // Reset
-        completedWords = 0
-        completedStories.clear()
-        activeStoryIndex = 0
-        activeMode = "WORDS"
-        assertEquals(0, completedWords)
-        assertTrue(completedStories.isEmpty())
-        assertEquals(0, activeStoryIndex)
-        assertEquals("WORDS", activeMode)
+    /** An in-memory stand-in for SharedPreferences, so the real ProgressStorage logic runs in a plain unit test. */
+    private class FakeStore : KeyValueStore {
+        val ints = mutableMapOf<String, Int>()
+        val strings = mutableMapOf<String, String>()
+        val sets = mutableMapOf<String, Set<String>>()
+        override fun getInt(key: String, default: Int) = ints[key] ?: default
+        override fun putInt(key: String, value: Int) { ints[key] = value }
+        override fun getString(key: String, default: String) = strings[key] ?: default
+        override fun putString(key: String, value: String) { strings[key] = value }
+        override fun getStringSet(key: String): Set<String> = sets[key] ?: emptySet()
+        override fun putStringSet(key: String, value: Set<String>) { sets[key] = value }
+        override fun clear() { ints.clear(); strings.clear(); sets.clear() }
     }
 
     @Test
-    fun testVoiceDetectionAndGuidanceLogic() {
-        data class VoiceInfo(val name: String, val isNetworkRequired: Boolean)
+    fun testProgressStorageBookkeeping() {
+        val progress = ProgressStorage(FakeStore())
+        assertEquals(0, progress.completedWordsCount)
+        assertEquals(0, progress.lastActiveStoryIndex)
+        assertEquals(ProgressStorage.MODE_WORDS, progress.lastAppMode)
+        assertTrue(progress.completedStoryTitles.isEmpty())
 
-        fun shouldShowOfflineGuidance(voice: VoiceInfo?): Boolean {
-            if (voice == null) return true
-            return voice.isNetworkRequired
+        progress.recordWordCompleted()
+        progress.recordWordCompleted()
+        assertEquals(2, progress.completedWordsCount)
+
+        progress.recordStoryCompleted("The Red Hen")
+        progress.recordStoryCompleted("The Red Hen") // recording the same story twice is a no-op
+        assertEquals(setOf("The Red Hen"), progress.completedStoryTitles)
+        progress.recordStoryCompleted("The Big Pig")
+        assertEquals(setOf("The Red Hen", "The Big Pig"), progress.completedStoryTitles)
+
+        progress.recordSentenceLevelCompleted("nouns")
+        progress.recordSentenceLevelCompleted("nouns")
+        assertEquals(setOf("nouns"), progress.completedSentenceLevels)
+
+        progress.lastAppMode = ProgressStorage.MODE_TRACKING
+        progress.lastActiveStoryIndex = 3
+        progress.lastSentenceLabLevel = 4
+        assertEquals(ProgressStorage.MODE_TRACKING, progress.lastAppMode)
+        assertEquals(3, progress.lastActiveStoryIndex)
+        assertEquals(4, progress.lastSentenceLabLevel)
+
+        progress.resetAll()
+        assertEquals(0, progress.completedWordsCount)
+        assertTrue(progress.completedStoryTitles.isEmpty())
+        assertTrue(progress.completedSentenceLevels.isEmpty())
+        assertEquals(0, progress.lastActiveStoryIndex)
+        assertEquals(ProgressStorage.MODE_WORDS, progress.lastAppMode)
+    }
+
+    @Test
+    fun testVoiceSelectionPrefersOfflineEnglish() {
+        val voices = listOf(
+            VoiceCandidate("fr-fr-x-local", "fr", networkRequired = false),
+            VoiceCandidate("en-us-x-sfg#female_1-network", "en", networkRequired = true),
+            VoiceCandidate("en-us-x-sfg#female_1-local", "en", networkRequired = false),
+        )
+        val choice = VoiceSelection.choose(voices)
+        assertEquals(2, choice.index)
+        assertEquals("en-us-x-sfg#female_1-local", choice.name)
+        assertTrue(choice.isOffline)
+        assertFalse(choice.isNetworkOnly)
+        assertFalse("An offline voice needs no download guidance", choice.needsOfflineGuidance)
+    }
+
+    @Test
+    fun testVoiceSelectionNetworkOnlyAndMissingVoices() {
+        val networkOnly = VoiceSelection.choose(
+            listOf(
+                VoiceCandidate("de-de-x-local", "de", networkRequired = false),
+                VoiceCandidate("en-us-x-sfg#male_1-network", "en", networkRequired = true),
+            ),
+        )
+        assertEquals(1, networkOnly.index)
+        assertTrue(networkOnly.isNetworkOnly)
+        assertFalse(networkOnly.isOffline)
+        assertTrue("A network-only voice should trigger the offline-voice tip", networkOnly.needsOfflineGuidance)
+
+        // No English voice at all (or no voice list): fall back to the engine default, which is treated as offline.
+        val noEnglish: List<List<VoiceCandidate>?> = listOf(
+            null,
+            emptyList(),
+            listOf(VoiceCandidate("es-es-x-local", "es", networkRequired = false)),
+        )
+        for (none in noEnglish) {
+            val choice = VoiceSelection.choose(none)
+            assertEquals(null, choice.index)
+            assertEquals(VoiceSelection.DEFAULT_VOICE_NAME, choice.name)
+            assertTrue(choice.isOffline)
+            assertFalse(choice.needsOfflineGuidance)
         }
-
-        val offlineVoice = VoiceInfo("en-us-x-sfg#female_1-local", isNetworkRequired = false)
-        val networkVoice = VoiceInfo("en-us-x-sfg#female_1-network", isNetworkRequired = true)
-
-        assertFalse("Offline voice should not trigger offline download guidance", shouldShowOfflineGuidance(offlineVoice))
-        assertTrue("Network voice should trigger offline download guidance", shouldShowOfflineGuidance(networkVoice))
-        assertTrue("Missing voice should trigger offline download guidance", shouldShowOfflineGuidance(null))
+        assertTrue(VoiceSelection.needsOfflineGuidance(isOffline = false, isNetworkOnly = false))
+        assertTrue(VoiceSelection.needsOfflineGuidance(isOffline = true, isNetworkOnly = true))
+        assertFalse(VoiceSelection.needsOfflineGuidance(isOffline = true, isNetworkOnly = false))
     }
 
     @Test
@@ -269,8 +310,8 @@ class ScrubBarModelTest {
 
     @Test
     fun testSentenceLabCompleteThoughtDataset() {
-        val items = SentenceLabData.level4Items
-        assertEquals("Sentence Lab Level 4 must have 6 items", 6, items.size)
+        val items = SentenceLabData.level5Items
+        assertEquals("Sentence Lab Level 5 must have 6 items", 6, items.size)
         val expectedBooleans = listOf(false, true, true, false, false, true)
         for ((idx, item) in items.withIndex()) {
             assertTrue("Item $idx text must not be blank", item.text.isNotBlank())
@@ -278,14 +319,14 @@ class ScrubBarModelTest {
             assertTrue("Item $idx hint must not be blank", item.hint.isNotBlank())
             assertEquals("Item $idx isSentence must match expected", expectedBooleans[idx], item.isSentence)
         }
-        assertEquals("Level 4 id must be 'sentence-check'", "sentence-check", SentenceLabData.level4.id)
-        assertEquals("Level 4 type must be JUDGE_SENTENCE", com.example.earlyreader.ui.sentences.SentenceLabType.JUDGE_SENTENCE, SentenceLabData.level4.type)
+        assertEquals("Level 5 id must be 'sentence-check'", "sentence-check", SentenceLabData.level5.id)
+        assertEquals("Level 5 type must be JUDGE_SENTENCE", com.example.earlyreader.ui.sentences.SentenceLabType.JUDGE_SENTENCE, SentenceLabData.level5.type)
     }
 
     @Test
     fun testSentenceLabBuildSentenceDataset() {
-        val items = SentenceLabData.level5Items
-        assertEquals("Sentence Lab Level 5 must have 6 items", 6, items.size)
+        val items = SentenceLabData.level6Items
+        assertEquals("Sentence Lab Level 6 must have 6 items", 6, items.size)
         val expectedKinds = listOf("telling", "asking", "telling", "asking", "exciting", "telling")
         val expectedMarks = listOf(".", "?", ".", "?", "!", ".")
         for ((idx, item) in items.withIndex()) {
@@ -296,14 +337,14 @@ class ScrubBarModelTest {
             assertEquals("Item $idx scrambledWords size must equal rawWords size", item.rawWords.size, item.scrambledWords.size)
             assertEquals("Item $idx scrambledWords sorted must equal rawWords sorted", item.rawWords.sorted(), item.scrambledWords.sorted())
         }
-        assertEquals("Level 5 id must be 'build'", "build", SentenceLabData.level5.id)
-        assertEquals("Level 5 type must be BUILD_SENTENCE", com.example.earlyreader.ui.sentences.SentenceLabType.BUILD_SENTENCE, SentenceLabData.level5.type)
+        assertEquals("Level 6 id must be 'build'", "build", SentenceLabData.level6.id)
+        assertEquals("Level 6 type must be BUILD_SENTENCE", com.example.earlyreader.ui.sentences.SentenceLabType.BUILD_SENTENCE, SentenceLabData.level6.type)
     }
 
     @Test
     fun testSentenceLabRolesDataset() {
-        val items = SentenceLabData.level6Items
-        assertEquals("Sentence Lab Level 6 must have 6 items", 6, items.size)
+        val items = SentenceLabData.level4Items
+        assertEquals("Sentence Lab Level 4 must have 6 items", 6, items.size)
         val expectedSubjects = listOf("The baby", "Dad", "Our teacher", "The children", "The wind", "A girl")
         val expectedVerbs = listOf("ate", "washed", "told", "planted", "shook", "drew")
         val expectedObjects = listOf("a banana.", "the car.", "a story.", "some seeds.", "the trees.", "a rainbow.")
@@ -324,9 +365,18 @@ class ScrubBarModelTest {
             assertTrue("Full sentence must not be blank", item.fullSentence.isNotBlank())
         }
 
-        assertEquals("Level 6 id must be 'roles'", "roles", SentenceLabData.level6.id)
-        assertEquals("Level 6 type must be SORT_ROLES", com.example.earlyreader.ui.sentences.SentenceLabType.SORT_ROLES, SentenceLabData.level6.type)
+        assertEquals("Level 4 id must be 'roles'", "roles", SentenceLabData.level4.id)
+        assertEquals("Level 4 type must be SORT_ROLES", com.example.earlyreader.ui.sentences.SentenceLabType.SORT_ROLES, SentenceLabData.level4.type)
         assertEquals("All levels list must have 6 levels", 6, SentenceLabData.allLevels.size)
+        // Same order as the web Sentence Lab: nouns, verbs, adjectives, roles, sentence?, build.
+        assertEquals(
+            listOf("nouns", "verbs", "adjectives", "roles", "sentence-check", "build"),
+            SentenceLabData.allLevels.map { it.id },
+        )
+        for ((idx, level) in SentenceLabData.allLevels.withIndex()) {
+            assertTrue("Level ${idx + 1} title must start with its number", level.title.startsWith("Level ${idx + 1}:"))
+            assertTrue("Level ${idx + 1} short name must start with its number", level.shortName.startsWith("${idx + 1}."))
+        }
     }
 
     @Test
@@ -343,8 +393,8 @@ class ScrubBarModelTest {
             assertTrue("Sound for '$key' must not be blank", sound!!.isNotBlank())
         }
 
-        // Essential phonics digraphs
-        val digraphs = listOf("sh", "ch", "th", "ng")
+        // Essential phonics digraphs, and the doubles / digraphs the stories use as ONE segment
+        val digraphs = listOf("sh", "ch", "th", "ng", "ck", "ll", "ss", "ff", "zz", "qu")
         for (dg in digraphs) {
             assertTrue("Phoneme sound map must contain digraph '$dg'", sounds.containsKey(dg))
             val sound = sounds[dg]
@@ -352,12 +402,59 @@ class ScrubBarModelTest {
             assertTrue("Sound for '$dg' must not be blank", sound!!.isNotBlank())
         }
 
-        // Short vowel phonemes
+        // Short vowel phonemes: all five must differ, so "hat" and "hot" (and "cat" and "cot") sound out differently
         assertEquals("ah", sounds["a"])
         assertEquals("eh", sounds["e"])
         assertEquals("ih", sounds["i"])
-        assertEquals("ah", sounds["o"])
+        assertEquals("aw", sounds["o"])
         assertEquals("uh", sounds["u"])
+        assertNotEquals("a and o must not be sounded the same", sounds["a"], sounds["o"])
+        assertEquals("All five short vowels must have different sounds", 5, listOf("a", "e", "i", "o", "u").map { sounds[it] }.toSet().size)
+    }
+
+    @Test
+    fun testEveryStorySegmentHasASoundAndNoDigraphIsSplit() {
+        // Runs over the real story data (StoryBank), not a copy.
+        val sounds = SpeechManager.phonemeSounds
+        var decodableWords = 0
+        for (story in StoryBank.allStories) {
+            for ((pIdx, page) in story.pages.withIndex()) {
+                for (word in page.words.filter { !it.sight }) {
+                    decodableWords++
+                    val where = "${story.title} page ${pIdx + 1} word '${word.text}'"
+                    for (segment in word.segments) {
+                        assertTrue("$where: no sound for segment '$segment'", sounds.containsKey(segment.lowercase()))
+                    }
+                    for ((a, b) in word.segments.zipWithNext()) {
+                        val pair = (a + b).lowercase()
+                        assertFalse(
+                            "$where: '$a' + '$b' must be ONE segment '$pair' (two letters would be sounded twice)",
+                            pair in SpeechManager.digraphs,
+                        )
+                    }
+                }
+            }
+        }
+        assertTrue("There must be decodable words to check", decodableWords > 0)
+
+        // The re-segmented words the critic found sounded twice
+        fun segmentsOf(text: String) = StoryBank.allStories.flatMap { it.pages }.flatMap { it.words }
+            .first { it.text.trimEnd('.', '!', '?', ',').equals(text, ignoreCase = true) }.segments
+        assertEquals(listOf("d", "u", "ck"), segmentsOf("duck"))
+        assertEquals(listOf("b", "e", "ll"), segmentsOf("bell"))
+        assertEquals(listOf("r", "a", "ng"), segmentsOf("rang"))
+        assertEquals(listOf("qu", "i", "ck"), segmentsOf("quick"))
+        assertEquals(listOf("th", "i", "ck"), segmentsOf("thick"))
+        assertEquals(listOf("o", "n"), segmentsOf("on"))
+    }
+
+    @Test
+    fun testStoriesAreTheSameOnWebAndAndroidWhereCheckable() {
+        // The Red Hen is the story that used to differ: page 1 is now "A hen sat. The hen is red." on both platforms.
+        val hen = StoryBank.allStories.first { it.id == "hen" }
+        assertEquals("A hen sat. The hen is red.".replace(".", ""), hen.pages[0].fullSentence.replace(".", ""))
+        assertEquals("A fox ran. The fox is big.".replace(".", ""), hen.pages[1].fullSentence.replace(".", ""))
+        assertEquals("The hen got in a box.", hen.pages[2].fullSentence)
     }
 
     @Test
@@ -382,6 +479,24 @@ class ScrubBarModelTest {
                 assertEquals("Story ${story.title} page $idx fullSentence should match joined words", joinedWords, page.fullSentence)
             }
         }
+    }
+
+    @Test
+    fun testTrackedWordCanOnlyAdvanceOneWordPastTheFurthestReached() {
+        // Nothing reached yet: a tap far to the right gets at most the second word, never the end of the sentence
+        assertEquals(1, limitTrackedWordIndex(desiredIndex = 9, reachedIndex = 0))
+        assertEquals(0, limitTrackedWordIndex(desiredIndex = 0, reachedIndex = 0))
+        // Moving back, or staying, is never limited
+        assertEquals(2, limitTrackedWordIndex(desiredIndex = 2, reachedIndex = 5))
+        // Walking along the sentence one word at a time gets to the end
+        var reached = 0
+        var steps = 0
+        while (reached < 7 && steps < 100) {
+            reached = maxOf(reached, limitTrackedWordIndex(desiredIndex = 7, reachedIndex = reached))
+            steps++
+        }
+        assertEquals(7, reached)
+        assertEquals("A page of 8 words takes at least 7 moves", 7, steps)
     }
 
     @Test

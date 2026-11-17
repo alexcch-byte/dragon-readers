@@ -1,5 +1,6 @@
 package com.example.earlyreader.ui.scrub
 
+import android.os.SystemClock
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -28,11 +29,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,7 +67,7 @@ import kotlin.math.roundToInt
 // Same value as DONE in docs/index.html: a real finger lifts a little short of
 // the physical edge, so requiring ~100% made the word nearly impossible to
 // complete, with no feedback as to why.
-private const val DONE_THRESHOLD = 0.92f
+internal const val DONE_THRESHOLD = 0.92f
 
 // A touch inside the first segment, or within this reach of where the last drag
 // left off, picks the bar up exactly where the finger landed. The reach is the
@@ -81,11 +85,13 @@ private const val START_REACH_DP = 100
 // dragging, progress can advance at most this far per input event...
 private const val MAX_STEP = 0.4f
 
-// ...and at most this many bar-lengths per second (the same cap as MAX_SPEED in docs/index.html).
+// ...and at most this many bar-lengths per second (the same cap as MAX_SPEED in docs/index.html). A finger
+// that rests on the bar without moving sends no events, so a frame loop (below) keeps the thumb moving
+// toward it at this speed, exactly like the catch-up loop in docs/index.html.
 private const val MAX_SPEED = 3.0f
 
 // Fraction of the bar below which a drag counts as "back at the start" (word can be scrubbed again).
-private const val RESCRUB_RESET = 0.03f
+internal const val RESCRUB_RESET = 0.03f
 
 // Keeps the bar's start clear of the system back-gesture edge (plan section 10).
 private val BarHorizontalPadding = 32.dp
@@ -96,6 +102,17 @@ private val MaxLetterSize = 88.dp
 // Rough advance width of a bold letter as a multiple of its font size; used to
 // shrink the letters of a narrow segment so they never spill into the next one.
 private const val LETTER_WIDTH_EM = 0.7f
+
+/** Each segment's width on the bar is proportional to its letter count (plan section 2). */
+internal fun segmentWeights(segments: List<String>): List<Int> = segments.map { it.length.coerceAtLeast(1) }
+
+/** The cumulative end of each segment as a fraction of the bar (the last one is 1). */
+internal fun segmentBoundaries(segments: List<String>): List<Float> {
+    val weights = segmentWeights(segments)
+    val total = weights.sum().toFloat()
+    var running = 0
+    return weights.map { running += it; running / total }
+}
 
 /**
  * Milestone 1: drag-to-reveal segmented scrub bar.
@@ -108,7 +125,9 @@ fun SegmentedScrubBar(
     segments: List<String>,
     modifier: Modifier = Modifier,
     onDragStart: () -> Unit = {},
-    onSegmentSound: (String) -> Unit = {},
+    // (segment, startsNewScrub): startsNewScrub is true for the first sound of a scrub from the start of the
+    // word, which is the only time the speech queue is flushed; every other sound waits behind the last one.
+    onSegmentSound: (String, Boolean) -> Unit = { _, _ -> },
     onWordComplete: () -> Unit = {},
 ) {
     var progress by rememberSaveable(segments) { mutableStateOf(0f) }
@@ -117,6 +136,11 @@ fun SegmentedScrubBar(
     // Once the word is complete the bar is finished: no more dragging, no re-firing the reward.
     var locked by rememberSaveable(segments) { mutableStateOf(false) }
     var isDragging by remember { mutableStateOf(false) }
+    // Where the held finger is along the bar (0..1) and whether this drag may move the thumb (false after a
+    // snapped start, until the finger reaches the thumb); both are read by the frame loop below.
+    var fingerFrac by remember { mutableFloatStateOf(0f) }
+    var following by remember { mutableStateOf(false) }
+    var lastAdvanceAt by remember { mutableLongStateOf(0L) }
 
     // "Start here" pulse shown when a touch was snapped to an allowed start point.
     var startHint by remember { mutableStateOf(false) }
@@ -124,12 +148,8 @@ fun SegmentedScrubBar(
 
     // Segment boxes are weighted by letter count, so "filled" must be measured
     // against the cumulative weighted boundaries, not against equal slices.
-    val weights = remember(segments) { segments.map { it.length.coerceAtLeast(1) } }
-    val boundaries = remember(segments) {
-        val total = weights.sum().toFloat()
-        var running = 0
-        weights.map { running += it; running / total }
-    }
+    val weights = remember(segments) { segmentWeights(segments) }
+    val boundaries = remember(segments) { segmentBoundaries(segments) }
 
     val isComplete = locked || progress >= DONE_THRESHOLD
     val displayProgress = if (isComplete) 1f else progress
@@ -144,11 +164,47 @@ fun SegmentedScrubBar(
     LaunchedEffect(filledSegments) {
         if (filledSegments > lastSoundedSegment && filledSegments <= segments.size) {
             for (idx in lastSoundedSegment until filledSegments) {
-                onSegmentSound(segments[idx])
+                onSegmentSound(segments[idx], idx == 0)
             }
             lastSoundedSegment = filledSegments
         } else if (progress <= RESCRUB_RESET) {
             lastSoundedSegment = 0
+        }
+    }
+
+    // Moves the thumb toward the finger: never more than MAX_STEP in one go, nor faster than MAX_SPEED
+    // bar-lengths per second since the last time it was allowed to move (shared by touch events and the frame loop,
+    // so the two together can never move it faster than that).
+    fun advanceToFinger() {
+        val now = SystemClock.uptimeMillis()
+        val dt = (now - lastAdvanceAt).coerceAtLeast(0L) / 1000f
+        lastAdvanceAt = now
+        progress = if (fingerFrac <= RESCRUB_RESET) {
+            0f
+        } else {
+            fingerFrac.coerceAtMost(progress + minOf(MAX_STEP, dt * MAX_SPEED))
+        }
+    }
+
+    // A finger that rests on the bar (or has moved on faster than the thumb may follow) sends no new events, so the
+    // thumb would stall. While a drag is held and "following", every frame moves it on toward the finger at MAX_SPEED.
+    // A drag that was snapped to the start and has not reached the thumb is not following, so a finger resting or
+    // jittering at the far end of the bar still does nothing.
+    LaunchedEffect(isDragging) {
+        if (!isDragging) return@LaunchedEffect
+        while (true) {
+            withFrameNanos { }
+            if (locked) break
+            if (following && fingerFrac > progress) {
+                advanceToFinger()
+                if (progress >= DONE_THRESHOLD) {
+                    progress = 1f
+                    locked = true
+                    break
+                }
+            } else {
+                lastAdvanceAt = SystemClock.uptimeMillis()
+            }
         }
     }
 
@@ -246,7 +302,9 @@ fun SegmentedScrubBar(
                         val insideFirstSegment = touch <= firstBoundary
                         val nearCurrent = abs(touch - progress) <= reach
                         // False after a snapped start: moves are ignored until the finger reaches the thumb.
-                        var following = insideFirstSegment || nearCurrent
+                        following = insideFirstSegment || nearCurrent
+                        fingerFrac = touch
+                        lastAdvanceAt = SystemClock.uptimeMillis()
                         if (!dragStartedFired) {
                             dragStartedFired = true
                             onDragStart()
@@ -263,8 +321,6 @@ fun SegmentedScrubBar(
 
                         // Track only this pointer; any other finger or palm is ignored.
                         val pointerId = down.id
-                        var lastUptime = down.uptimeMillis
-                        var lastX = touch
                         down.consume()
                         try {
                             isDragging = true
@@ -273,9 +329,9 @@ fun SegmentedScrubBar(
                                 val event = awaitPointerEvent()
                                 val change = event.changes.firstOrNull { it.id == pointerId } ?: break
                                 if (!change.pressed) {
-                                    if (following && lastX > progress) {
-                                        progress = lastX
-                                        if (lastX >= DONE_THRESHOLD) {
+                                    if (following && fingerFrac > progress) {
+                                        progress = fingerFrac
+                                        if (fingerFrac >= DONE_THRESHOLD) {
                                             progress = 1f
                                             locked = true
                                         }
@@ -283,23 +339,17 @@ fun SegmentedScrubBar(
                                     break
                                 }
                                 val x = (change.position.x / width).coerceIn(0f, 1f)
-                                lastX = x
-                                val dt = (change.uptimeMillis - lastUptime).coerceAtLeast(0L) / 1000f
-                                lastUptime = change.uptimeMillis
-                                if (!following) {
-                                    following = x <= firstBoundary || abs(x - progress) <= reach
+                                fingerFrac = x
+                                if (!following && (x <= firstBoundary || abs(x - progress) <= reach)) {
+                                    following = true
+                                    lastAdvanceAt = SystemClock.uptimeMillis()
                                 }
-                                if (following) {
-                                    if (x <= RESCRUB_RESET) {
-                                        progress = 0f
-                                    } else {
-                                        progress = x.coerceAtMost(progress + minOf(MAX_STEP, dt * MAX_SPEED))
-                                    }
-                                }
+                                if (following) advanceToFinger()
                                 change.consume()
                             }
                         } finally {
                             isDragging = false
+                            following = false
                         }
                         if (progress >= DONE_THRESHOLD) locked = true
                     }

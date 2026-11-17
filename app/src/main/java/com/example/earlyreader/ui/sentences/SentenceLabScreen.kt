@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -241,73 +242,9 @@ object SentenceLabData {
     )
 
     val level4 = SentenceLabLevel(
-        id = "sentence-check",
-        title = "Level 4: Is it a Sentence?",
-        shortName = "4. Sentence?",
-        type = SentenceLabType.JUDGE_SENTENCE,
-        targetName = "complete thought",
-        prompt = "Read it aloud. Is it a whole sentence?",
-        checkItems = listOf(
-            SentenceCheckItem(
-                text = "The big dog.",
-                isSentence = false,
-                why = "“The big dog” tells who it is about, but not what happens. Add a word like “ran” and it becomes a sentence.",
-                hint = "Who is it about? A big dog. But what happens? It does not say yet.",
-            ),
-            SentenceCheckItem(
-                text = "We played in the park.",
-                isSentence = true,
-                why = "“We” is who it is about and “played” is what happens. That is a whole thought.",
-                hint = "Who is it about? We. What happens? We played. Does the thought feel finished?",
-            ),
-            SentenceCheckItem(
-                text = "The baby sleeps.",
-                isSentence = true,
-                why = "“The baby” is who it is about and “sleeps” is what happens. That is a whole thought.",
-                hint = "Who is it about? The baby. What happens? The baby sleeps.",
-            ),
-            SentenceCheckItem(
-                text = "Ran down the hill.",
-                isSentence = false,
-                why = "It tells what happened, but not who ran. Add “We” at the start and it becomes a sentence.",
-                hint = "What happens? Someone ran down the hill. But who or what is it about?",
-            ),
-            SentenceCheckItem(
-                text = "In the park.",
-                isSentence = false,
-                why = "It tells where, but not who or what it is about, and not what happens.",
-                hint = "Who or what is it about? It does not say. What happens? It does not say either.",
-            ),
-            SentenceCheckItem(
-                text = "My sister reads a book.",
-                isSentence = true,
-                why = "“My sister” is who it is about and “reads a book” is what she does. That is a whole thought.",
-                hint = "Who is it about? My sister. What does she do? She reads a book.",
-            ),
-        ),
-    )
-
-    val level5 = SentenceLabLevel(
-        id = "build",
-        title = "Level 5: Build a Sentence",
-        shortName = "5. Build",
-        type = SentenceLabType.BUILD_SENTENCE,
-        targetName = "sentence",
-        prompt = "Tap the words in order, then add the ending mark.",
-        buildItems = listOf(
-            SentenceBuildItem(kind = "telling", text = "The cat is very soft."),
-            SentenceBuildItem(kind = "asking", text = "Do you like soup?"),
-            SentenceBuildItem(kind = "telling", text = "We planted seeds in the garden."),
-            SentenceBuildItem(kind = "asking", text = "Where did the dog go?"),
-            SentenceBuildItem(kind = "exciting", text = "I see a big rainbow!"),
-            SentenceBuildItem(kind = "telling", text = "The bus stops at our school."),
-        ),
-    )
-
-    val level6 = SentenceLabLevel(
         id = "roles",
-        title = "Level 6: Who and What (Roles)",
-        shortName = "6. Roles",
+        title = "Level 4: Who and What (Roles)",
+        shortName = "4. Roles",
         type = SentenceLabType.SORT_ROLES,
         targetName = "sentence parts",
         prompt = "Tap a part of the sentence, then tap the box where it belongs.",
@@ -357,13 +294,78 @@ object SentenceLabData {
         ),
     )
 
+    val level5 = SentenceLabLevel(
+        id = "sentence-check",
+        title = "Level 5: Is it a Sentence?",
+        shortName = "5. Sentence?",
+        type = SentenceLabType.JUDGE_SENTENCE,
+        targetName = "complete thought",
+        prompt = "Read it aloud. Is it a whole sentence?",
+        checkItems = listOf(
+            SentenceCheckItem(
+                text = "The big dog.",
+                isSentence = false,
+                why = "“The big dog” tells who it is about, but not what happens. Add a word like “ran” and it becomes a sentence.",
+                hint = "Who is it about? A big dog. But what happens? It does not say yet.",
+            ),
+            SentenceCheckItem(
+                text = "We played in the park.",
+                isSentence = true,
+                why = "“We” is who it is about and “played” is what happens. That is a whole thought.",
+                hint = "Who is it about? We. What happens? We played. Does the thought feel finished?",
+            ),
+            SentenceCheckItem(
+                text = "The baby sleeps.",
+                isSentence = true,
+                why = "“The baby” is who it is about and “sleeps” is what happens. That is a whole thought.",
+                hint = "Who is it about? The baby. What happens? The baby sleeps.",
+            ),
+            SentenceCheckItem(
+                text = "Ran down the hill.",
+                isSentence = false,
+                why = "It tells what happened, but not who ran. Add “We” at the start and it becomes a sentence.",
+                hint = "What happens? Someone ran down the hill. But who or what is it about?",
+            ),
+            SentenceCheckItem(
+                text = "In the park.",
+                isSentence = false,
+                why = "It tells where, but not who or what it is about, and not what happens.",
+                hint = "Who or what is it about? It does not say. What happens? It does not say either.",
+            ),
+            SentenceCheckItem(
+                text = "My sister reads a book.",
+                isSentence = true,
+                why = "“My sister” is who it is about and “reads a book” is what she does. That is a whole thought.",
+                hint = "Who is it about? My sister. What does she do? She reads a book.",
+            ),
+        ),
+    )
+
+    val level6 = SentenceLabLevel(
+        id = "build",
+        title = "Level 6: Build a Sentence",
+        shortName = "6. Build",
+        type = SentenceLabType.BUILD_SENTENCE,
+        targetName = "sentence",
+        prompt = "Tap the words in order, then add the ending mark.",
+        buildItems = listOf(
+            SentenceBuildItem(kind = "telling", text = "The cat is very soft."),
+            SentenceBuildItem(kind = "asking", text = "Do you like soup?"),
+            SentenceBuildItem(kind = "telling", text = "We planted seeds in the garden."),
+            SentenceBuildItem(kind = "asking", text = "Where did the dog go?"),
+            SentenceBuildItem(kind = "exciting", text = "I see a big rainbow!"),
+            SentenceBuildItem(kind = "telling", text = "The bus stops at our school."),
+        ),
+    )
+
+    // Same order as the web Sentence Lab (docs/sentences.html): nouns, verbs, adjectives, roles, sentence?, build.
     val allLevels = listOf(level1, level2, level3, level4, level5, level6)
     val level1Items: List<SentenceLabItem> get() = level1.items
     val level2Items: List<SentenceLabItem> get() = level2.items
     val level3Items: List<SentenceLabItem> get() = level3.items
-    val level4Items: List<SentenceCheckItem> get() = level4.checkItems
-    val level5Items: List<SentenceBuildItem> get() = level5.buildItems
-    val level6Items: List<SentenceRoleItem> get() = level6.roleItems
+    val level4Items: List<SentenceRoleItem> get() = level4.roleItems
+    val level5Items: List<SentenceCheckItem> get() = level5.checkItems
+    val level6Items: List<SentenceBuildItem> get() = level6.buildItems
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -384,6 +386,10 @@ fun SentenceLabScreen(
     var showReward by rememberSaveable { mutableStateOf(false) }
     var levelFinished by rememberSaveable { mutableStateOf(false) }
     var localCompletedLevels by rememberSaveable { mutableStateOf(completedLevels) }
+    // How many sentences of this level were finished with "Show me" (or after a wrong guess in "Is it a sentence?"),
+    // as opposed to solved on the child's own. A level finished only by peeking earns no star and no trophy credit.
+    var peekCount by rememberSaveable { mutableIntStateOf(0) }
+    var judgeWrongSeen by rememberSaveable { mutableStateOf(false) }
 
     var judgeAnswer by rememberSaveable { mutableStateOf<Boolean?>(null) }
     var judgeFeedback by rememberSaveable { mutableStateOf<String?>(null) }
@@ -449,6 +455,8 @@ fun SentenceLabScreen(
         roleFeedback = null
         roleSuccess = false
         levelFinished = false
+        peekCount = 0
+        judgeWrongSeen = false
         onLevelSelected(newIdx)
     }
 
@@ -468,6 +476,17 @@ fun SentenceLabScreen(
         roleFeedback = null
         roleSuccess = false
         levelFinished = false
+        peekCount = 0
+        judgeWrongSeen = false
+    }
+
+    // Ends the level. It only counts as completed (star, trophy) if at least one sentence was solved without peeking.
+    val finishLevel: () -> Unit = {
+        levelFinished = true
+        if (peekCount < totalItems) {
+            localCompletedLevels = localCompletedLevels + currentLevel.id
+            onLevelCompleted(currentLevel.id)
+        }
     }
 
     val checkBuildSentence: () -> Unit = {
@@ -536,15 +555,17 @@ fun SentenceLabScreen(
                     val isCompleted = localCompletedLevels.contains(lvl.id)
                     Box(
                         modifier = Modifier
+                            .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(if (isSelected) VioletPrimary else Color.Transparent)
                             .clickable { switchLevel(idx) }
-                            .padding(horizontal = 10.dp, vertical = 7.dp)
+                            .padding(horizontal = 10.dp)
                             .semantics {
-                                contentDescription = "${lvl.title}" +
-                                    if (isSelected) ", selected" else "" +
-                                    if (isCompleted) ", completed" else ""
+                                contentDescription = lvl.title +
+                                    (if (isSelected) ", selected" else "") +
+                                    (if (isCompleted) ", completed" else "")
                             },
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = lvl.shortName + if (isCompleted) "⭐" else "",
@@ -588,7 +609,7 @@ fun SentenceLabScreen(
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = "All 6 Levels Finished! You are a sentence master!\nYou explored naming words, action words, describing words, complete thoughts, sentence building, and who/what roles!",
+                                text = "All 6 Levels Finished! You are a sentence master!\nYou explored naming words, action words, describing words, who/what roles, complete thoughts, and sentence building!",
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center,
                                 color = Color(0xFF78350F),
@@ -615,9 +636,18 @@ fun SentenceLabScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "⭐⭐⭐⭐⭐⭐",
+                        text = "⭐".repeat((totalItems - peekCount).coerceAtLeast(0)) + "✨".repeat(peekCount.coerceIn(0, totalItems)),
                         fontSize = 32.sp,
                     )
+                    if (peekCount >= totalItems) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "You peeked at every answer. Play again and try one on your own to earn this level's star!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                        )
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = when {
@@ -705,11 +735,19 @@ fun SentenceLabScreen(
 
                         Button(
                             onClick = {
-                                val isCorrect = curCheckItem.isSentence
-                                judgeAnswer = true
-                                judgeCorrect = isCorrect
-                                judgeFeedback = if (isCorrect) curCheckItem.why else curCheckItem.hint
-                                if (isCorrect) showReward = true
+                                if (judgeCorrect != true) {
+                                    val isCorrect = curCheckItem.isSentence
+                                    judgeAnswer = true
+                                    judgeCorrect = isCorrect
+                                    judgeFeedback = if (isCorrect) curCheckItem.why else curCheckItem.hint
+                                    if (isCorrect) {
+                                        // A wrong guess leaves only one other button, so finding it is a peek, not a solve.
+                                        if (judgeWrongSeen) peekCount++
+                                        showReward = true
+                                    } else {
+                                        judgeWrongSeen = true
+                                    }
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (judgeAnswer == true) {
@@ -733,11 +771,18 @@ fun SentenceLabScreen(
 
                         Button(
                             onClick = {
-                                val isCorrect = !curCheckItem.isSentence
-                                judgeAnswer = false
-                                judgeCorrect = isCorrect
-                                judgeFeedback = if (isCorrect) curCheckItem.why else curCheckItem.hint
-                                if (isCorrect) showReward = true
+                                if (judgeCorrect != true) {
+                                    val isCorrect = !curCheckItem.isSentence
+                                    judgeAnswer = false
+                                    judgeCorrect = isCorrect
+                                    judgeFeedback = if (isCorrect) curCheckItem.why else curCheckItem.hint
+                                    if (isCorrect) {
+                                        if (judgeWrongSeen) peekCount++
+                                        showReward = true
+                                    } else {
+                                        judgeWrongSeen = true
+                                    }
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (judgeAnswer == false) {
@@ -805,10 +850,9 @@ fun SentenceLabScreen(
                                         judgeAnswer = null
                                         judgeFeedback = null
                                         judgeCorrect = null
+                                        judgeWrongSeen = false
                                     } else {
-                                        levelFinished = true
-                                        localCompletedLevels = localCompletedLevels + currentLevel.id
-                                        onLevelCompleted(currentLevel.id)
+                                        finishLevel()
                                     }
                                 },
                                 modifier = Modifier.height(48.dp),
@@ -1032,6 +1076,7 @@ fun SentenceLabScreen(
                                     buildFeedback = "Here is the sentence: ${curBuildItem.text}"
                                     buildSuccess = true
                                     showReward = true
+                                    peekCount++
                                 },
                                 modifier = Modifier.height(46.dp),
                             ) {
@@ -1053,9 +1098,7 @@ fun SentenceLabScreen(
                                         buildFeedback = null
                                         buildSuccess = false
                                     } else {
-                                        levelFinished = true
-                                        localCompletedLevels = localCompletedLevels + currentLevel.id
-                                        onLevelCompleted(currentLevel.id)
+                                        finishLevel()
                                     }
                                 },
                                 modifier = Modifier.height(46.dp),
@@ -1286,6 +1329,7 @@ fun SentenceLabScreen(
                                     assignedRoles = curRoleItem.chunks.mapIndexed { idx, c -> c.role to idx }.toMap()
                                     roleSuccess = true
                                     showReward = true
+                                    peekCount++
                                     roleFeedback = null
                                 },
                                 modifier = Modifier.height(46.dp),
@@ -1302,9 +1346,7 @@ fun SentenceLabScreen(
                                         roleFeedback = null
                                         roleSuccess = false
                                     } else {
-                                        levelFinished = true
-                                        localCompletedLevels = localCompletedLevels + currentLevel.id
-                                        onLevelCompleted(currentLevel.id)
+                                        finishLevel()
                                     }
                                 },
                                 modifier = Modifier.height(46.dp),
@@ -1428,6 +1470,7 @@ fun SentenceLabScreen(
                                     isShowingSolution = true
                                     selectedIndices = selectedIndices + targetIndices
                                     showReward = true
+                                    peekCount++
                                 },
                                 modifier = Modifier.height(48.dp),
                             ) {
@@ -1445,9 +1488,7 @@ fun SentenceLabScreen(
                                         isShowingSolution = false
                                         showReward = false
                                     } else {
-                                        levelFinished = true
-                                        localCompletedLevels = localCompletedLevels + currentLevel.id
-                                        onLevelCompleted(currentLevel.id)
+                                        finishLevel()
                                     }
                                 },
                                 modifier = Modifier.height(48.dp),
@@ -1512,7 +1553,7 @@ fun PreviewSentenceLabLevel3() {
     }
 }
 
-@Preview(name = "Sentence Lab Level 4 (Sentence Check)", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Preview(name = "Sentence Lab Level 4 (Roles)", showBackground = true, backgroundColor = 0xFFFAF7F2)
 @Composable
 fun PreviewSentenceLabLevel4() {
     EarlyReaderTheme {
@@ -1520,7 +1561,7 @@ fun PreviewSentenceLabLevel4() {
     }
 }
 
-@Preview(name = "Sentence Lab Level 5 (Build Sentence)", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Preview(name = "Sentence Lab Level 5 (Sentence Check)", showBackground = true, backgroundColor = 0xFFFAF7F2)
 @Composable
 fun PreviewSentenceLabLevel5() {
     EarlyReaderTheme {
@@ -1528,7 +1569,7 @@ fun PreviewSentenceLabLevel5() {
     }
 }
 
-@Preview(name = "Sentence Lab Level 6 (Roles)", showBackground = true, backgroundColor = 0xFFFAF7F2)
+@Preview(name = "Sentence Lab Level 6 (Build Sentence)", showBackground = true, backgroundColor = 0xFFFAF7F2)
 @Composable
 fun PreviewSentenceLabLevel6() {
     EarlyReaderTheme {

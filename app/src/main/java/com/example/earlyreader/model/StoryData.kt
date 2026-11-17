@@ -21,40 +21,33 @@ object StoryBank {
         pages = listOf(
             PageData(
                 words = listOf(
+                    WordData(text = "A", segments = emptyList(), sight = true),
+                    WordData(text = "hen", segments = listOf("h", "e", "n"), img = "🐔"),
+                    WordData(text = "sat.", segments = listOf("s", "a", "t")),
                     WordData(text = "The", segments = emptyList(), sight = true),
                     WordData(text = "hen", segments = listOf("h", "e", "n"), img = "🐔"),
                     WordData(text = "is", segments = emptyList(), sight = true),
-                    WordData(text = "red.", segments = listOf("r", "e", "d"), img = "🎈"),
+                    WordData(text = "red.", segments = listOf("r", "e", "d")),
+                )
+            ),
+            PageData(
+                words = listOf(
                     WordData(text = "A", segments = emptyList(), sight = true),
                     WordData(text = "fox", segments = listOf("f", "o", "x"), img = "🦊"),
-                    WordData(text = "sat", segments = listOf("s", "a", "t")),
-                    WordData(text = "in", segments = listOf("i", "n")),
-                    WordData(text = "a", segments = emptyList(), sight = true),
-                    WordData(text = "big", segments = listOf("b", "i", "g"), img = "🐘"),
-                    WordData(text = "box.", segments = listOf("b", "o", "x"), img = "📦"),
-                )
-            ),
-            PageData(
-                words = listOf(
+                    WordData(text = "ran.", segments = listOf("r", "a", "n"), img = "🏃"),
                     WordData(text = "The", segments = emptyList(), sight = true),
                     WordData(text = "fox", segments = listOf("f", "o", "x"), img = "🦊"),
-                    WordData(text = "can", segments = listOf("c", "a", "n")),
-                    WordData(text = "see", segments = emptyList(), sight = true),
-                    WordData(text = "the", segments = emptyList(), sight = true),
-                    WordData(text = "hen.", segments = listOf("h", "e", "n"), img = "🐔"),
-                    WordData(text = "The", segments = emptyList(), sight = true),
-                    WordData(text = "hen", segments = listOf("h", "e", "n"), img = "🐔"),
-                    WordData(text = "ran!", segments = listOf("r", "a", "n"), img = "🏃"),
+                    WordData(text = "is", segments = emptyList(), sight = true),
+                    WordData(text = "big.", segments = listOf("b", "i", "g")),
                 )
             ),
             PageData(
                 words = listOf(
                     WordData(text = "The", segments = emptyList(), sight = true),
                     WordData(text = "hen", segments = listOf("h", "e", "n"), img = "🐔"),
-                    WordData(text = "hid", segments = listOf("h", "i", "d")),
+                    WordData(text = "got", segments = listOf("g", "o", "t")),
                     WordData(text = "in", segments = listOf("i", "n")),
                     WordData(text = "a", segments = emptyList(), sight = true),
-                    WordData(text = "red", segments = listOf("r", "e", "d"), img = "🎈"),
                     WordData(text = "box.", segments = listOf("b", "o", "x"), img = "📦"),
                 )
             ),
@@ -143,7 +136,7 @@ object StoryBank {
                     WordData(text = "A", segments = emptyList(), sight = true),
                     WordData(text = "bug", segments = listOf("b", "u", "g"), img = "🐞"),
                     WordData(text = "sat", segments = listOf("s", "a", "t")),
-                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "on", segments = listOf("o", "n")),
                     WordData(text = "a", segments = emptyList(), sight = true),
                     WordData(text = "cup.", segments = listOf("c", "u", "p"), img = "🥤"),
                 )
@@ -183,7 +176,7 @@ object StoryBank {
                     WordData(text = "The", segments = emptyList(), sight = true),
                     WordData(text = "bug", segments = listOf("b", "u", "g"), img = "🐞"),
                     WordData(text = "ran", segments = listOf("r", "a", "n"), img = "🏃"),
-                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "on", segments = listOf("o", "n")),
                     WordData(text = "the", segments = emptyList(), sight = true),
                     WordData(text = "bus.", segments = listOf("b", "u", "s"), img = "🚌"),
                     WordData(text = "The", segments = emptyList(), sight = true),
@@ -207,7 +200,7 @@ object StoryBank {
                     WordData(text = "The", segments = emptyList(), sight = true),
                     WordData(text = "cat", segments = listOf("c", "a", "t"), img = "🐱"),
                     WordData(text = "is", segments = emptyList(), sight = true),
-                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "on", segments = listOf("o", "n")),
                     WordData(text = "a", segments = emptyList(), sight = true),
                     WordData(text = "mat.", segments = listOf("m", "a", "t"), img = "🧶"),
                 )
@@ -236,7 +229,7 @@ object StoryBank {
                     WordData(text = "The", segments = emptyList(), sight = true),
                     WordData(text = "hat", segments = listOf("h", "a", "t"), img = "🎩"),
                     WordData(text = "is", segments = emptyList(), sight = true),
-                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "on", segments = listOf("o", "n")),
                     WordData(text = "the", segments = emptyList(), sight = true),
                     WordData(text = "cat.", segments = listOf("c", "a", "t"), img = "🐱"),
                 )
@@ -252,7 +245,7 @@ object StoryBank {
                     WordData(text = "cat", segments = listOf("c", "a", "t"), img = "🐱"),
                     WordData(text = "can", segments = listOf("c", "a", "n")),
                     WordData(text = "nap", segments = listOf("n", "a", "p"), img = "💤"),
-                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "on", segments = listOf("o", "n")),
                     WordData(text = "the", segments = emptyList(), sight = true),
                     WordData(text = "mat.", segments = listOf("m", "a", "t"), img = "🧶"),
                 )
@@ -329,7 +322,7 @@ object StoryBank {
                     WordData(text = "A", segments = emptyList(), sight = true),
                     WordData(text = "frog", segments = listOf("f", "r", "o", "g"), img = "🐸"),
                     WordData(text = "sat", segments = listOf("s", "a", "t")),
-                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "on", segments = listOf("o", "n")),
                     WordData(text = "a", segments = emptyList(), sight = true),
                     WordData(text = "big", segments = listOf("b", "i", "g")),
                     WordData(text = "log.", segments = listOf("l", "o", "g"), img = "🪵"),
@@ -380,7 +373,7 @@ object StoryBank {
                     WordData(text = "pond.", segments = listOf("p", "o", "n", "d"), img = "💧"),
                     WordData(text = "He", segments = emptyList(), sight = true),
                     WordData(text = "sat", segments = listOf("s", "a", "t")),
-                    WordData(text = "on", segments = emptyList(), sight = true),
+                    WordData(text = "on", segments = listOf("o", "n")),
                     WordData(text = "the", segments = emptyList(), sight = true),
                     WordData(text = "log.", segments = listOf("l", "o", "g"), img = "🪵"),
                 )
@@ -404,7 +397,7 @@ object StoryBank {
                     WordData(text = "The", segments = emptyList(), sight = true),
                     WordData(text = "fog", segments = listOf("f", "o", "g"), img = "🌫️"),
                     WordData(text = "is", segments = emptyList(), sight = true),
-                    WordData(text = "thick.", segments = emptyList(), sight = true),
+                    WordData(text = "thick.", segments = listOf("th", "i", "ck")),
                 )
             ),
             PageData(
@@ -425,10 +418,10 @@ object StoryBank {
                 words = listOf(
                     WordData(text = "Hear", segments = emptyList(), sight = true),
                     WordData(text = "the", segments = emptyList(), sight = true),
-                    WordData(text = "bell!", segments = listOf("b", "e", "l", "l"), img = "🔔"),
+                    WordData(text = "bell!", segments = listOf("b", "e", "ll"), img = "🔔"),
                     WordData(text = "A", segments = emptyList(), sight = true),
-                    WordData(text = "bell", segments = listOf("b", "e", "l", "l"), img = "🔔"),
-                    WordData(text = "rang", segments = listOf("r", "a", "n", "g")),
+                    WordData(text = "bell", segments = listOf("b", "e", "ll"), img = "🔔"),
+                    WordData(text = "rang", segments = listOf("r", "a", "ng")),
                     WordData(text = "in", segments = listOf("i", "n")),
                     WordData(text = "the", segments = emptyList(), sight = true),
                     WordData(text = "fog.", segments = listOf("f", "o", "g"), img = "🌫️"),
@@ -441,7 +434,7 @@ object StoryBank {
                     WordData(text = "ran", segments = listOf("r", "a", "n"), img = "🏃"),
                     WordData(text = "to", segments = emptyList(), sight = true),
                     WordData(text = "the", segments = emptyList(), sight = true),
-                    WordData(text = "bell.", segments = listOf("b", "e", "l", "l"), img = "🔔"),
+                    WordData(text = "bell.", segments = listOf("b", "e", "ll"), img = "🔔"),
                     WordData(text = "The", segments = emptyList(), sight = true),
                     WordData(text = "pup", segments = listOf("p", "u", "p"), img = "🐶"),
                     WordData(text = "is", segments = emptyList(), sight = true),
@@ -459,32 +452,32 @@ object StoryBank {
                 words = listOf(
                     WordData(text = "A", segments = emptyList(), sight = true),
                     WordData(text = "pet", segments = listOf("p", "e", "t")),
-                    WordData(text = "duck", segments = listOf("d", "u", "c", "k"), img = "🦆"),
+                    WordData(text = "duck", segments = listOf("d", "u", "ck"), img = "🦆"),
                     WordData(text = "sat", segments = listOf("s", "a", "t")),
                     WordData(text = "by", segments = emptyList(), sight = true),
                     WordData(text = "a", segments = emptyList(), sight = true),
                     WordData(text = "pond.", segments = listOf("p", "o", "n", "d"), img = "💧"),
                     WordData(text = "The", segments = emptyList(), sight = true),
-                    WordData(text = "duck", segments = listOf("d", "u", "c", "k"), img = "🦆"),
+                    WordData(text = "duck", segments = listOf("d", "u", "ck"), img = "🦆"),
                     WordData(text = "is", segments = emptyList(), sight = true),
-                    WordData(text = "quick.", segments = listOf("q", "u", "i", "c", "k")),
+                    WordData(text = "quick.", segments = listOf("qu", "i", "ck")),
                 )
             ),
             PageData(
                 words = listOf(
                     WordData(text = "The", segments = emptyList(), sight = true),
-                    WordData(text = "duck", segments = listOf("d", "u", "c", "k"), img = "🦆"),
+                    WordData(text = "duck", segments = listOf("d", "u", "ck"), img = "🦆"),
                     WordData(text = "can", segments = listOf("c", "a", "n")),
                     WordData(text = "swim.", segments = listOf("s", "w", "i", "m"), img = "🏊"),
                     WordData(text = "Swim,", segments = listOf("S", "w", "i", "m"), img = "🏊"),
-                    WordData(text = "duck,", segments = listOf("d", "u", "c", "k"), img = "🦆"),
+                    WordData(text = "duck,", segments = listOf("d", "u", "ck"), img = "🦆"),
                     WordData(text = "swim!", segments = listOf("s", "w", "i", "m"), img = "🏊"),
                 )
             ),
             PageData(
                 words = listOf(
                     WordData(text = "The", segments = emptyList(), sight = true),
-                    WordData(text = "duck", segments = listOf("d", "u", "c", "k"), img = "🦆"),
+                    WordData(text = "duck", segments = listOf("d", "u", "ck"), img = "🦆"),
                     WordData(text = "saw", segments = emptyList(), sight = true),
                     WordData(text = "a", segments = emptyList(), sight = true),
                     WordData(text = "big", segments = listOf("b", "i", "g")),
@@ -498,7 +491,7 @@ object StoryBank {
             PageData(
                 words = listOf(
                     WordData(text = "The", segments = emptyList(), sight = true),
-                    WordData(text = "duck", segments = listOf("d", "u", "c", "k"), img = "🦆"),
+                    WordData(text = "duck", segments = listOf("d", "u", "ck"), img = "🦆"),
                     WordData(text = "had", segments = listOf("h", "a", "d")),
                     WordData(text = "fun", segments = listOf("f", "u", "n")),
                     WordData(text = "in", segments = listOf("i", "n")),
@@ -506,7 +499,7 @@ object StoryBank {
                     WordData(text = "pond.", segments = listOf("p", "o", "n", "d"), img = "💧"),
                     WordData(text = "The", segments = emptyList(), sight = true),
                     WordData(text = "pet", segments = listOf("p", "e", "t")),
-                    WordData(text = "duck", segments = listOf("d", "u", "c", "k"), img = "🦆"),
+                    WordData(text = "duck", segments = listOf("d", "u", "ck"), img = "🦆"),
                     WordData(text = "is", segments = emptyList(), sight = true),
                     WordData(text = "glad.", segments = listOf("g", "l", "a", "d"), img = "😊"),
                 )
