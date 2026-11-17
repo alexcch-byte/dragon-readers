@@ -141,28 +141,69 @@
   .track-prompt {
     font-size: 0.95rem; color: var(--dim); margin: 0 0 12px; text-align: center;
   }
+  .track-interactive-row {
+    display: flex; align-items: center; justify-content: center; gap: 14px; width: 100%; max-width: 520px;
+  }
+  .track-content-col {
+    display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0;
+  }
+  .floating-check-btn {
+    width: 52px; height: 52px; border-radius: 16px;
+    background: var(--violet); color: white; border: none;
+    font-size: 1.8rem; font-weight: bold; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(80, 49, 245, 0.35); flex-shrink: 0;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+  }
+  .floating-check-btn:hover {
+    transform: scale(1.08); background: #4324d6;
+  }
+  .floating-check-btn:active {
+    transform: scale(0.96);
+  }
   .track-chips {
-    display: flex; flex-wrap: wrap; gap: 10px 12px; justify-content: center;
-    width: 100%; user-select: none; margin-bottom: 8px;
+    display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center;
+    width: 100%; user-select: none; margin-bottom: 6px;
   }
-  /* Fixed dimensions, padding, font-size, font-weight, and bottom underline across all states for zero layout shift */
+  /* Per-word column containing word text above and dedicated pill capsule below */
   .track-chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 4px; border-radius: 0; font-size: 1.5rem; font-weight: 700;
-    cursor: pointer; background: transparent; border: none; border-bottom: 4px solid transparent;
-    color: var(--text-dark); box-shadow: none;
-    transition: color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
-    font-family: inherit; box-sizing: border-box;
+    display: inline-flex; flex-direction: column; align-items: center; gap: 5px;
+    padding: 4px 6px; border-radius: 0;
+    cursor: pointer; background: transparent; border: none;
+    box-shadow: none; font-family: inherit; box-sizing: border-box;
   }
-  .track-chip.active {
-    border-bottom-color: var(--accent); background: transparent; color: var(--accent);
-    box-shadow: none; opacity: 1;
+  .track-chip-text {
+    font-size: 1.6rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;
+    border-bottom: 3.5px solid transparent; color: #94A3B8;
+    transition: color 0.12s ease, border-color 0.12s ease;
   }
-  .track-chip.done {
-    background: transparent; border-bottom-color: transparent; color: var(--violet); opacity: 1;
+  .track-chip.active .track-chip-text {
+    color: var(--text-dark); border-bottom-color: var(--accent);
   }
-  .track-chip.upcoming {
-    background: transparent; border-bottom-color: transparent; opacity: 0.55;
+  .track-chip.done .track-chip-text {
+    color: var(--violet); border-bottom-color: transparent;
+  }
+  .track-chip.upcoming .track-chip-text {
+    color: #94A3B8; border-bottom-color: transparent;
+  }
+
+  .word-pill {
+    width: 100%; min-width: 42px; height: 13px; border-radius: 6.5px;
+    background: white; border: 2px solid #CBD5E1; box-sizing: border-box;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .track-chip.active .word-pill {
+    background: var(--text-dark); border-color: var(--text-dark);
+  }
+  .track-chip.done .word-pill {
+    background: var(--violet); border-color: var(--violet);
+  }
+  .track-chip.tricky .word-pill {
+    background: #FFEDD5; border: 2px solid #FB923C;
+  }
+  .track-chip.tricky.active .word-pill,
+  .track-chip.tricky.done .word-pill {
+    background: #F97316; border-color: #F97316;
   }
   /* A chip's picture only shows once the tracker has passed that word, so it never gives the word away.
      It always keeps its space (visibility, not display), so nothing shifts when it appears. */
@@ -181,27 +222,39 @@
   .track-bar-ticks { position: absolute; inset: 0; display: flex; pointer-events: none; }
   .track-bar-ticks .tick { flex: 1 1 0; border-right: 2px solid rgba(255,255,255,0.5); }
   .track-bar-ticks .tick:last-child { border-right: none; }
-  .finger-slider-thumb,
+  .pointed-thumb,
   .track-bar-thumb,
   .thumb {
-    position: absolute; top: 50%; width: 58px; height: 46px; margin-top: -23px; left: 0;
-    border-radius: 12px; background: white; border: 2px solid var(--violet);
+    position: absolute; top: 50%; width: 56px; height: 48px; margin-top: -24px; left: 0;
+    border-radius: 12px; background: white; border: 2.5px solid var(--text-dark);
     box-shadow: 0 4px 12px rgba(0,0,0,0.18); pointer-events: none;
-    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
     user-select: none; box-sizing: border-box;
     transition: left 0.08s linear;
   }
   .track-bar-thumb {
     transition: left 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
+  .track-bar-thumb::before,
+  .thumb::before {
+    content: "";
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 12px;
+    height: 12px;
+    background: white;
+    border-top: 2.5px solid var(--text-dark);
+    border-left: 2.5px solid var(--text-dark);
+    border-top-left-radius: 3px;
+  }
   .finger-grip {
-    display: inline-flex; gap: 3px; align-items: center; justify-content: center;
+    display: inline-flex; gap: 3.5px; align-items: center; justify-content: center; z-index: 1;
+    margin-top: 4px;
   }
   .finger-grip span {
     width: 3px; height: 16px; background: #C4B5FD; border-radius: 2px;
-  }
-  .finger-icon {
-    font-size: 1.6rem; line-height: 1; transform: translateY(-2px); display: inline-block;
   }
 
   .active-area { display: flex; flex-direction: column; align-items: center; margin: auto 0; padding-top: 12px; }
@@ -392,7 +445,6 @@
         <div class="bar-dividers" id="bar-dividers"></div>
         <div class="thumb" id="thumb" aria-hidden="true">
           <div class="finger-grip"><span></span><span></span><span></span></div>
-          <span class="finger-icon">👆</span>
         </div>
       </div>
       <button type="button" class="tricky-btn" id="tricky-btn" style="display:none"></button>
@@ -409,17 +461,21 @@
         </div>
         <button type="button" class="read-sentence-btn" id="track-read-sentence-btn" style="margin-top:0" title="Hear full sentence read aloud">🔊 Read full sentence</button>
       </div>
-      <p class="track-prompt" id="track-prompt">Slide the tracker bar across the sentence:</p>
-      <div class="track-chips" id="track-chips"></div>
-      <div class="track-bar" id="track-bar" role="slider" tabindex="0"
-           aria-label="Scroll across the sentence to track each word"
-           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <div class="track-bar-fill" id="track-bar-fill"></div>
-        <div class="track-bar-ticks" id="track-bar-ticks"></div>
-        <div class="track-bar-thumb" id="track-bar-thumb" aria-hidden="true">
-          <div class="finger-grip"><span></span><span></span><span></span></div>
-          <span class="finger-icon">👆</span>
+      <p class="track-prompt" id="track-prompt">Slide the pointer across the sentence:</p>
+      <div class="track-interactive-row">
+        <div class="track-content-col">
+          <div class="track-chips" id="track-chips"></div>
+          <div class="track-bar" id="track-bar" role="slider" tabindex="0"
+               aria-label="Scroll across the sentence to track each word"
+               aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="track-bar-fill" id="track-bar-fill"></div>
+            <div class="track-bar-ticks" id="track-bar-ticks"></div>
+            <div class="track-bar-thumb" id="track-bar-thumb" aria-hidden="true">
+              <div class="finger-grip"><span></span><span></span><span></span></div>
+            </div>
+          </div>
         </div>
+        <button type="button" class="floating-check-btn" id="track-check-btn" title="Next page / Complete" aria-label="Next page">✓</button>
       </div>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px">
         <button type="button" class="btn btn-secondary btn-small" id="track-again-btn" style="display:none">↺ Track again</button>
@@ -1194,8 +1250,8 @@
 
   function paintBar() {
     fillEl.style.width = (progress * 100) + "%";
-    // centre the 58px finger thumb on the fill edge, kept fully inside the bar at both ends
-    thumbEl.style.left = "clamp(0px, calc(" + (progress * 100) + "% - 29px), calc(100% - 58px))";
+    // centre the 56px pointed thumb on the fill edge, kept fully inside the bar at both ends
+    thumbEl.style.left = "clamp(0px, calc(" + (progress * 100) + "% - 28px), calc(100% - 56px))";
     const word = currentWord();
     const n = word && word.seg ? word.seg.length : 0;
     barEl.setAttribute("aria-valuenow", String(Math.round(progress * 100)));
@@ -1706,15 +1762,24 @@
     pageWords.forEach((w, i) => {
       const chip = document.createElement("button");
       chip.type = "button";
-      chip.className = "track-chip";
+      chip.className = "track-chip" + (w.sight ? " tricky" : "");
+
+      const wordTextWrap = document.createElement("span");
+      wordTextWrap.className = "track-chip-text";
       if (w.img) {
         const pic = document.createElement("span");
         pic.className = "pic";
         pic.setAttribute("aria-hidden", "true");
         pic.textContent = w.img;
-        chip.append(pic, " ");
+        wordTextWrap.append(pic, " ");
       }
-      chip.append(w.t);
+      wordTextWrap.append(w.t);
+      chip.appendChild(wordTextWrap);
+
+      const pill = document.createElement("div");
+      pill.className = "word-pill";
+      chip.appendChild(pill);
+
       // A chip tap only highlights (and speaks, in Speak Words mode); it can never finish the sentence.
       chip.addEventListener("click", () => setTrackProgress((i + 0.5) / pageWords.length, "chip"));
       trackChips.appendChild(chip);
@@ -1737,13 +1802,13 @@
       const isDone = trackPageCompleted || i < trackedIndex;
       const isActive = !trackPageCompleted && i === trackedIndex;
       const passed = trackPageCompleted || i < trackReached;
-      chip.className = "track-chip " + (isDone ? "done" : isActive ? "active" : "upcoming") + (passed ? " passed" : "");
+      chip.className = "track-chip " + (isDone ? "done" : isActive ? "active" : "upcoming") + (passed ? " passed" : "") + (pageWords[i].sight ? " tricky" : "");
       chip.setAttribute("aria-label", pageWords[i].t + (isActive ? " (current word)" : ""));
     });
 
     const pct = Math.round(trackProgress * 100);
     trackBarFill.style.width = (trackProgress * 100) + "%";
-    trackBarThumb.style.left = "clamp(0px, calc(" + (trackProgress * 100) + "% - 29px), calc(100% - 58px))";
+    trackBarThumb.style.left = "clamp(0px, calc(" + (trackProgress * 100) + "% - 28px), calc(100% - 56px))";
     trackBar.setAttribute("aria-valuenow", String(pct));
     trackBar.setAttribute("aria-valuetext", "Word " + (trackedIndex + 1) + " of " + pageWords.length + ": " + pageWords[trackedIndex].t);
   }
@@ -1870,6 +1935,19 @@
       if (pageIndex < currentStory().pages.length - 1) {
         pageIndex++;
         renderPage();   // renders the track page in track mode and saves the page index
+      } else {
+        showEndScreen();
+      }
+    });
+  }
+
+  const trackCheckBtn = document.getElementById("track-check-btn");
+  if (trackCheckBtn) {
+    trackCheckBtn.addEventListener("click", () => {
+      stopSpeech();
+      if (pageIndex < currentStory().pages.length - 1) {
+        pageIndex++;
+        renderPage();
       } else {
         showEndScreen();
       }

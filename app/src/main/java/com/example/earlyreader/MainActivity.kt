@@ -90,6 +90,7 @@ import com.example.earlyreader.ui.scrub.ThumbWidth
 import com.example.earlyreader.ui.sentences.SentenceLabScreen
 import com.example.earlyreader.ui.theme.EarlyReaderTheme
 import com.example.earlyreader.ui.theme.SegmentEmpty
+import com.example.earlyreader.ui.theme.TextDark
 import com.example.earlyreader.ui.theme.VioletPrimary
 import com.example.earlyreader.ui.theme.WarmAccent
 import kotlinx.coroutines.delay
@@ -1327,75 +1328,6 @@ fun TrackToReadScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Sentence Tracking Chips — constant font size, font weight, border width, and padding for zero layout shift
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                currentPage.words.forEachIndexed { idx, word ->
-                    val isDone = pageCompleted || idx < trackedWordIndex
-                    val isActive = !pageCompleted && idx == trackedWordIndex
-                    // The picture would give the word away, so it appears only after the tracker has passed the word
-                    // (it keeps its space until then, so nothing shifts).
-                    val isPassed = pageCompleted || idx < reachedWordIndex
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                            .clickable {
-                                updateTrackProgress((idx + 0.5f) / wordCount.toFloat(), TrackSource.CHIP)
-                            }
-                            .drawBehind {
-                                if (isActive) {
-                                    val strokeWidth = 4.dp.toPx()
-                                    val y = size.height - strokeWidth / 2f
-                                    drawLine(
-                                        color = WarmAccent,
-                                        start = Offset(0f, y),
-                                        end = Offset(size.width, y),
-                                        strokeWidth = strokeWidth,
-                                    )
-                                }
-                            }
-                            .padding(horizontal = 4.dp, vertical = 6.dp)
-                            .semantics {
-                                contentDescription = "${word.text}. " + when {
-                                    isActive -> "Current word"
-                                    isDone -> "Read"
-                                    else -> "Upcoming word"
-                                }
-                            },
-                    ) {
-                        if (word.img != null) {
-                            Text(
-                                text = word.img,
-                                fontSize = 24.sp,
-                                modifier = Modifier
-                                    .padding(end = 6.dp)
-                                    .alpha(if (isPassed) 1f else 0f),
-                            )
-                        }
-                        Text(
-                            text = word.text,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = when {
-                                isActive -> WarmAccent
-                                isDone -> VioletPrimary
-                                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                            },
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Stepped Word-to-Word Jumping Tracker Bar
             var barWidthPx by remember { mutableIntStateOf(0) }
             val animatedProgress by animateFloatAsState(targetValue = trackProgress.coerceIn(0f, 1f), label = "trackJump")
             val thumbWidth = ThumbWidth
@@ -1404,74 +1336,222 @@ fun TrackToReadScreen(
             val thumbOffsetPx = ((barWidthPx - thumbWidthPx).coerceAtLeast(0f) * animatedProgress).roundToInt()
             val tickIntervals = (wordCount - 1).coerceAtLeast(1)
 
-            Box(
+            Row(
                 modifier = Modifier
-                    .widthIn(max = 380.dp)
-                    .fillMaxWidth(0.9f)
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(SegmentEmpty)
-                    .border(2.dp, VioletPrimary, RoundedCornerShape(28.dp))
-                    .onSizeChanged { barWidthPx = it.width }
-                    .pointerInput(pageIndex, wordCount, speakWhenTracked) {
-                        awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false)
-                            val pointerId = down.id
-                            if (barWidthPx > 0) {
-                                updateTrackProgress(down.position.x / barWidthPx.toFloat(), TrackSource.BAR)
-                            }
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull { it.id == pointerId } ?: break
-                                if (!change.pressed) break
-                                change.consume()
-                                if (barWidthPx > 0) {
-                                    updateTrackProgress(change.position.x / barWidthPx.toFloat(), TrackSource.BAR)
-                                }
-                            }
-                        }
-                    }
-                    .semantics {
-                        contentDescription = "Scrolling sentence tracker bar. Word ${trackedWordIndex + 1} of $wordCount"
-                    },
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
             ) {
-                // Stepped progress fill jumping from word stop to word stop
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(animatedProgress)
-                        .background(VioletPrimary),
-                )
+                Column(
+                    modifier = Modifier.weight(1f, fill = false),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    // Sentence Tracking Chips — Per-word text + dedicated pill capsule directly underneath each word
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        currentPage.words.forEachIndexed { idx, word ->
+                            val isDone = pageCompleted || idx < trackedWordIndex
+                            val isActive = !pageCompleted && idx == trackedWordIndex
+                            val isPassed = pageCompleted || idx < reachedWordIndex
+                            val isTricky = word.sight
 
-                // Word stop tick dividers
-                Row(modifier = Modifier.fillMaxSize()) {
-                    repeat(tickIntervals) { idx ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .background(Color.Transparent),
-                        ) {
-                            if (idx < tickIntervals - 1) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                                    .clickable {
+                                        updateTrackProgress((idx + 0.5f) / wordCount.toFloat(), TrackSource.CHIP)
+                                    }
+                                    .padding(horizontal = 2.dp, vertical = 2.dp)
+                                    .semantics {
+                                        contentDescription = "${word.text}. " + when {
+                                            isActive -> "Current word"
+                                            isDone -> "Read"
+                                            else -> "Upcoming word"
+                                        }
+                                    },
+                            ) {
+                                // Word text with active bottom underline and picture
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .drawBehind {
+                                            if (isActive) {
+                                                val strokeWidth = 3.5.dp.toPx()
+                                                val y = size.height - strokeWidth / 2f
+                                                drawLine(
+                                                    color = WarmAccent,
+                                                    start = Offset(0f, y),
+                                                    end = Offset(size.width, y),
+                                                    strokeWidth = strokeWidth,
+                                                )
+                                            }
+                                        }
+                                        .padding(bottom = 3.dp),
+                                ) {
+                                    if (word.img != null) {
+                                        Text(
+                                            text = word.img,
+                                            fontSize = 24.sp,
+                                            modifier = Modifier
+                                                .padding(end = 4.dp)
+                                                .alpha(if (isPassed) 1f else 0f),
+                                        )
+                                    }
+                                    Text(
+                                        text = word.text,
+                                        fontSize = 26.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = when {
+                                            isActive -> TextDark
+                                            isDone -> VioletPrimary
+                                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.40f)
+                                        },
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                // Dedicated Per-Word Pill Capsule directly underneath the word
+                                val pillBg = when {
+                                    isTricky && (isActive || isDone) -> Color(0xFFF97316)
+                                    isTricky -> Color(0xFFFFEDD5)
+                                    isActive -> TextDark
+                                    isDone -> VioletPrimary
+                                    else -> Color.White
+                                }
+                                val pillBorder = when {
+                                    isTricky -> Color(0xFFFB923C)
+                                    isActive -> TextDark
+                                    isDone -> VioletPrimary
+                                    else -> Color(0xFFCBD5E1)
+                                }
+
                                 Box(
                                     modifier = Modifier
-                                        .align(Alignment.CenterEnd)
-                                        .width(2.dp)
-                                        .fillMaxHeight()
-                                        .background(Color.White.copy(alpha = 0.5f)),
+                                        .widthIn(min = 40.dp)
+                                        .height(13.dp)
+                                        .clip(RoundedCornerShape(6.5.dp))
+                                        .background(pillBg)
+                                        .border(1.5.dp, pillBorder, RoundedCornerShape(6.5.dp)),
                                 )
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Stepped Word-to-Word Jumping Tracker Bar with Pointed Thumb
+                    Box(
+                        modifier = Modifier
+                            .widthIn(max = 380.dp)
+                            .fillMaxWidth(0.9f)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(SegmentEmpty)
+                            .border(2.dp, VioletPrimary, RoundedCornerShape(28.dp))
+                            .onSizeChanged { barWidthPx = it.width }
+                            .pointerInput(pageIndex, wordCount, speakWhenTracked) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    val pointerId = down.id
+                                    if (barWidthPx > 0) {
+                                        updateTrackProgress(down.position.x / barWidthPx.toFloat(), TrackSource.BAR)
+                                    }
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                                        if (!change.pressed) break
+                                        change.consume()
+                                        if (barWidthPx > 0) {
+                                            updateTrackProgress(change.position.x / barWidthPx.toFloat(), TrackSource.BAR)
+                                        }
+                                    }
+                                }
+                            }
+                            .semantics {
+                                contentDescription = "Scrolling sentence tracker bar. Word ${trackedWordIndex + 1} of $wordCount"
+                            },
+                    ) {
+                        // Stepped progress fill jumping from word stop to word stop
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(animatedProgress)
+                                .background(VioletPrimary),
+                        )
+
+                        // Word stop tick dividers
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            repeat(tickIntervals) { idx ->
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .background(Color.Transparent),
+                                ) {
+                                    if (idx < tickIntervals - 1) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.CenterEnd)
+                                                .width(2.dp)
+                                                .fillMaxHeight()
+                                                .background(Color.White.copy(alpha = 0.5f)),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Stepped pointed thumb jumping from word stop to word stop pointing directly up at the word
+                        FingerSliderThumb(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .offset { IntOffset(thumbOffsetPx, 0) }
+                                .size(width = thumbWidth, height = thumbHeight),
+                        )
+                    }
                 }
 
-                // Stepped finger thumb jumping from word stop to word stop pointing directly up at the word
-                FingerSliderThumb(
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Floating purple checkmark button (✓) to advance or complete sentence
+                Surface(
+                    onClick = {
+                        if (pageIndex < story.pages.size - 1) {
+                            pageIndex++
+                            trackProgress = 0f
+                            trackedWordIndex = 0
+                            reachedWordIndex = 0
+                            pageCompleted = false
+                        } else {
+                            pageCompleted = true
+                            showReward = true
+                            onStoryCompleted()
+                        }
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    color = VioletPrimary,
+                    shadowElevation = 4.dp,
                     modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .offset { IntOffset(thumbOffsetPx, 0) }
-                        .size(width = thumbWidth, height = thumbHeight),
-                )
+                        .size(52.dp)
+                        .semantics { contentDescription = "Next page or complete sentence" },
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = "✓",
+                            color = Color.White,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

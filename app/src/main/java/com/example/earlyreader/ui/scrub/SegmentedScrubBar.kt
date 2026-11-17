@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -100,8 +101,8 @@ internal const val RESCRUB_RESET = 0.03f
 // Keeps the bar's start clear of the system back-gesture edge (plan section 10).
 private val BarHorizontalPadding = 32.dp
 
-internal val ThumbWidth = 58.dp
-internal val ThumbHeight = 46.dp
+internal val ThumbWidth = 56.dp
+internal val ThumbHeight = 48.dp
 private val ThumbSize = 44.dp
 private val MaxLetterSize = 88.dp
 
@@ -121,9 +122,36 @@ internal fun segmentBoundaries(segments: List<String>): List<Float> {
 }
 
 /**
- * Tactile finger-slider thumb handle matching the pointing-finger affordance.
- * Contains 3 vertical grip ridges (|||) and an upward pointing finger (👆)
- * resting directly underneath the word / phoneme segment.
+ * Custom pointed arrow peak shape for the slider thumb handle.
+ * Features rounded bottom corners and an upward-pointing peak at top center.
+ */
+val PointedThumbShape = GenericShape { size, _ ->
+    val w = size.width
+    val h = size.height
+    val r = h * 0.25f // proportional corner radius
+    val peakWidth = w * 0.40f // peak width
+    val peakHeight = h * 0.22f // peak height
+    val halfW = w / 2f
+
+    moveTo(r, peakHeight)
+    lineTo(halfW - peakWidth / 2f, peakHeight)
+    lineTo(halfW, 0f)
+    lineTo(halfW + peakWidth / 2f, peakHeight)
+    lineTo(w - r, peakHeight)
+    quadraticBezierTo(w, peakHeight, w, peakHeight + r)
+    lineTo(w, h - r)
+    quadraticBezierTo(w, h, w - r, h)
+    lineTo(r, h)
+    quadraticBezierTo(0f, h, 0f, h - r)
+    lineTo(0f, peakHeight + r)
+    quadraticBezierTo(0f, peakHeight, r, peakHeight)
+    close()
+}
+
+/**
+ * Tactile pointed thumb handle matching the reference mockup.
+ * Features a soft upward-pointing peak pointing directly up into the active word / phoneme
+ * segment above it, a navy border, and 3 vertical grip ridges (|||) for draggable affordance.
  */
 @Composable
 fun FingerSliderThumb(
@@ -146,46 +174,39 @@ fun FingerSliderThumb(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding((-6).dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(PointedThumbShape)
                     .background(VioletPrimary.copy(alpha = 0.35f)),
             )
         }
         Surface(
             modifier = Modifier.fillMaxSize(),
-            shape = RoundedCornerShape(12.dp),
+            shape = PointedThumbShape,
             color = Color.White,
-            border = BorderStroke(1.5.dp, VioletPrimary),
+            border = BorderStroke(2.5.dp, TextDark),
             shadowElevation = 4.dp,
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 6.dp),
+                    .padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {
                 // Tactile grip lines: 3 vertical grip ridges (|||) indicating draggable affordance
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(2.5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(end = 4.dp),
                 ) {
                     repeat(3) {
                         Box(
                             modifier = Modifier
-                                .width(2.5.dp)
-                                .height(14.dp)
-                                .clip(RoundedCornerShape(1.dp))
+                                .width(3.dp)
+                                .height(16.dp)
+                                .clip(RoundedCornerShape(1.5.dp))
                                 .background(Color(0xFFC4B5FD)),
                         )
                     }
                 }
-                // Upward pointing finger pointing directly at the word / phoneme segment above
-                Text(
-                    text = "👆",
-                    fontSize = 24.sp,
-                    lineHeight = 24.sp,
-                )
             }
         }
     }

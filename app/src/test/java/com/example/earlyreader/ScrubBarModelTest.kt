@@ -557,13 +557,13 @@ class ScrubBarModelTest {
 
     @Test
     fun testFingerSliderThumbDimensionsAndGeometry() {
-        // Finger thumb dimensions matching tactile pill affordance with grip ridges and pointing finger
-        assertEquals(58.dp, ThumbWidth)
-        assertEquals(46.dp, ThumbHeight)
+        // Finger thumb dimensions matching tactile pill affordance with grip ridges and pointed peak
+        assertEquals(56.dp, ThumbWidth)
+        assertEquals(48.dp, ThumbHeight)
 
         // Validate thumb offset calculations along various track widths
         val trackWidthsPx = listOf(300f, 400f, 600f, 800f)
-        val thumbWidthPx = 150f // e.g. 58dp in px
+        val thumbWidthPx = 150f // e.g. 56dp in px
 
         for (barWidth in trackWidthsPx) {
             val maxOffset = barWidth - thumbWidthPx
@@ -587,5 +587,22 @@ class ScrubBarModelTest {
             val underOffset = (maxOffset * -0.5f).coerceIn(0f, maxOffset)
             assertEquals(0f, underOffset, 0.001f)
         }
+    }
+
+    @Test
+    fun testTrickySightWordsCoverageInStories() {
+        // Ensure tricky words have sight = true so they receive the orange pill capsule
+        val trickyWords = mutableListOf<String>()
+        for (story in StoryBank.allStories) {
+            for (page in story.pages) {
+                for (word in page.words) {
+                    if (word.sight) {
+                        trickyWords.add(word.text.lowercase())
+                    }
+                }
+            }
+        }
+        assertTrue("Stories must have tricky sight words (e.g. 'the')", trickyWords.isNotEmpty())
+        assertTrue("Tricky words should include 'the'", trickyWords.any { it.contains("the") })
     }
 }
