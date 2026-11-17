@@ -1,0 +1,981 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sentence Lab — Early Reader</title>
+<meta name="description" content="Sentence Lab: a calm, offline practice page for readers about 6 to 8. Find naming, action and describing words, label the parts of a sentence, and build sentences." />
+<style>
+  :root {
+    --violet: #5031F5;
+    --bg: #FAF7F2;
+    --accent: #C2410C;   /* ~5.2:1 on white, ~4.8:1 on --bg */
+    --segment-empty: #E3DEF7;
+    --text-dark: #2B2640;
+    --dim: #6F6892;      /* >= 4.5:1 on --bg and on white (not on --segment-empty) */
+    --edge: #8A82B5;     /* control outlines: ~3.5:1 on white */
+
+    /* Parts of speech. Every pair is >= 8:1 text on tint. Colour is never the only cue:
+       each also has its own underline style, an icon and a text label. */
+    --noun-bg: #DBEAFE; --noun-fg: #1E3A8A; --noun-line: #1D4ED8;   /* solid underline */
+    --verb-bg: #FFEDD5; --verb-fg: #7C2D12; --verb-line: #C2410C;   /* wavy underline */
+    --adj-bg:  #DCFCE7; --adj-fg:  #14532D; --adj-line:  #15803D;   /* dotted underline */
+    --subj-bg: #F3E8FF; --subj-fg: #581C87; --subj-line: #7E22CE;   /* double underline */
+    --obj-bg:  #CCFBF1; --obj-fg:  #134E4A; --obj-line:  #0F766E;   /* dashed underline */
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-dark);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  header { width: 100%; max-width: 720px; padding: 20px 16px 8px; text-align: center; }
+  h1 { color: var(--violet); font-size: 2rem; margin: 12px 0 4px; }
+  .tagline { font-size: 1.05rem; margin: 0 auto 12px; max-width: 34em; color: var(--text-dark); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 48px; padding: 10px 20px; border-radius: 999px; font-weight: 600;
+    text-decoration: none; font-size: 1rem; border: 2px solid transparent; cursor: pointer;
+    font-family: inherit; line-height: 1.2;
+  }
+  .btn-primary { background: var(--violet); color: white; }
+  .btn-secondary { background: white; color: var(--violet); border-color: var(--violet); }
+  .btn:hover { filter: brightness(0.96); }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--text-dark); outline-offset: 3px; }
+
+  main { width: 100%; max-width: 640px; padding: 8px 16px 24px; display: flex; flex-direction: column; align-items: stretch; }
+
+  /* level picker */
+  .levels { list-style: none; margin: 0 0 14px; padding: 0; display: flex; gap: 6px; justify-content: center; }
+  .levels li { flex: 1 1 0; max-width: 96px; }
+  .lvl {
+    width: 100%; min-height: 56px; border-radius: 16px; border: 2px solid var(--edge); background: white;
+    color: var(--text-dark); font: inherit; font-weight: 700; font-size: 1.15rem; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; padding: 0 2px;
+  }
+  .lvl small { font-size: 0.72rem; font-weight: 600; color: var(--dim); white-space: nowrap; }
+  .lvl[aria-current="true"] { background: var(--violet); border-color: var(--violet); color: white; }
+  .lvl[aria-current="true"] small { color: white; }
+
+  .card {
+    width: 100%; background: white; border-radius: 28px; padding: 18px 16px 22px;
+    box-shadow: 0 12px 30px rgba(80, 49, 245, 0.08); position: relative; min-height: 360px;
+  }
+  .reward { position: absolute; top: 6px; right: 14px; font-size: 2.4rem; opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
+  .reward.show { opacity: 1; }
+
+  .levelbar { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; padding-right: 44px; }
+  .lvl-title { font-weight: 700; color: var(--violet); }
+  .count { font-size: 0.9rem; color: var(--dim); }
+
+  h2 { font-size: 1.3rem; margin: 6px 0 12px; line-height: 1.25; }
+  h2:focus { outline: none; }
+  h2:focus-visible { outline: 3px solid var(--text-dark); outline-offset: 3px; }
+  .lead { font-size: 1.05rem; line-height: 1.45; margin: 0 0 12px; }
+
+  /* how-this-works */
+  .how { background: #F3F0FF; border-radius: 16px; padding: 12px 14px; margin-bottom: 14px; }
+  .how-line { font-size: 1.05rem; line-height: 1.45; margin: 0 0 10px; }
+  .example-wrap { margin: 0; }
+  .example-label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); margin: 0 0 6px; }
+  .example { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+  .example-note { font-size: 0.95rem; line-height: 1.4; margin: 8px 0 0; }
+  .arrow { align-self: center; color: var(--dim); font-weight: 700; }
+  details.how-d { margin-bottom: 12px; }
+  details.how-d > summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; color: var(--violet); font-weight: 600; padding: 4px 2px; }
+
+  /* chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; align-items: flex-start; }
+  .chip {
+    font: inherit; font-size: 1.25rem; font-weight: 600; color: var(--text-dark);
+    min-height: 56px; min-width: 56px; max-width: 100%; padding: 6px 14px; border-radius: 16px;
+    border: 2px solid var(--edge); background: var(--segment-empty); cursor: pointer;
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .chip:hover { background: #D6D0F3; }
+  .chip .tag { font-size: 0.75rem; font-weight: 700; line-height: 1.2; min-height: 1.2em; margin-top: 4px; visibility: hidden; white-space: nowrap; }
+  .chip.tagged .tag { visibility: visible; }
+  .chip.plain { min-height: 52px; }
+  .chip.static { cursor: default; min-height: 0; min-width: 0; font-size: 1.1rem; padding: 4px 10px; background: white; }
+  .chip.static:hover { background: white; }
+  .chip.static .tag { display: none; }
+  .chip.static.tagged .tag { display: block; visibility: visible; }
+  .cw { text-underline-offset: 5px; text-decoration-thickness: 3px; }
+
+  /* part-of-speech colours + non-colour cue (underline style) */
+  .c-noun { background: var(--noun-bg); color: var(--noun-fg); border-color: var(--noun-line); }
+  .c-noun:hover { background: var(--noun-bg); }
+  .c-noun .cw { text-decoration: underline solid var(--noun-line); }
+  .c-verb { background: var(--verb-bg); color: var(--verb-fg); border-color: var(--verb-line); }
+  .c-verb:hover { background: var(--verb-bg); }
+  .c-verb .cw { text-decoration: underline wavy var(--verb-line); }
+  .c-adj  { background: var(--adj-bg);  color: var(--adj-fg);  border-color: var(--adj-line); }
+  .c-adj:hover { background: var(--adj-bg); }
+  .c-adj .cw  { text-decoration: underline dotted var(--adj-line); }
+  .c-subj { background: var(--subj-bg); color: var(--subj-fg); border-color: var(--subj-line); }
+  .c-subj:hover { background: var(--subj-bg); }
+  .c-subj .cw { text-decoration: underline double var(--subj-line); }
+  .c-obj  { background: var(--obj-bg);  color: var(--obj-fg);  border-color: var(--obj-line); }
+  .c-obj:hover { background: var(--obj-bg); }
+  .c-obj .cw  { text-decoration: underline dashed var(--obj-line); }
+
+  .chip.sel { background: var(--violet); color: white; border-color: var(--text-dark); box-shadow: 0 0 0 3px var(--violet); }
+  .chip.sel:hover { background: var(--violet); }
+  .chip.used { cursor: default; }
+  .chip.bankused { background: white; color: var(--dim); border-style: dashed; cursor: default; }
+  .chip.bankused:hover { background: white; }
+  .chip.placed { background: white; border-color: var(--violet); border-width: 3px; }
+  .chip.mark { font-size: 1.7rem; font-weight: 800; min-width: 56px; }
+  .chip.nudge { border-style: dashed; animation: wob 0.35s; }
+  @keyframes wob { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+  /* labelled slots (level 4) */
+  .slots { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 14px; }
+  .slot {
+    width: 100%; min-height: 64px; text-align: left; font: inherit; color: var(--text-dark); background: white;
+    border: 2px dashed var(--edge); border-radius: 16px; padding: 8px 14px; cursor: pointer;
+    display: flex; flex-direction: column; gap: 2px; justify-content: center;
+  }
+  .slot .lab { font-weight: 700; font-size: 1rem; }
+  .slot .val { font-size: 1.15rem; font-weight: 600; }
+  .slot .val.empty { font-size: 0.9rem; font-weight: 500; color: var(--dim); }
+  .slot.sel { border-style: solid; border-color: var(--violet); box-shadow: 0 0 0 3px #CFC6FA; }
+  .slot.filled { border-style: solid; cursor: default; }
+  .slot.c-subj { background: var(--subj-bg); color: var(--subj-fg); border-color: var(--subj-line); }
+  .slot.c-verb { background: var(--verb-bg); color: var(--verb-fg); border-color: var(--verb-line); }
+  .slot.c-obj  { background: var(--obj-bg);  color: var(--obj-fg);  border-color: var(--obj-line); }
+  .slot.filled .val.empty { color: inherit; }
+
+  /* build line (level 5) */
+  .line {
+    min-height: 72px; border: 2px dashed var(--edge); border-radius: 16px; padding: 8px; margin: 4px 0 12px;
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: #FCFBFF;
+  }
+  .line .placeholder { color: var(--dim); font-size: 0.95rem; padding: 4px 6px; }
+  .line.good { border-style: solid; border-color: var(--adj-line); background: #F0FDF4; }
+  .bank-label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); margin: 6px 0 4px; }
+
+  .tools { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 12px; }
+  .btn.speaking { background: #F3F0FF; }
+
+  .feedback { min-height: 3.2em; margin: 6px 0 0; padding: 10px 14px; border-radius: 14px; font-size: 1.02rem; line-height: 1.4; background: #F6F4FC; }
+  .feedback:empty { visibility: hidden; }
+  .feedback.ok { background: var(--adj-bg); color: var(--adj-fg); font-weight: 600; }
+  .feedback.nudge { background: #FFF7ED; color: var(--verb-fg); }
+  .feedback.info { background: #F3F0FF; color: var(--text-dark); }
+
+  .end { text-align: center; padding-top: 12px; }
+  .stars { font-size: 2.2rem; letter-spacing: 0.1em; line-height: 1.3; }
+  .end .tools { margin-top: 16px; }
+
+  .parent { margin-top: 20px; background: white; border-radius: 20px; padding: 4px 16px; box-shadow: 0 6px 18px rgba(80, 49, 245, 0.06); }
+  .parent summary { cursor: pointer; font-weight: 700; color: var(--violet); min-height: 48px; display: flex; align-items: center; }
+  .parent ul { padding-left: 1.1em; margin: 0 0 8px; }
+  .parent li { margin-bottom: 8px; line-height: 1.45; }
+  .parent p { line-height: 1.45; margin: 0 0 10px; }
+
+  footer { margin: 24px 0 24px; font-size: 0.85rem; color: var(--dim); text-align: center; padding: 0 16px; max-width: 560px; }
+  footer a { color: var(--violet); }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+  @media (min-width: 600px) {
+    h1 { font-size: 2.4rem; }
+    .card { padding: 26px 28px 30px; }
+    .chip { font-size: 1.5rem; }
+    h2 { font-size: 1.45rem; }
+    .chips { gap: 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="btn btn-secondary" href="index.html" id="back-link">&larr; Back to Early Reader</a>
+  <h1>Sentence Lab</h1>
+  <p class="tagline">Ready for more? Spot the naming, action and describing words, sort the parts of a sentence, then build your own. For readers about 6 to 8.</p>
+</header>
+
+<main>
+  <nav aria-label="Levels"><ol class="levels" id="levels"></ol></nav>
+
+  <div class="card" id="card">
+    <div class="reward" id="reward" aria-hidden="true">⭐</div>
+    <div id="stage"></div>
+    <div class="feedback" id="feedback" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="tools" id="tools"></div>
+  </div>
+
+  <details class="parent" id="parent">
+    <summary>For grown-ups</summary>
+    <p>Best for children who can already read simple words and short sentences. Sit beside them for the first few sentences, then let them try alone. There are no scores that go down, no timers and no streaks. A wrong choice just gets a kind nudge and the sentence stays open. &ldquo;Show me&rdquo; is always there, and looking is not a failure.</p>
+    <ul>
+      <li><strong>Level 1, naming words (nouns).</strong> A noun names a person, animal, place or thing. Ask: &ldquo;Can you point to it, or picture it?&rdquo; &ldquo;Which words are the names of things?&rdquo;</li>
+      <li><strong>Level 2, the action word (verb).</strong> A verb tells what is happening. Ask: &ldquo;Which word tells us what is happening?&rdquo; &ldquo;Can you act it out?&rdquo;</li>
+      <li><strong>Level 3, describing words (adjectives).</strong> An adjective tells more about a thing: how it looks, feels, sounds or tastes. Ask: &ldquo;Which word tells us more about the thing?&rdquo; &ldquo;What changes if we take it out?&rdquo;</li>
+      <li><strong>Level 4, who and what.</strong> The subject is who or what the sentence is about, the verb is the action, and the ending (object) is what the action happened to. Ask: &ldquo;Who or what is this about?&rdquo; &ldquo;What did they do?&rdquo; &ldquo;What did they do it to?&rdquo;</li>
+      <li><strong>Level 5, build a sentence.</strong> A sentence starts with a capital letter and ends with a period (telling), a question mark (asking) or an exclamation mark (a big feeling). Ask: &ldquo;Does it sound right when you read it aloud?&rdquo; &ldquo;Are we telling or asking?&rdquo;</li>
+    </ul>
+    <p>Sentences are read aloud with your browser&rsquo;s built-in voice. If there is no voice, everything still works silently. Only the numbers of finished levels may be remembered on this device; nothing is sent anywhere.</p>
+  </details>
+</main>
+
+<footer>
+  Sentence Lab is part of the Early Reader browser demo. No ads, no accounts, no data collection, and it works fully offline.
+  <br /><a href="index.html">Back to Early Reader</a>
+</footer>
+
+<noscript><p style="padding:16px;text-align:center">Sentence Lab needs JavaScript to run.</p></noscript>
+
+<script>
+  // ---------------------------------------------------------------------------
+  // CONTENT. Plain data only (no functions), so it can be ported to Android as JSON.
+  //
+  // Levels 1-3 ("tap"): item = { text, tags }. `tags` has one word class per space-separated word:
+  //   det = a/the/my/our, noun, verb, adj, prep = in/on/to/up..., pron = we/she...
+  //   The level's `target` class is what the child must tap. Trailing . ? ! is not part of the word.
+  // Level 4 ("label"): item = { chunks: [{ t, role }] } where role is subject | verb | object.
+  // Level 5 ("build"): item = { kind: telling | asking | exciting, text }. The text is the answer.
+  //   Words are scrambled at runtime; the end mark is chosen from . ? !
+  // `prompt` uses {n} for the number of targets.
+  // ---------------------------------------------------------------------------
+  const CONTENT = {
+    version: 1,
+    levels: [
+      {
+        id: 1, type: "tap", target: "noun",
+        title: "Find the naming words", term: "nouns",
+        how: "Naming words (nouns) name a person, animal, place or thing. Tap every naming word in the sentence.",
+        example: { text: "A frog sat on a log.", tags: "det noun verb prep det noun",
+                   note: "Frog and log are naming words. They name an animal and a thing." },
+        prompt: "Tap all {n} naming words (nouns).",
+        nudge: "Almost! Is that a word that names something?",
+        items: [
+          { text: "The girl fed the hungry rabbit.",        tags: "det noun verb det adj noun" },
+          { text: "Dad cooked soup in the kitchen.",        tags: "noun verb noun prep det noun" },
+          { text: "The teacher put books on the shelf.",    tags: "det noun verb noun prep det noun" },
+          { text: "A tall tree grew beside the river.",     tags: "det adj noun verb prep det noun" },
+          { text: "My brother found a coin under the table.", tags: "det noun verb det noun prep det noun" },
+          { text: "The farmer carried apples to the market.", tags: "det noun verb noun prep det noun" }
+        ]
+      },
+      {
+        id: 2, type: "tap", target: "verb",
+        title: "Find the action word", term: "verb",
+        how: "The action word (verb) tells what someone or something does. Tap the one action word.",
+        example: { text: "The frog jumped into the pond.", tags: "det noun verb prep det noun",
+                   note: "Jumped tells what the frog did, so it is the action word." },
+        prompt: "Tap the action word (verb).",
+        nudge: "Almost! Does that word tell what someone is doing?",
+        items: [
+          { text: "The children laughed at the funny clown.", tags: "det noun verb prep det adj noun" },
+          { text: "Mom baked bread for dinner.",               tags: "noun verb noun prep noun" },
+          { text: "The kitten climbed up the stairs.",         tags: "det noun verb prep det noun" },
+          { text: "Our class painted a picture.",              tags: "det noun verb det noun" },
+          { text: "The bus stopped at the school.",            tags: "det noun verb prep det noun" },
+          { text: "A boy splashed in the puddle.",             tags: "det noun verb prep det noun" }
+        ]
+      },
+      {
+        id: 3, type: "tap", target: "adj",
+        title: "Find the describing words", term: "adjectives",
+        how: "Describing words (adjectives) tell us more about a thing: how it looks, feels or sounds. Tap every describing word.",
+        example: { text: "The green frog sat on a wet log.", tags: "det adj noun verb prep det adj noun",
+                   note: "Green and wet tell us more about the frog and the log." },
+        prompt: "Tap all {n} describing words (adjectives).",
+        nudge: "Almost! Does that word tell us what something is like?",
+        items: [
+          { text: "The soft kitten drank warm milk.",           tags: "det adj noun verb adj noun" },
+          { text: "A yellow bus drove down the long road.",     tags: "det adj noun verb prep det adj noun" },
+          { text: "The tired boy slept in a cozy bed.",         tags: "det adj noun verb prep det adj noun" },
+          { text: "Grandma wore a bright blue scarf.",          tags: "noun verb det adj adj noun" },
+          { text: "The cold wind shook the tiny leaves.",       tags: "det adj noun verb det adj noun" },
+          { text: "We ate crunchy apples on a sunny day.",      tags: "pron verb adj noun prep det adj noun" }
+        ]
+      },
+      {
+        id: 4, type: "label",
+        title: "Who and what", term: "subject, verb, object",
+        how: "Every sentence is about someone or something (the subject), says what they do (the verb), and often ends with what they did it to (the object).",
+        example: { chunks: [ { t: "The frog", role: "subject" }, { t: "caught", role: "verb" }, { t: "a fly.", role: "object" } ],
+                   note: "The sentence is about the frog. Caught is the action. A fly is what got caught." },
+        prompt: "Tap a part of the sentence, then tap the box where it belongs.",
+        items: [
+          { chunks: [ { t: "The baby", role: "subject" }, { t: "ate", role: "verb" }, { t: "a banana.", role: "object" } ] },
+          { chunks: [ { t: "Dad", role: "subject" }, { t: "washed", role: "verb" }, { t: "the car.", role: "object" } ] },
+          { chunks: [ { t: "Our teacher", role: "subject" }, { t: "reads", role: "verb" }, { t: "a story.", role: "object" } ] },
+          { chunks: [ { t: "The children", role: "subject" }, { t: "planted", role: "verb" }, { t: "some seeds.", role: "object" } ] },
+          { chunks: [ { t: "The wind", role: "subject" }, { t: "blew", role: "verb" }, { t: "my hat.", role: "object" } ] },
+          { chunks: [ { t: "A girl", role: "subject" }, { t: "drew", role: "verb" }, { t: "a rainbow.", role: "object" } ] }
+        ]
+      },
+      {
+        id: 5, type: "build",
+        title: "Build a sentence", term: "capital letter and end mark",
+        how: "Tap the words in the right order. A sentence starts with a capital letter and ends with a mark: a period (.) for telling, a question mark (?) for asking, or an exclamation mark (!) for a big feeling.",
+        example: { text: "The cat sleeps.", scrambled: ["sleeps", "The", "cat", "."],
+                   note: "The word with the capital letter goes first. This one is telling us something, so it ends with a period." },
+        prompts: {
+          telling:  "Build a telling sentence. Tap the words in order, then add the ending mark.",
+          asking:   "Build an asking sentence (a question). Tap the words in order, then add the ending mark.",
+          exciting: "Build an exciting sentence (it shows a big feeling). Tap the words in order, then add the ending mark."
+        },
+        items: [
+          { kind: "telling",  text: "The cat is on the bed." },
+          { kind: "asking",   text: "Do you like soup?" },
+          { kind: "telling",  text: "We planted seeds in the garden." },
+          { kind: "asking",   text: "Where did the dog go?" },
+          { kind: "exciting", text: "What a big rainbow!" },
+          { kind: "telling",  text: "The bus stops at our school." }
+        ]
+      }
+    ]
+  };
+
+  // Child-friendly name first, grammar term beside it.
+  const POS = {
+    noun: { name: "naming word",     term: "noun",      art: "a",  icon: "🏷️", cls: "c-noun" },
+    verb: { name: "action word",     term: "verb",      art: "an", icon: "⚡",  cls: "c-verb" },
+    adj:  { name: "describing word", term: "adjective", art: "a",  icon: "🎨", cls: "c-adj"  }
+  };
+  const ROLES = {
+    subject: { label: "Who or what", term: "subject", icon: "🙋", cls: "c-subj",
+               question: "tell who or what the sentence is about", good: "is who or what the sentence is about" },
+    verb:    { label: "Action",      term: "verb",    icon: "⚡", cls: "c-verb",
+               question: "tell what is happening", good: "is the action" },
+    object:  { label: "Ending",      term: "object",  icon: "🎯", cls: "c-obj",
+               question: "tell what the action happened to", good: "is the ending: what the action happened to" }
+  };
+  const ROLE_ORDER = ["subject", "verb", "object"];
+  const MARKS = [
+    { t: ".", name: "period" },
+    { t: "?", name: "question mark" },
+    { t: "!", name: "exclamation mark" }
+  ];
+  const KIND_MARK = { telling: ".", asking: "?", exciting: "!" };
+  const KIND_TIP = {
+    telling:  "A telling sentence ends with a period (.).",
+    asking:   "An asking sentence ends with a question mark (?).",
+    exciting: "An exciting sentence ends with an exclamation mark (!)."
+  };
+  const KIND_WIN = {
+    telling:  "Yes! A telling sentence: it starts with a capital letter and ends with a period.",
+    asking:   "Yes! An asking sentence: it starts with a capital letter and ends with a question mark.",
+    exciting: "Yes! An exciting sentence: it starts with a capital letter and ends with an exclamation mark."
+  };
+  const STORE_KEY = "earlyReader.sentenceLab.doneLevels";
+
+  // ---- speech (same approach as index.html) ----
+  let voice = null;
+  const FEMALE_VOICE_HINTS = /female|zira|hazel|susan|samantha|karen|victoria|moira|tessa|fiona|salli|joanna|kendra|kimberly|ivy|aria|jenny|libby|sonia|google us english|google uk english female/i;
+  function pickVoice() {
+    const voices = speechSynthesis.getVoices();
+    const enVoices = voices.filter(v => /^en/i.test(v.lang));
+    voice = enVoices.find(v => FEMALE_VOICE_HINTS.test(v.name)) || enVoices[0] || voices[0] || null;
+  }
+  let speechOk = true;
+  try {
+    pickVoice();
+    if ("onvoiceschanged" in speechSynthesis) speechSynthesis.onvoiceschanged = pickVoice;
+  } catch (e) { speechOk = false; /* speech unavailable: everything else still works */ }
+
+  // Each utterance gets a token. `onDone` runs exactly once from whichever of onend / onerror /
+  // a length-based timer fires first. Nothing important ever waits on it: it only resets the
+  // speaker button's look, so a missing voice, a cancel or a muted engine can never stall the page.
+  let speakToken = 0;
+  function speakCore(text, rate, onDone, survive) {
+    const token = ++speakToken;
+    let fired = false;
+    let timer = null;
+    const finish = () => {
+      if (fired) return;
+      fired = true;
+      clearTimeout(timer);
+      if (token !== speakToken && !survive) return;
+      if (onDone) onDone();
+    };
+    timer = setTimeout(finish, text.length * 120 + 1500);
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      if (voice) u.voice = voice;
+      u.rate = rate || 0.9;
+      u.pitch = 1.0;
+      u.onend = finish;
+      u.onerror = finish;
+      speechSynthesis.speak(u);
+    } catch (e) {
+      speechOk = false;
+      clearTimeout(timer);
+      timer = setTimeout(finish, 300);
+    }
+  }
+  let speakingBtn = null;
+  function setSpeaking(btn, on) {
+    if (btn) btn.classList.toggle("speaking", on);
+  }
+  function speakSentence(text, btn) {
+    if (speakingBtn) setSpeaking(speakingBtn, false);
+    speakingBtn = btn || null;
+    setSpeaking(btn, true);
+    speakCore(text, 0.85, () => setSpeaking(btn, false), true);
+  }
+  function stopSpeech() {
+    speakToken++;
+    if (speakingBtn) setSpeaking(speakingBtn, false);
+    speakingBtn = null;
+    try { speechSynthesis.cancel(); } catch (e) {}
+  }
+
+  // ---- small helpers ----
+  function el(tag, props, ...kids) {
+    const e = document.createElement(tag);
+    if (props) for (const k in props) {
+      const v = props[k];
+      if (v == null || v === false) continue;
+      if (k === "class") e.className = v;
+      else if (k === "text") e.textContent = v;
+      else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v === true ? "" : v);
+    }
+    kids.flat().forEach(c => { if (c != null) e.append(c); });
+    return e;
+  }
+  const $ = id => document.getElementById(id);
+  const stage = $("stage"), tools = $("tools"), fbEl = $("feedback"), rewardEl = $("reward"), levelsEl = $("levels");
+
+  let fbTimer = null;
+  // Clearing first makes a repeated message announce again.
+  function say(msg, kind) {
+    clearTimeout(fbTimer);
+    fbEl.className = "feedback" + (kind ? " " + kind : "");
+    fbEl.textContent = "";
+    if (!msg) return;
+    fbTimer = setTimeout(() => { fbEl.textContent = msg; }, 40);
+  }
+  let rewardTimer = null;
+  function showReward() {
+    rewardEl.classList.add("show");
+    clearTimeout(rewardTimer);
+    rewardTimer = setTimeout(() => rewardEl.classList.remove("show"), 1600);
+  }
+  function nudgeEl(node) {
+    node.classList.add("nudge");
+    setTimeout(() => node.classList.remove("nudge"), 1200);
+  }
+  function parseWord(raw) {
+    const m = raw.match(/^(.*?)([.,!?]*)$/);
+    return { w: m[1], p: m[2] };
+  }
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // ---- progress (optional; the page works without storage) ----
+  let doneLevels = new Set();
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
+    if (Array.isArray(raw)) raw.forEach(n => { if (Number.isInteger(n)) doneLevels.add(n); });
+  } catch (e) { /* storage blocked or empty: fine */ }
+  function saveDone() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify([...doneLevels])); } catch (e) {}
+  }
+
+  // ---- state ----
+  const LEVELS = CONTENT.levels;
+  let st = { level: 0, idx: 0, results: [] };
+  let cur = null; // state of the sentence on screen
+
+  // ---- level picker ----
+  function buildNav() {
+    levelsEl.replaceChildren();
+    LEVELS.forEach((L, i) => {
+      const b = el("button", { type: "button", class: "lvl", "data-level": i,
+        onclick: () => { stopSpeech(); startLevel(i); } },
+        el("span", { "aria-hidden": "true", text: String(L.id) }),
+        el("small", { "aria-hidden": "true" }));
+      levelsEl.append(el("li", null, b));
+    });
+    updateNav();
+  }
+  function updateNav() {
+    [...levelsEl.querySelectorAll(".lvl")].forEach((b, i) => {
+      const L = LEVELS[i], done = doneLevels.has(L.id);
+      b.setAttribute("aria-current", i === st.level ? "true" : "false");
+      b.setAttribute("aria-label", "Level " + L.id + ": " + L.title + (done ? " (finished)" : ""));
+      b.querySelector("small").textContent = done ? "✓ done" : " ";
+    });
+  }
+
+  // ---- shared bits ----
+  function tagText(kind, key) {
+    if (kind === "pos") return POS[key].icon + " " + POS[key].term;
+    return ROLES[key].icon + " " + ROLES[key].term;
+  }
+
+  function exampleNode(L) {
+    const ex = L.example, box = el("div", { class: "example" });
+    if (L.type === "tap") {
+      const tags = ex.tags.split(" ");
+      ex.text.split(" ").forEach((raw, i) => {
+        const { w, p } = parseWord(raw);
+        const hit = tags[i] === L.target;
+        const chip = el("span", { class: "chip static" + (hit ? " tagged " + POS[L.target].cls : "") },
+          el("span", null, el("span", { class: "cw", text: w }), p),
+          hit ? el("span", { class: "tag", text: tagText("pos", L.target) }) : null);
+        box.append(chip);
+      });
+    } else if (L.type === "label") {
+      ex.chunks.forEach(c => {
+        box.append(el("span", { class: "chip static tagged " + ROLES[c.role].cls },
+          el("span", { class: "cw", text: c.t }),
+          el("span", { class: "tag", text: tagText("role", c.role) })));
+      });
+    } else {
+      ex.scrambled.forEach(t => box.append(el("span", { class: "chip static" }, el("span", { text: t }))));
+      box.append(el("span", { class: "arrow", "aria-hidden": "true", text: "→" }));
+      box.append(el("span", { class: "chip static c-adj tagged" },
+        el("span", { text: ex.text }), el("span", { class: "tag", text: "✔ sentence" })));
+    }
+    return el("div", { class: "example-wrap", role: "group", "aria-label": "Worked example" },
+      el("p", { class: "example-label", text: "Example" }), box, el("p", { class: "example-note", text: ex.note }));
+  }
+  function howBlock(L) {
+    return el("div", { class: "how" }, el("p", { class: "how-line", text: L.how }), exampleNode(L));
+  }
+  function levelBar(L) {
+    return el("div", { class: "levelbar" },
+      el("span", { class: "lvl-title", text: "Level " + L.id + " · " + L.title }),
+      el("span", { class: "count", text: "Sentence " + (st.idx + 1) + " of " + L.items.length }));
+  }
+  function hearBtn(label, getText) {
+    const b = el("button", { type: "button", class: "btn btn-secondary", "aria-label": label,
+      onclick: () => {
+        const t = getText();
+        if (!t) { say("Tap some words first, then I can read them.", "info"); return; }
+        if (!speechOk) say("Reading aloud isn't available on this device, but you can still play.", "info");
+        speakSentence(t, b);
+      } }, "🔊 " + (label.startsWith("Hear my") ? "Hear mine" : "Hear it"));
+    return b;
+  }
+  function showMeBtn(fn) {
+    return el("button", { type: "button", class: "btn btn-secondary", onclick: fn }, "👀 Show me");
+  }
+  function nextBtn(L) {
+    const last = st.idx === L.items.length - 1;
+    return el("button", { type: "button", class: "btn btn-primary", hidden: true,
+      onclick: () => { stopSpeech(); st.idx++; if (st.idx >= L.items.length) renderEnd(); else renderItem(); } },
+      last ? "Finish level ▸" : "Next ▸");
+  }
+  function promptHeading(text) {
+    return el("h2", { tabindex: "-1", id: "prompt", text });
+  }
+  // Arrow keys move between sibling controls (Tab, Enter and Space still work everywhere).
+  stage.addEventListener("keydown", e => {
+    const keys = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+    if (!(e.key in keys)) return;
+    const group = e.target.closest && e.target.closest("[data-arrows]");
+    if (!group || e.target.tagName !== "BUTTON") return;
+    const btns = [...group.querySelectorAll("button")];
+    const i = btns.indexOf(e.target);
+    if (i < 0) return;
+    e.preventDefault();
+    btns[(i + keys[e.key] + btns.length) % btns.length].focus();
+  });
+
+  // ---- views ----
+  function startLevel(i, initial) {
+    st = { level: i, idx: 0, results: [] };
+    updateNav();
+    renderIntro();
+    if (!initial) $("prompt").focus(); // keep keyboard and screen-reader position after the old controls vanish
+  }
+  function renderIntro() {
+    const L = LEVELS[st.level];
+    cur = null;
+    say("");
+    stage.replaceChildren(
+      el("div", { class: "levelbar" }, el("span", { class: "lvl-title", text: "Level " + L.id + " of " + LEVELS.length })),
+      el("h2", { tabindex: "-1", id: "prompt", text: L.title + " (" + L.term + ")" }),
+      el("p", { class: "lead", text: "How this works" }),
+      howBlock(L));
+    tools.replaceChildren(el("button", { type: "button", class: "btn btn-primary", onclick: () => renderItem() }, "Let's go ▸"));
+  }
+  function renderItem() {
+    const L = LEVELS[st.level];
+    stopSpeech();
+    say("");
+    stage.replaceChildren();
+    tools.replaceChildren();
+    if (L.type === "tap") renderTap(L, L.items[st.idx]);
+    else if (L.type === "label") renderLabel(L, L.items[st.idx]);
+    else renderBuild(L, L.items[st.idx]);
+    const p = $("prompt");
+    if (p) p.focus();
+  }
+
+  function finishItem(result, msg, text) {
+    if (cur.done) return;
+    cur.done = true;
+    st.results[st.idx] = result;
+    say(msg, "ok");
+    showReward();
+    // Speech is a bonus: Next is shown right away and never waits for it.
+    speakSentence(text, cur.hear);
+    cur.hideOnDone.forEach(b => { b.hidden = true; });
+    cur.next.hidden = false;
+    cur.next.focus();
+  }
+
+  // ===== Levels 1-3: tap the words =====
+  function renderTap(L, item) {
+    const tags = item.tags.split(" ");
+    const words = item.text.split(" ").map((raw, i) => Object.assign(parseWord(raw), { tag: tags[i] }));
+    const need = words.filter(w => w.tag === L.target).length;
+    cur = { type: "tap", words, need, found: new Set(), done: false, chips: [] };
+    const P = POS[L.target];
+
+    const group = el("div", { class: "chips", role: "group", "data-arrows": "1",
+      "aria-label": "The sentence. Tap a word to choose it." });
+    words.forEach((w, i) => {
+      const chip = el("button", { type: "button", class: "chip", "aria-pressed": "false", "aria-label": w.w,
+        onclick: () => tapWord(i) },
+        el("span", null, el("span", { class: "cw", text: w.w }), w.p),
+        el("span", { class: "tag", "aria-hidden": "true" }));
+      cur.chips.push(chip);
+      group.append(chip);
+    });
+    stage.append(levelBar(L),
+      el("details", { class: "how-d" }, el("summary", { text: "How this works" }), howBlock(L)),
+      promptHeading(L.prompt.replace("{n}", need)),
+      group);
+
+    const hear = hearBtn("Hear the sentence", () => item.text);
+    const show = showMeBtn(() => {
+      const left = words.map((w, i) => i).filter(i => words[i].tag === L.target && !cur.found.has(i));
+      left.forEach(i => markFound(i, true));
+      const list = words.filter(w => w.tag === L.target).map(w => w.w);
+      finishItem("peek", (list.length > 1 ? "Here they are: " : "Here it is: ") + list.join(", ") +
+        ". Now you know! Let's read it together.", item.text);
+    });
+    cur.hear = hear; cur.show = show; cur.next = nextBtn(L); cur.hideOnDone = [show];
+    tools.append(hear, show, cur.next);
+
+    function markFound(i, shown) {
+      const w = words[i], chip = cur.chips[i];
+      cur.found.add(i);
+      chip.classList.add("tagged", P.cls);
+      chip.setAttribute("aria-pressed", "true");
+      chip.setAttribute("aria-label", w.w + ", " + P.name + (shown ? ", shown" : ", found"));
+      chip.querySelector(".tag").textContent = tagText("pos", L.target);
+    }
+    function tapWord(i) {
+      if (cur.done) return;
+      const w = words[i], chip = cur.chips[i];
+      if (cur.found.has(i)) { say("You already found “" + w.w + "”. Look for another one.", "info"); return; }
+      if (w.tag === L.target) {
+        markFound(i, false);
+        const n = cur.found.size;
+        if (n === need) {
+          finishItem("solved", "Yes! “" + w.w + "” is " + P.art + " " + P.name + (need > 1 ? ". You found them all!" : "."), item.text);
+        } else {
+          say("Yes! “" + w.w + "” is " + P.art + " " + P.name + " (" + P.term + "). " + n + " of " + need + " found.", "ok");
+        }
+      } else {
+        nudgeEl(chip);
+        const O = POS[w.tag];
+        if (O) say("Almost! “" + w.w + "” is " + O.art + " " + O.name + " (" + O.term + "), but we want " +
+          (L.target === "verb" ? "the" : "a") + " " + P.name + ". " + L.nudge.replace(/^Almost! /, ""), "nudge");
+        else say(L.nudge, "nudge");
+      }
+    }
+  }
+
+  // ===== Level 4: label subject / verb / object =====
+  function renderLabel(L, item) {
+    const chunks = item.chunks;
+    cur = { type: "label", chunks, placed: {}, selChunk: null, selSlot: null, done: false, chipEls: [], slotEls: {} };
+    const text = chunks.map(c => c.t).join(" ");
+
+    const group = el("div", { class: "chips", role: "group", "data-arrows": "1",
+      "aria-label": "The sentence, in parts. Tap a part to pick it." });
+    chunks.forEach((c, i) => {
+      const chip = el("button", { type: "button", class: "chip", "aria-pressed": "false",
+        onclick: () => clickChunk(i) }, el("span", { class: "cw", text: c.t }), el("span", { class: "tag", "aria-hidden": "true" }));
+      cur.chipEls.push(chip);
+      group.append(chip);
+    });
+    const slots = el("div", { class: "slots", role: "group", "data-arrows": "1", "aria-label": "Boxes to put the parts in" });
+    ROLE_ORDER.forEach(role => {
+      const R = ROLES[role];
+      const val = el("span", { class: "val empty", text: "tap here to place" });
+      const slot = el("button", { type: "button", class: "slot", "aria-pressed": "false", onclick: () => clickSlot(role) },
+        el("span", { class: "lab", text: R.icon + " " + R.label + " (" + R.term + ")" }), val);
+      cur.slotEls[role] = { btn: slot, val };
+      slots.append(slot);
+    });
+    stage.append(levelBar(L),
+      el("details", { class: "how-d" }, el("summary", { text: "How this works" }), howBlock(L)),
+      promptHeading(L.prompt), group, slots);
+
+    const hear = hearBtn("Hear the sentence", () => text);
+    const show = showMeBtn(() => {
+      chunks.forEach((c, i) => { if (cur.placed[c.role] == null) cur.placed[c.role] = i; });
+      cur.selChunk = cur.selSlot = null;
+      paint();
+      finishItem("peek", "Here they are. The sentence is about “" + chunks[0].t + "”. The action is “" + chunks[1].t +
+        "”. The ending is “" + chunks[2].t + "”.", text);
+    });
+    cur.hear = hear; cur.show = show; cur.next = nextBtn(L); cur.hideOnDone = [show];
+    tools.append(hear, show, cur.next);
+
+    function placedIndexSet() { return new Set(Object.values(cur.placed)); }
+    function paint() {
+      const used = placedIndexSet();
+      chunks.forEach((c, i) => {
+        const chip = cur.chipEls[i], isUsed = used.has(i), R = ROLES[c.role];
+        chip.classList.toggle("sel", cur.selChunk === i);
+        chip.classList.toggle("used", isUsed);
+        chip.classList.toggle("tagged", isUsed);
+        ["c-subj", "c-verb", "c-obj"].forEach(k => chip.classList.remove(k));
+        const tag = chip.querySelector(".tag");
+        tag.textContent = isUsed ? tagText("role", c.role) : "";
+        if (isUsed) {
+          chip.classList.add(R.cls);
+          chip.setAttribute("aria-pressed", "true");
+          chip.setAttribute("aria-label", c.t + ", placed as " + R.label + " (" + R.term + ")");
+        } else {
+          chip.setAttribute("aria-pressed", cur.selChunk === i ? "true" : "false");
+          chip.setAttribute("aria-label", c.t + (cur.selChunk === i ? ", picked" : ""));
+        }
+      });
+      ROLE_ORDER.forEach(role => {
+        const S = cur.slotEls[role], R = ROLES[role], idx = cur.placed[role];
+        const filled = idx != null;
+        S.btn.classList.toggle("sel", cur.selSlot === role);
+        S.btn.classList.toggle("filled", filled);
+        ["c-subj", "c-verb", "c-obj"].forEach(k => S.btn.classList.remove(k));
+        if (filled) {
+          S.btn.classList.add(R.cls);
+          S.val.className = "val";
+          S.val.replaceChildren(el("span", { class: "cw", text: chunks[idx].t }));
+          S.btn.setAttribute("aria-pressed", "true");
+        } else {
+          S.val.className = "val empty";
+          S.val.textContent = cur.selSlot === role ? "now tap a part of the sentence" : "tap here to place";
+          S.btn.setAttribute("aria-pressed", cur.selSlot === role ? "true" : "false");
+        }
+        S.btn.setAttribute("aria-label", R.label + " (" + R.term + "). " + (filled ? "Filled with " + chunks[idx].t : "Empty") +
+          (cur.selSlot === role ? ", picked" : ""));
+      });
+    }
+    function attempt() {
+      const ci = cur.selChunk, role = cur.selSlot, c = chunks[ci], R = ROLES[role];
+      cur.selChunk = cur.selSlot = null;
+      if (c.role === role) {
+        cur.placed[role] = ci;
+        paint();
+        if (Object.keys(cur.placed).length === ROLE_ORDER.length) {
+          finishItem("solved", "Yes! “" + c.t + "” " + R.good + ". You sorted the whole sentence!", text);
+        } else {
+          say("Yes! “" + c.t + "” " + R.good + ".", "ok");
+        }
+      } else {
+        paint();
+        nudgeEl(cur.chipEls[ci]);
+        say("Almost! Does “" + c.t + "” " + R.question + "? Try another box.", "nudge");
+      }
+    }
+    function clickChunk(i) {
+      if (cur.done) return;
+      if (placedIndexSet().has(i)) { say("“" + chunks[i].t + "” is already in its box. Pick another part.", "info"); return; }
+      cur.selChunk = cur.selChunk === i ? null : i;
+      if (cur.selChunk != null && cur.selSlot) { attempt(); return; }
+      paint();
+      if (cur.selChunk != null) say("Picked “" + chunks[i].t + "”. Now tap the box where it belongs.", "info");
+      else say("");
+    }
+    function clickSlot(role) {
+      if (cur.done) return;
+      if (cur.placed[role] != null) { say("That box is already filled. Try another one.", "info"); return; }
+      cur.selSlot = cur.selSlot === role ? null : role;
+      if (cur.selSlot && cur.selChunk != null) { attempt(); return; }
+      paint();
+      if (cur.selSlot) say("Picked the “" + ROLES[role].label + "” box. Now tap the part of the sentence that belongs there.", "info");
+      else say("");
+    }
+    paint();
+  }
+
+  // ===== Level 5: build a sentence =====
+  function renderBuild(L, item) {
+    const m = item.text.match(/^(.*?)([.?!])$/);
+    const words = m[1].split(" "), endMark = m[2];
+    const answer = words.concat([endMark]);
+    let bankWords = words.map((t, i) => ({ id: "w" + i, t, mark: false }));
+    if (words.length > 2) {
+      for (let tries = 0; tries < 30; tries++) {
+        bankWords = shuffle(bankWords);
+        if (bankWords.some((b, i) => b.t !== words[i])) break;
+      }
+    }
+    const marks = MARKS.map((k, i) => ({ id: "m" + i, t: k.t, name: k.name, mark: true }));
+    const byId = {};
+    bankWords.concat(marks).forEach(b => { byId[b.id] = b; });
+    cur = { type: "build", answer, placed: [], done: false, bankEls: {} };
+
+    const line = el("div", { class: "line", role: "group", "data-arrows": "1", "aria-label": "Your sentence" });
+    const bank = el("div", { class: "chips", role: "group", "data-arrows": "1", "aria-label": "Words to use" });
+    bankWords.forEach(b => {
+      const chip = el("button", { type: "button", class: "chip plain", "aria-disabled": "false", onclick: () => place(b.id) },
+        el("span", { text: b.t }));
+      cur.bankEls[b.id] = chip;
+      bank.append(chip);
+    });
+    const markBank = el("div", { class: "chips", role: "group", "data-arrows": "1", "aria-label": "Ending marks" });
+    marks.forEach(b => {
+      const chip = el("button", { type: "button", class: "chip plain mark", "aria-label": b.name + " " + b.t,
+        "aria-disabled": "false", onclick: () => place(b.id) }, el("span", { text: b.t }));
+      cur.bankEls[b.id] = chip;
+      markBank.append(chip);
+    });
+    stage.append(levelBar(L),
+      el("details", { class: "how-d" }, el("summary", { text: "How this works" }), howBlock(L)),
+      promptHeading(L.prompts[item.kind]),
+      el("p", { class: "bank-label", text: "Your sentence" }), line,
+      el("p", { class: "bank-label", text: "Words" }), bank,
+      el("p", { class: "bank-label", text: "Ending marks" }), markBank);
+
+    const builtText = () => cur.placed.map(id => byId[id].t).reduce((s, t, i) => (i && !/^[.?!]$/.test(t) ? s + " " + t : s + t), "");
+    const hear = hearBtn("Hear my sentence", () => builtText());
+    const check = el("button", { type: "button", class: "btn btn-primary", onclick: checkIt }, "✔ Check");
+    const again = el("button", { type: "button", class: "btn btn-secondary", onclick: () => {
+      cur.placed = []; paint(); say("Cleared. Start again whenever you like.", "info"); } }, "↺ Start again");
+    const show = showMeBtn(() => {
+      const used = new Set();
+      cur.placed = answer.map(t => {
+        const b = bankWords.concat(marks).find(x => x.t === t && !used.has(x.id));
+        used.add(b.id);
+        return b.id;
+      });
+      finishItem("peek", "Here it is: " + item.text + " Look at the capital letter at the start and the mark at the end.", item.text);
+      paint();
+    });
+    cur.hear = hear; cur.next = nextBtn(L); cur.hideOnDone = [check, again, show];
+    tools.append(hear, check, again, show, cur.next);
+
+    function paint() {
+      line.replaceChildren();
+      if (!cur.placed.length) line.append(el("span", { class: "placeholder", text: "Tap the words below to build your sentence." }));
+      cur.placed.forEach(id => {
+        const b = byId[id];
+        line.append(el("button", { type: "button", class: "chip plain placed" + (b.mark ? " mark" : ""), "data-id": id,
+          "aria-label": (b.mark ? b.name + " " + b.t : b.t) + (cur.done ? "" : ". Tap to take it out"),
+          onclick: () => remove(id) }, el("span", { text: b.t })));
+      });
+      line.classList.toggle("good", cur.done);
+      Object.keys(cur.bankEls).forEach(id => {
+        const chip = cur.bankEls[id], used = cur.placed.includes(id);
+        chip.classList.toggle("bankused", used);
+        chip.setAttribute("aria-disabled", used ? "true" : "false");
+      });
+    }
+    function place(id) {
+      if (cur.done || cur.placed.includes(id)) return;
+      cur.placed.push(id);
+      paint();
+      say("Your sentence so far: " + builtText(), "info");
+    }
+    function remove(id) {
+      if (cur.done) return;
+      const at = cur.placed.indexOf(id);
+      if (at < 0) return;
+      cur.placed.splice(at, 1);
+      paint();
+      const next = line.querySelectorAll("button")[Math.min(at, cur.placed.length - 1)];
+      (next || cur.bankEls[id]).focus();
+      say(cur.placed.length ? "Your sentence so far: " + builtText() : "Taken out. The line is empty.", "info");
+    }
+    function checkIt() {
+      if (cur.done) return;
+      const tx = cur.placed.map(id => byId[id].t);
+      const markCount = tx.filter(t => /^[.?!]$/.test(t)).length;
+      const wordCount = tx.length - markCount;
+      if (!tx.length) return say("Tap some words first to build your sentence.", "nudge");
+      if (markCount > 1) return say("Almost! A sentence needs just one ending mark.", "nudge");
+      if (wordCount < words.length) return say("Nice start! You have used " + wordCount + " of " + words.length +
+        " words. Use them all, then finish with an ending mark.", "nudge");
+      if (tx[0] !== answer[0]) return say("Almost! Which word starts with a capital letter? A sentence starts with one.", "nudge");
+      if (!markCount) return say("Almost! Every sentence ends with a mark: a period, a question mark or an exclamation mark.", "nudge");
+      if (!/^[.?!]$/.test(tx[tx.length - 1])) return say("Almost! The ending mark goes at the very end.", "nudge");
+      if (tx[tx.length - 1] !== endMark) return say("Almost! " + KIND_TIP[item.kind] + " Try a different mark.", "nudge");
+      const right = tx.filter((t, i) => t === answer[i]).length - 1; // words in the right place (end mark counted separately)
+      if (tx.join(" ") !== answer.join(" ")) {
+        return say("Nearly! " + Math.max(0, right) + " of " + words.length + " words are in the right place. " +
+          "Read your sentence aloud: does it sound right? Tap a word to take it out and try again.", "nudge");
+      }
+      finishItem("solved", KIND_WIN[item.kind], item.text);
+      paint();
+    }
+    paint();
+  }
+
+  // ===== Level end =====
+  function renderEnd() {
+    const L = LEVELS[st.level];
+    stopSpeech();
+    cur = null;
+    say("");
+    doneLevels.add(L.id);
+    saveDone();
+    updateNav();
+    const solved = st.results.filter(r => r === "solved").length;
+    const peek = st.results.filter(r => r === "peek").length;
+    const total = L.items.length;
+    const stars = "⭐".repeat(solved) + "✨".repeat(peek);
+    const hasNext = st.level < LEVELS.length - 1;
+    stage.replaceChildren(el("div", { class: "end" },
+      el("h2", { tabindex: "-1", id: "prompt", text: "Level " + L.id + " finished!" }),
+      el("div", { class: "stars", role: "img", "aria-label": solved + " sentences on your own and " + peek + " learned with a peek" , text: stars }),
+      el("p", { class: "lead", text: "You finished " + total + " of " + total + " sentences." }),
+      el("p", { class: "lead" },
+        "⭐ " + solved + " on your own" + (peek ? "   ✨ " + peek + " learned with a peek" : ""))));
+    tools.replaceChildren(
+      el("button", { type: "button", class: "btn btn-secondary", onclick: () => startLevel(st.level) }, "↺ Play again"),
+      hasNext ? el("button", { type: "button", class: "btn btn-primary", onclick: () => startLevel(st.level + 1) }, "Next level ▸")
+              : el("a", { class: "btn btn-primary", href: "index.html" }, "Back to Early Reader"));
+    showReward();
+    $("prompt").focus();
+  }
+
+  // ---- data sanity check (logs a problem instead of breaking the page) ----
+  (function validate() {
+    LEVELS.forEach(L => L.items.forEach((it, n) => {
+      if (L.type === "tap") {
+        if (it.text.split(" ").length !== it.tags.split(" ").length) console.error("Tag count mismatch:", L.id, n, it.text);
+        if (!it.tags.split(" ").includes(L.target)) console.error("No target in item:", L.id, n);
+      }
+    }));
+  })();
+
+  buildNav();
+  startLevel(0, true);
+</script>
+</body>
+</html>
