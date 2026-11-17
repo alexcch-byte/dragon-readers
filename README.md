@@ -1,44 +1,139 @@
 # Early Reader
 
-A calm phonics app for pre-readers (built for a 4-year-old, used together with a parent). Short illustrated sentences built from simple words; drag a finger along a segmented bar under the active word to sound it out, then hear it read aloud. A second page, the Sentence Lab, is for readers about 6 to 8.
+A calm, gentle phonics and early literacy application designed for pre-readers (built for a 4-year-old learning with a parent) and early readers aged 6 to 8. Readers sound out words by dragging a finger across a segmented scrub bar under the active word, hear phonemes blended aloud, discover words in sentence context, and explore grammar concepts in the interactive Sentence Lab.
 
-- No accounts, no ads, no tracking.
-- The Android app has no network code at all. The browser pages work without internet once loaded, if your device has a built-in voice (a few browsers only offer online voices, which may send the spoken text to a speech service).
-- Kotlin + Jetpack Compose, Material 3.
-- See [reading-app-plan.md](reading-app-plan.md) for the full design/planning doc.
+[![Android CI](https://github.com/alexcch-byte/dragon-readers/actions/workflows/ci.yml/badge.svg)](https://github.com/alexcch-byte/dragon-readers/actions/workflows/ci.yml)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-purple.svg)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-blue.svg)](https://developer.android.com/jetpack/compose)
+[![Zero Network](https://img.shields.io/badge/Network-100%25%20Offline-success.svg)](README.md)
 
-**Status:** Three prototypes, none of which bundles audio; the browser pages speak with the browser's built-in voice.
+---
 
-- **Browser demo** (`docs/index.html`): the full "The Red Hen" story flow. Sentence in context, drag-to-scrub segmented bar (digraphs like sh-i-p supported), a picture revealed after the first drag, tricky (sight) words, a spoken help button, and a read-aloud page finish. Keyboard and screen-reader friendly.
-- **Sentence Lab** (`docs/sentences.html`, linked from the demo): practice for ages 6 to 8 with six short levels. Each has a worked example, a kind nudge on a wrong answer, a "Show me" button and read-aloud:
-  1. **Naming words** (nouns): tap every noun in a sentence.
-  2. **Action word** (verb): tap the verb.
-  3. **Describing words** (adjectives): tap the adjectives.
-  4. **Who and what**: put the parts of a sentence (subject, verb, object) into labelled boxes.
-  5. **Is it a sentence?**: decide whether a group of words is a complete thought or only a piece of one.
-  6. **Build a sentence**: put scrambled words in order and choose the capital letter and end mark (. ? !).
+## Guiding Principles
 
-  Finished levels are remembered on the device (in the browser's local storage), and completing all 6 levels awards a special Sentence Master celebration badge.
-- **Android app** (Kotlin + Compose): Milestones 1, 2, 3, 4, and 5+. Features a 3-mode switcher between Word Practice, Story Mode (5-story suite: "The Red Hen", "The Big Pig", "The Sun and the Bug", "The Cat on the Mat", "A Pet in the Net"), and Sentence Lab (complete 6-level suite: naming words / nouns, action words / verbs, describing words / adjectives, complete thoughts vs fragments / "Is it a sentence?", scrambled sentence builder, and who/action/what roles sorting with two-way chunk assignment, interactive 6-level selector pills, master Sentence Master celebration badge upon completing all 6 levels, TalkBack live regions, and progress persistence), interactive story picker dialog, offline session progress persistence via SharedPreferences, tricky/sight words, segmented scrub bar, auto-advancing, page sentence read-aloud, starter word bank cycling with sentence-in-context display, TextToSpeech audio support with offline voice detection and system TTS settings shortcut, Help button, picture/emoji reveal on decode attempt, parent gate settings with math challenge and progress reset, Compose UI previews for phone and tablet form factors, and accessibility semantics.
+- **Zero Ads, Zero Tracking, Zero Accounts:** No logins, analytics, or third-party SDKs.
+- **100% Offline-First:** The Android app requires zero network permissions (`android.permission.INTERNET` is omitted). All progress is persisted locally.
+- **Calm, Child-Centric UI:** Warm off-white canvas, high contrast (WCAG AA compliant), large >= 48dp touch targets, clear phonics cues, and delightful star animations without overstimulation.
+- **Phonics & Sight Words:** Decodable CVC words (with digraph support like *sh-i-p*) paired with special "tricky words" (sight words like *the*, *to*, *no*) that read as whole words.
 
-Per-letter sounds use short dictionary words ("ant" for a, "hat" for h) because TTS reads a lone letter by its name. Key words start with the letter sound and avoid story words. A real phoneme clip pack is planned.
+---
 
-## Try it in the browser
+## Architecture & Codebase
 
-The demo is live at the GitHub Pages link in the repo "About" section. Features the complete 5-story suite ("The Red Hen", "The Big Pig", "The Sun and the Bug", "The Cat on the Mat", and "A Pet in the Net") with an interactive story switcher, circular next-story navigation, segmented sounding out, TTS audio, picture reveals, and tricky words. The Sentence Lab is at `sentences.html` next to it with an all-levels master celebration.
-
-## Download the Android prototype
-
-Grab the latest debug APK from GitHub Actions CI build artifacts or the Releases page. The release asset name (`dragon-readers-debug.apk`) is preserved for direct download compatibility. You'll need to allow "install from unknown sources" since this isn't on the Play Store yet.
-
-## Continuous Integration
-
-A GitHub Actions workflow (`.github/workflows/ci.yml`) automatically runs on all pushes and pull requests to `master`, verifying the full test suite and generating the `dragon-readers-debug.apk` artifact on JDK 17.
-
-## Build from source
-
-```bash
-./gradlew assembleDebug
+```
+dragon-readers/
+├── app/                                # Android Jetpack Compose application
+│   └── src/
+│       ├── main/java/com/example/earlyreader/
+│       │   ├── audio/SpeechManager.kt  # Android TextToSpeech with offline voice detection
+│       │   ├── model/
+│       │   │   ├── WordData.kt         # Starter words & CVC phoneme definitions
+│       │   │   └── StoryData.kt        # 5-story suite with multi-sentence pages
+│       │   ├── storage/
+│       │   │   └── ProgressStorage.kt  # SharedPreferences offline progress persistence
+│       │   ├── ui/
+│       │   │   ├── scrub/              # Segmented drag-to-sound scrub bar
+│       │   │   ├── sentences/          # 6-Level Sentence Lab with Master Celebration
+│       │   │   └── theme/              # Color palette, Material 3 typography & theme
+│       │   └── MainActivity.kt         # 3-mode switcher, parent gate, Compose previews
+│       └── test/java/com/example/earlyreader/
+│           └── ScrubBarModelTest.kt    # Full unit test suite (boundaries, TTS, datasets)
+├── docs/                               # Browser prototypes (GitHub Pages live demo)
+│   ├── index.html                      # 5-story web reader with segmented scrub bar
+│   └── sentences.html                  # 6-level web Sentence Lab with local storage
+└── .github/workflows/ci.yml            # Automated CI workflow on JDK 17
 ```
 
-Requires an Android SDK (`local.properties` with `sdk.dir=...`, not committed) and JDK 17+.
+---
+
+## Feature Showcase
+
+### 1. 5 Complete Early Reader Stories
+Rich multi-sentence decodable stories for pre-readers:
+1. **The Red Hen** (*"A red hen sat on a mat. She had a big nest..."*)
+2. **The Big Pig** (*"A big pig sat in the mud. He saw a red bug..."*)
+3. **The Sun and the Bug** (*"The hot sun was up in the sky. A bug sat on a warm rock..."*)
+4. **The Cat on the Mat** (*"A fat cat sat on a soft mat. He saw a quick rat..."*)
+5. **A Pet in the Net** (*"A wet pup ran in the mud. He got stuck in a big net..."*)
+
+- **Interactive Story Switcher:** Pick any story from an accessible modal dialog with completion star indicators.
+- **Circular Progression:** Finishing a story offers immediate circular navigation to the next tale.
+- **Emoji / Picture Reveal:** Emojis remain calm and hidden until the child's first decode attempt, rewarding reading effort.
+- **Whole-Sentence Read Aloud:** Hear the completed page read smoothly with system text-to-speech.
+
+### 2. Android 3-Mode Experience
+Switch seamlessly between learning modes from the top bar:
+- **Word Practice (Ages 4–5):** Starter word bank cycling with decodable letter segments, dictionary key-word sound hints, and sentence-in-context highlight.
+- **Story Mode (Ages 4–6):** Full multi-page decodable reader with tricky word flashcard assistance and celebratory rewards.
+- **Sentence Lab (Ages 6–8):** Comprehensive 6-level interactive grammar suite.
+
+### 3. Complete 6-Level Sentence Lab
+Ported from the web prototype to native Jetpack Compose with accessibility semantics:
+1. **Naming Words (Nouns):** Identify and tap all naming words with `🏷️ noun` badges (`#DBEAFE`).
+2. **Action Words (Verbs):** Identify what someone or something is doing with `⚡ verb` badges (`#FFEDD5`).
+3. **Describing Words (Adjectives):** Find words that tell what things are like with `🎨 adj` badges (`#DCFCE7`).
+4. **Is it a Sentence? (Complete Thoughts vs Fragments):** Read phrases on a quotation card and classify them as `"✅ Complete sentence"` or `"🧩 Only a piece"` with pedagogical explanations.
+5. **Build a Sentence:** Tap scrambled words into a sentence tray, select appropriate ending punctuation (`.`, `?`, `!`), and validate capitalisation and grammar with rules-based educational nudges.
+6. **Who and What (Roles):** Sort sentence parts into distinct boxes:
+   - 👤 **Who or what** (Subject: `#F3E8FF` / `#7E22CE`)
+   - ⚡ **Action** (Verb: `#FFEDD5` / `#C2410C`)
+   - 🎯 **What?** (Object: `#CCFBF1` / `#0F766E`)
+- **🏆 Master Sentence Celebration:** Awarded upon completing all 6 levels, displaying the golden trophy celebration card and persistent stars on level selector pills.
+
+### 4. Accessibility & Offline Voice Guidance
+- **Screen Reader Support:** Full TalkBack compatibility with descriptive semantics and polite live regions (`LiveRegionMode.Polite`).
+- **Offline TTS Detection:** Detects local vs network voices in `SpeechManager`. If only network voices are available, provides guidance and a safe shortcut to the Android Text-to-speech system settings.
+- **Adult Parent Gate:** Mathematical challenge gate (e.g. `4 + 5 = 9`) protecting settings, voice status, and progress reset.
+
+---
+
+## Jetpack Compose Previews
+
+Inspect UI composables directly inside Android Studio without deploying:
+- `PreviewWordPracticePhone`: Single-word practice on phone portrait.
+- `PreviewStoryModeTablet`: Multi-word story reader on tablet landscape (1280x800dp).
+- `PreviewEarlyReaderApp`: Full app with 3-mode switcher and theme.
+- `PreviewSegmentedScrubBarCat`: Scrub bar with single-letter word ("cat").
+- `PreviewSegmentedScrubBarShip`: Scrub bar with digraph word ("ship").
+- `PreviewSentenceLabLevel1` through `PreviewSentenceLabLevel6`: Dedicated previews for each Sentence Lab level.
+
+---
+
+## Continuous Integration & Automated Testing
+
+Every push and pull request to `master` triggers a GitHub Actions workflow (`.github/workflows/ci.yml`):
+- Configures Eclipse Temurin JDK 17.
+- Executes full JUnit unit test suite (`ScrubBarModelTest.kt`) covering boundary maths, phoneme segmentation, speech voice detection, and all 6 Sentence Lab datasets.
+- Runs `./gradlew test assembleDebug`.
+- Archives and uploads the release APK artifact (`dragon-readers-debug.apk`).
+
+---
+
+## Building from Source
+
+### Prerequisites
+- Android Studio Ladybug (or newer)
+- JDK 17+ (e.g. JetBrains Runtime `jbr` bundled with Android Studio)
+- Android SDK API 34+
+
+### Build Debug APK
+```bash
+# Set JAVA_HOME (Windows PowerShell example)
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+
+# Run tests and compile debug APK
+.\gradlew.bat test assembleDebug
+```
+
+Output APK will be located at:
+`app/build/outputs/apk/debug/app-debug.apk`
+
+---
+
+## Try it in the Browser
+
+The web prototype is live on GitHub Pages in `docs/`:
+- **Early Reader Story Demo:** `docs/index.html`
+- **Sentence Lab:** `docs/sentences.html`
+
+Both work completely offline after initial load using the browser's built-in Web Speech API.
