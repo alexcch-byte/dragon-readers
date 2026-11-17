@@ -50,18 +50,34 @@ dragon-readers/
 
 ## Feature Showcase
 
-### 1. 8 Complete Early Reader Stories
-Rich multi-sentence decodable stories for pre-readers. The eight stories are the same on the web reader and the Android app (the first page of each is quoted here):
+### 1. 14 Complete Early Reader Stories (5 Difficulty Tiers)
+Rich multi-sentence decodable stories for pre-readers with carefully graded difficulty. The 14 stories are the same on the web reader and the Android app:
+
+#### Level 1: Basic CVC Words
 1. **The Red Hen** (*"A hen sat. The hen is red."*)
 2. **The Big Pig** (*"A big pig sat. The pig is in mud."*)
 3. **The Sun and the Bug** (*"The sun is hot. A bug sat on a cup."*)
 4. **The Cat on the Mat** (*"A fat cat sat. The cat is on a mat."*)
 5. **A Pet in the Net** (*"A boy has a pet. The pet is a wet dog."*)
+
+#### Level 2: Consonant Blends & Double Digraphs
 6. **The Frog on the Log** (*"A frog sat on a big log. The log is wet."*)
 7. **The Pup in the Fog** (*"A pup ran out in the fog. The fog is thick."*)
 8. **The Pet Duck** (*"A pet duck sat by a pond. The duck is quick."*)
 
-Digraphs and double letters are ONE segment (*d-u-ck*, *b-e-ll*, *r-a-ng*, *qu-i-ck*, *th-i-ck*, *f-i-sh*), so each makes one sound. Only words that cannot be sounded out are tricky words (*a, the, is, to, saw, out ...*).
+#### Level 3: Core Consonant Digraphs & Glued Sounds
+9. **The Fish in the Dish** (*"A big fish is in a dish."*) — Focus: Digraphs `sh`, `th` and blend `sw`.
+10. **The Chick and the Chip** (*"A chick sat on a branch."*) — Focus: Digraphs `ch`, `ck` and blend `br`.
+11. **The King and His Ring** (*"The king has a pink ring."*) — Focus: Nasal glued sounds `ng`, `nk`.
+
+#### Level 4: Double Consonant Endings & Complex Blends
+12. **The Buzz in the Grass** (*"A bug can buzz in the grass."*) — Focus: Double letters `zz`, `ss`, `ll`, `ff`.
+13. **The Camp in the Wind** (*"We set a tent at the camp."*) — Focus: Consonant clusters and blends `mp`, `st`, `nd`, `nt`, `ft`.
+
+#### Level 5: Master Mixed Decodable
+14. **Mom on the Sand** (*"The hot sun is on the sand."* / *"Mom ran on the sand."*) — Focus: Synthesizing blends and digraphs; includes the reference mockup sentence *\"Mom ran on the sand.\"*
+
+Digraphs, double letters, and glued sounds are ONE segment (*d-u-ck*, *b-e-ll*, *r-a-ng*, *qu-i-ck*, *th-i-ck*, *f-i-sh*, *ch-i-ck*, *k-i-ng*, *p-i-nk*, *b-u-zz*, *c-a-m-p*), so each makes one sound. Only words that cannot be sounded out are tricky words (*a, the, is, to, saw, out, we, for ...*).
 
 - **Interactive Story Switcher:** Pick any story from an accessible modal dialog with completion star indicators.
 - **Circular Progression:** Finishing a story offers immediate circular navigation to the next tale.

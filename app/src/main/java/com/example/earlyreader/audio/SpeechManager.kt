@@ -198,7 +198,7 @@ class SpeechManager(context: Context) : TextToSpeech.OnInitListener {
             "h" to "huh", "j" to "juh", "k" to "kuh", "l" to "luh", "m" to "mmm",
             "n" to "nnn", "p" to "puh", "q" to "kwuh", "qu" to "kwuh", "r" to "ruh", "s" to "sss",
             "t" to "tuh", "v" to "vuh", "w" to "wuh", "x" to "ks", "y" to "yuh", "z" to "zzz",
-            "sh" to "shh", "ch" to "chuh", "th" to "thuh", "ng" to "ing",
+            "sh" to "shh", "ch" to "chuh", "th" to "thuh", "ng" to "ing", "nk" to "ink",
             "ck" to "kuh", "ll" to "luh", "ss" to "sss", "ff" to "fff", "zz" to "zzz",
         )
 

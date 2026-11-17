@@ -115,8 +115,11 @@ class ScrubBarModelTest {
     @Test
     fun testStoryModelIntegrity() {
         val stories = StoryBank.allStories
-        assertEquals("StoryBank must contain all 8 stories", 8, stories.size)
-        val expectedIds = listOf("hen", "pig", "bug", "cat", "net", "frog", "fog", "duck")
+        assertEquals("StoryBank must contain all 14 stories", 14, stories.size)
+        val expectedIds = listOf(
+            "hen", "pig", "bug", "cat", "net", "frog", "fog", "duck",
+            "fish", "chick", "king", "buzz", "camp", "sand",
+        )
         assertEquals(expectedIds, stories.map { it.id })
 
         for (story in stories) {
@@ -397,7 +400,7 @@ class ScrubBarModelTest {
         }
 
         // Essential phonics digraphs, and the doubles / digraphs the stories use as ONE segment
-        val digraphs = listOf("sh", "ch", "th", "ng", "ck", "ll", "ss", "ff", "zz", "qu")
+        val digraphs = listOf("sh", "ch", "th", "ng", "nk", "ck", "ll", "ss", "ff", "zz", "qu")
         for (dg in digraphs) {
             assertTrue("Phoneme sound map must contain digraph '$dg'", sounds.containsKey(dg))
             val sound = sounds[dg]
@@ -449,6 +452,39 @@ class ScrubBarModelTest {
         assertEquals(listOf("qu", "i", "ck"), segmentsOf("quick"))
         assertEquals(listOf("th", "i", "ck"), segmentsOf("thick"))
         assertEquals(listOf("o", "n"), segmentsOf("on"))
+        assertEquals(listOf("f", "i", "sh"), segmentsOf("fish"))
+        assertEquals(listOf("ch", "i", "ck"), segmentsOf("chick"))
+        assertEquals(listOf("k", "i", "ng"), segmentsOf("king"))
+        assertEquals(listOf("p", "i", "nk"), segmentsOf("pink"))
+        assertEquals(listOf("b", "u", "zz"), segmentsOf("buzz"))
+        assertEquals(listOf("c", "a", "m", "p"), segmentsOf("camp"))
+        assertEquals(listOf("s", "a", "n", "d"), segmentsOf("sand"))
+        assertEquals(listOf("sh", "e", "ll"), segmentsOf("shell"))
+    }
+
+    @Test
+    fun testStoriesDifficultyTiersAndMockupSentence() {
+        val stories = StoryBank.allStories
+        assertEquals(14, stories.size)
+
+        // Story 14 Page 2 must have the exact sentence from the reference mockup: "Mom ran on the sand."
+        val sandStory = stories.first { it.id == "sand" }
+        assertEquals("Mom ran on the sand.", sandStory.pages[1].fullSentence)
+
+        // Verify key progression across tiers
+        val fishStory = stories.first { it.id == "fish" }
+        assertTrue(fishStory.pages.flatMap { it.words }.any { it.segments.contains("sh") })
+
+        val kingStory = stories.first { it.id == "king" }
+        assertTrue(kingStory.pages.flatMap { it.words }.any { it.segments.contains("nk") })
+        assertTrue(kingStory.pages.flatMap { it.words }.any { it.segments.contains("ng") })
+
+        val buzzStory = stories.first { it.id == "buzz" }
+        assertTrue(buzzStory.pages.flatMap { it.words }.any { it.segments.contains("zz") })
+        assertTrue(buzzStory.pages.flatMap { it.words }.any { it.segments.contains("ss") })
+
+        val campStory = stories.first { it.id == "camp" }
+        assertTrue(campStory.pages.flatMap { it.words }.any { it.text.contains("camp") })
     }
 
     @Test
